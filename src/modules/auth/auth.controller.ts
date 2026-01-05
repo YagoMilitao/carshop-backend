@@ -8,10 +8,8 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    // 1) valida credenciais
     this.authService.validateAdmin(dto.email, dto.password);
 
-    // 2) retorna token
     return this.authService.login(dto.email);
   }
 }
