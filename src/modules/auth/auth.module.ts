@@ -9,18 +9,15 @@ function getJwtExpiresIn(): StringValue | number {
 
   if (!value) return '1d';
 
-  // Se for um número como "3600", retorna number
   const asNumber = Number(value);
   if (!Number.isNaN(asNumber)) return asNumber;
 
-  // Caso contrário, assume que é um formato aceito pelo ms, como "1d", "2h", "30m"
   return value as StringValue;
 }
 
 @Module({
   imports: [
     JwtModule.register({
-      // Secret e exp vem do .env (mais seguro e configurável)
       secret: process.env.JWT_SECRET,
       signOptions: {
         expiresIn: getJwtExpiresIn(),
