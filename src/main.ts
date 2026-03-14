@@ -2,11 +2,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const allowedOrigins =
     process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()) ?? [];
+
+  // Por que cookie-parser? Para ler cookies no request (refresh_token e csrf_token)
+  app.use(cookieParser());
 
   app.enableCors({
     origin: allowedOrigins.length ? allowedOrigins : false,
