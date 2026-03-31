@@ -1,30 +1,31 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import type { StringValue } from 'ms';
-
-function getJwtExpiresIn(): StringValue | number {
-  const value = process.env.JWT_EXPIRES_IN;
-
-  if (!value) return '1d';
-
-  const asNumber = Number(value);
-  if (!Number.isNaN(asNumber)) return asNumber;
-
-  return value as StringValue;
-}
+import { SessionStoreService } from './session-store.service';
+import { AuthMiddleware } from './middlewares/auth.middleware';
+import { CsrfProtectionMiddleware } from './middlewares/csrf-protection.middleware';
 
 @Module({
-  imports: [
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: {
-        expiresIn: getJwtExpiresIn(),
-      },
-    }),
-  ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [
+    AuthService,
+    SessionStoreService,
+    AuthMiddleware,
+    CsrfProtectionMiddleware,
+  ],
 })
-export class AuthModule {}
+export class AuthModule implements NestModule {
+  // Aplica os middlewares apenas nas rotas que precisam de CSRF ou JWT.
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(CsrfProtectionMiddleware)
+      .forRoutes(
+        { path: 'auth/refresh', method: RequestMethod.POST },
+        { path: 'auth/logout', method: RequestMethod.POST },
+      );
+
+    consumer
+      .apply(AuthMiddleware)
+      .forRoutes({ path: 'auth/session', method: RequestMethod.GET });
+  }
+}
