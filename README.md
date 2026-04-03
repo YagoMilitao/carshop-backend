@@ -113,5 +113,8 @@ Resposta:
 
 ```bash
 npm test
+npm run test:coverage
 npm run test:e2e
 ```
+
+O comando `npm run test:coverage` gera a cobertura dos testes unitários no diretório `coverage/`, incluindo o arquivo `coverage/lcov.info`, usado pela análise do Sonar.
