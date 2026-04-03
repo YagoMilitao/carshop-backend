@@ -34,7 +34,7 @@ jobs:
         run: npm run test:coverage -- --runInBand
 
       - name: SonarCloud scan
-        uses: SonarSource/sonarqube-scan-action@299e4b7e72dcf35a4b0d42454b500d6fe1fd6f5e # v7.1.0
+        uses: SonarSource/sonarqube-scan-action@v7.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
