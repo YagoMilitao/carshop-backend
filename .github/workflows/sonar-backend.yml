@@ -1,4 +1,4 @@
-name: CI and SonarCloud
+name: Backend Sonar
 
 on:
   pull_request:
