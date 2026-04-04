@@ -6,7 +6,9 @@ export interface LoginInput {
 }
 
 function isEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  // RFC 5321: local-part max 64 chars, domain max 255 chars
+  // Limited quantifiers prevent ReDoS attacks via backtracking
+  return /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]+$/.test(value);
 }
 
 // Validação de entrada HTTP para login sem decorators/framework.
