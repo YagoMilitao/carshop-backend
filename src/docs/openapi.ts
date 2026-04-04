@@ -9,6 +9,18 @@ const jsonResponse = (ref: string) =>
 
 const jsonErrorResponse = jsonResponse('#/components/schemas/ErrorResponse');
 
+const loginRequestBody = {
+  required: true,
+  content: {
+    'application/json': {
+      schema: { $ref: '#/components/schemas/LoginRequest' },
+    },
+  },
+} as const;
+
+const authTag = ['Auth'] as const;
+const healthTag = ['Health'] as const;
+
 const csrfHeaderParameter = {
   in: 'header',
   name: 'x-csrf-token',
@@ -20,6 +32,45 @@ const refreshCsrfSecurity = [
   { refreshTokenCookie: [] },
   { csrfTokenCookie: [] },
 ] as const;
+
+const bearerSecurity = [{ bearerAuth: [] }] as const;
+
+const successResponse = (description: string, ref: string) =>
+  ({
+    description,
+    ...jsonResponse(ref),
+  }) as const;
+
+const errorResponse = (description: string) =>
+  ({
+    description,
+    ...jsonErrorResponse,
+  }) as const;
+
+const csrfValidationErrorResponse = errorResponse('Falha na validação CSRF.');
+
+const buildCsrfProtectedAuthPostOperation = ({
+  summary,
+  successDescription,
+  successRef,
+  unauthorizedDescription,
+}: {
+  summary: string;
+  successDescription: string;
+  successRef: string;
+  unauthorizedDescription: string;
+}) =>
+  ({
+    tags: authTag,
+    summary,
+    security: refreshCsrfSecurity,
+    parameters: [csrfHeaderParameter],
+    responses: {
+      '200': successResponse(successDescription, successRef),
+      '401': errorResponse(unauthorizedDescription),
+      '403': csrfValidationErrorResponse,
+    },
+  }) as const;
 
 export const openApiDocument = {
   openapi: '3.0.3',
@@ -98,7 +149,7 @@ export const openApiDocument = {
   paths: {
     '/': {
       get: {
-        tags: ['Health'],
+        tags: healthTag,
         summary: 'Health check da API',
         responses: {
           '200': {
@@ -114,90 +165,46 @@ export const openApiDocument = {
     },
     '/auth/login': {
       post: {
-        tags: ['Auth'],
+        tags: authTag,
         summary: 'Autentica o administrador e cria sessão',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/LoginRequest' },
-            },
-          },
-        },
+        requestBody: loginRequestBody,
         responses: {
-          '200': {
-            description: 'Login efetuado com sucesso',
-            ...jsonResponse('#/components/schemas/AuthResponse'),
-          },
-          '400': {
-            description: 'Body inválido',
-            ...jsonErrorResponse,
-          },
-          '401': {
-            description: 'Credenciais inválidas',
-            ...jsonErrorResponse,
-          },
+          '200': successResponse(
+            'Login efetuado com sucesso',
+            '#/components/schemas/AuthResponse',
+          ),
+          '400': errorResponse('Body inválido'),
+          '401': errorResponse('Credenciais inválidas'),
         },
       },
     },
     '/auth/refresh': {
-      post: {
-        tags: ['Auth'],
+      post: buildCsrfProtectedAuthPostOperation({
         summary: 'Rotaciona access token, refresh token e csrf token',
-        security: refreshCsrfSecurity,
-        parameters: [csrfHeaderParameter],
-        responses: {
-          '200': {
-            description: 'Sessão renovada',
-            ...jsonResponse('#/components/schemas/AuthResponse'),
-          },
-          '401': {
-            description: 'Refresh token inválido',
-            ...jsonErrorResponse,
-          },
-          '403': {
-            description: 'Falha na validação CSRF',
-            ...jsonErrorResponse,
-          },
-        },
-      },
+        successDescription: 'Sessão renovada',
+        successRef: '#/components/schemas/AuthResponse',
+        unauthorizedDescription: 'Refresh token inválido',
+      }),
     },
     '/auth/logout': {
-      post: {
-        tags: ['Auth'],
+      post: buildCsrfProtectedAuthPostOperation({
         summary: 'Revoga a sessão autenticada e remove cookies',
-        security: refreshCsrfSecurity,
-        parameters: [csrfHeaderParameter],
-        responses: {
-          '200': {
-            description: 'Logout efetuado com sucesso',
-            ...jsonResponse('#/components/schemas/LogoutResponse'),
-          },
-          '401': {
-            description: 'Sessão inválida',
-            ...jsonErrorResponse,
-          },
-          '403': {
-            description: 'Falha na validação CSRF',
-            ...jsonErrorResponse,
-          },
-        },
-      },
+        successDescription: 'Logout efetuado com sucesso',
+        successRef: '#/components/schemas/LogoutResponse',
+        unauthorizedDescription: 'Sessão inválida',
+      }),
     },
     '/auth/session': {
       get: {
-        tags: ['Auth'],
+        tags: authTag,
         summary: 'Retorna dados da sessão atual',
-        security: [{ bearerAuth: [] }],
+        security: bearerSecurity,
         responses: {
-          '200': {
-            description: 'Sessão válida',
-            ...jsonResponse('#/components/schemas/SessionResponse'),
-          },
-          '401': {
-            description: 'Token inválido ou sessão expirada',
-            ...jsonErrorResponse,
-          },
+          '200': successResponse(
+            'Sessão válida',
+            '#/components/schemas/SessionResponse',
+          ),
+          '401': errorResponse('Token inválido ou sessão expirada'),
         },
       },
     },
