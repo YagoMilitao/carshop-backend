@@ -33,6 +33,13 @@ npm install
 npm run start:dev
 ```
 
+## Documentação (Swagger)
+
+Com a API rodando, a documentação OpenAPI fica disponível em:
+
+- `GET /docs` (Swagger UI)
+- `GET /docs.json` (spec OpenAPI em JSON)
+
 ## Arquitetura Hexagonal
 
 O módulo de autenticação foi separado em quatro camadas:

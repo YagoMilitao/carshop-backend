@@ -1,6 +1,8 @@
 import cors from 'cors';
 import express from 'express';
+import swaggerUi from 'swagger-ui-express';
 import { AuthService } from './modules/auth/application/services/auth.service';
+import { openApiDocument } from './docs/openapi';
 import { InMemorySessionStoreRepository } from './modules/auth/infrastructure/repositories/in-memory-session-store.repository';
 import { EnvAdminCredentialsProvider } from './modules/auth/infrastructure/providers/env-admin-credentials.provider';
 import { JsonWebTokenService } from './modules/auth/infrastructure/security/jsonwebtoken-token.service';
@@ -39,6 +41,10 @@ export function createApp() {
   app.get('/', (_request, response) => {
     response.status(200).send('Hello World!');
   });
+  app.get('/docs.json', (_request, response) => {
+    response.status(200).json(openApiDocument);
+  });
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
   app.use('/auth', buildAuthRouter(authService, sessionStore, tokenService));
 
   app.use(notFoundMiddleware);

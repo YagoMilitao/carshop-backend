@@ -12,8 +12,12 @@ const mockExpressFactory = jest.fn(() => mockAppInstance);
 
 const mockCorsMiddleware = 'cors-middleware';
 const mockCorsFactory = jest.fn(() => mockCorsMiddleware);
+const mockSwaggerServe = 'swagger-serve-middleware';
+const mockSwaggerSetupMiddleware = 'swagger-setup-middleware';
+const mockSwaggerSetup = jest.fn(() => mockSwaggerSetupMiddleware);
 const mockAuthRouter = 'auth-router';
 const mockBuildAuthRouter = jest.fn(() => mockAuthRouter);
+const mockOpenApiDocument = { openapi: '3.0.3' };
 const mockNotFoundMiddleware = 'not-found-middleware';
 const mockErrorHandlerMiddleware = 'error-handler-middleware';
 
@@ -25,6 +29,19 @@ jest.mock('express', () => ({
 jest.mock('cors', () => ({
   __esModule: true,
   default: mockCorsFactory,
+}));
+
+jest.mock('swagger-ui-express', () => ({
+  __esModule: true,
+  default: {
+    serve: mockSwaggerServe,
+    setup: (document: unknown) =>
+      (mockSwaggerSetup as unknown as (a: unknown) => unknown)(document),
+  },
+}));
+
+jest.mock('../../src/docs/openapi', () => ({
+  openApiDocument: mockOpenApiDocument,
 }));
 
 jest.mock('../../src/modules/auth/interfaces/http/auth.routes', () => ({
@@ -75,12 +92,19 @@ describe('createApp', () => {
       allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
     });
     expect(mockExpressJson).toHaveBeenCalledTimes(1);
+    expect(mockSwaggerSetup).toHaveBeenCalledWith(mockOpenApiDocument);
     expect(mockBuildAuthRouter).toHaveBeenCalledTimes(1);
     expect(mockUse).toHaveBeenNthCalledWith(1, mockCorsMiddleware);
     expect(mockUse).toHaveBeenNthCalledWith(2, 'json-middleware');
-    expect(mockUse).toHaveBeenNthCalledWith(3, '/auth', mockAuthRouter);
-    expect(mockUse).toHaveBeenNthCalledWith(4, mockNotFoundMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(5, mockErrorHandlerMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(
+      3,
+      '/docs',
+      mockSwaggerServe,
+      mockSwaggerSetupMiddleware,
+    );
+    expect(mockUse).toHaveBeenNthCalledWith(4, '/auth', mockAuthRouter);
+    expect(mockUse).toHaveBeenNthCalledWith(5, mockNotFoundMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(6, mockErrorHandlerMiddleware);
   });
 
   it('normalizes and forwards configured CORS origins', () => {
@@ -99,7 +123,8 @@ describe('createApp', () => {
   it('responds hello world in root route handler', () => {
     createApp();
 
-    const rootHandler = mockGet.mock.calls[0][1] as (
+    const rootRouteCall = mockGet.mock.calls.find((call) => call[0] === '/');
+    const rootHandler = rootRouteCall?.[1] as (
       request: unknown,
       response: { status: (code: number) => { send: (body: string) => void } },
     ) => void;
@@ -113,5 +138,27 @@ describe('createApp', () => {
     expect(mockGet).toHaveBeenCalledWith('/', expect.any(Function));
     expect(response.status).toHaveBeenCalledWith(200);
     expect(send).toHaveBeenCalledWith('Hello World!');
+  });
+
+  it('responds openapi document in docs.json route handler', () => {
+    createApp();
+
+    const docsRouteCall = mockGet.mock.calls.find(
+      (call) => call[0] === '/docs.json',
+    );
+    const docsHandler = docsRouteCall?.[1] as (
+      request: unknown,
+      response: { status: (code: number) => { json: (body: unknown) => void } },
+    ) => void;
+    const json = jest.fn();
+    const response = {
+      status: jest.fn(() => ({ json })),
+    };
+
+    docsHandler({}, response);
+
+    expect(mockGet).toHaveBeenCalledWith('/docs.json', expect.any(Function));
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(mockOpenApiDocument);
   });
 });
