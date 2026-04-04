@@ -1,6 +1,6 @@
 # Carshop Backend
 
-API NestJS com autenticação JWT baseada em `access token` + `refresh token`, rotação de sessão e proteção contra CSRF.
+API Node.js (Express + TypeScript) com arquitetura hexagonal para autenticação JWT baseada em `access token` + `refresh token`, rotação de sessão e proteção contra CSRF.
 
 ## Requisitos
 
@@ -32,6 +32,15 @@ npm install
 ```bash
 npm run start:dev
 ```
+
+## Arquitetura Hexagonal
+
+O módulo de autenticação foi separado em quatro camadas:
+
+- `domain`: entidades e portas (contratos de sessão, token e credenciais).
+- `application`: regras de negócio da autenticação (`AuthService`).
+- `infrastructure`: adapters concretos (JWT, store em memória, env provider).
+- `interfaces/http`: rotas, controller e middlewares HTTP.
 
 ## Autenticação
 
