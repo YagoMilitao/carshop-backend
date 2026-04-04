@@ -6,10 +6,7 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
   error,
   _request,
   response,
-  _next,
 ) => {
-  void _next;
-
   if (error instanceof HttpError) {
     response.status(error.statusCode).json({
       message: error.message,

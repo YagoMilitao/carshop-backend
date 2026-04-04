@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { sign, verify, type SignOptions } from 'jsonwebtoken';
 import {
   getAccessTokenExpiresIn,
