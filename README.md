@@ -19,6 +19,7 @@ JWT_SECRET=uma-chave-forte
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 CORS_ORIGIN=http://localhost:3001
+ENABLE_SWAGGER=true
 ```
 
 ## Instalação
@@ -39,6 +40,12 @@ Com a API rodando, a documentação OpenAPI fica disponível em:
 
 - `GET /docs` (Swagger UI)
 - `GET /docs.json` (spec OpenAPI em JSON)
+
+Comportamento padrão de segurança:
+
+- `NODE_ENV=production`: Swagger desabilitado por padrão.
+- Demais ambientes: Swagger habilitado por padrão.
+- Para forçar comportamento: use `ENABLE_SWAGGER=true` ou `ENABLE_SWAGGER=false`.
 
 ## Arquitetura Hexagonal
 

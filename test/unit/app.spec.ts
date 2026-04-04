@@ -81,6 +81,8 @@ describe('createApp', () => {
 
   it('wires middlewares and routes with default CORS origin=false', () => {
     delete process.env.CORS_ORIGIN;
+    process.env.NODE_ENV = 'development';
+    delete process.env.ENABLE_SWAGGER;
 
     const app = createApp();
 
@@ -110,6 +112,8 @@ describe('createApp', () => {
   it('normalizes and forwards configured CORS origins', () => {
     process.env.CORS_ORIGIN =
       ' https://admin.carshop.com,https://app.carshop.com ';
+    process.env.NODE_ENV = 'development';
+    delete process.env.ENABLE_SWAGGER;
 
     createApp();
 
@@ -121,6 +125,8 @@ describe('createApp', () => {
   });
 
   it('responds hello world in root route handler', () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.ENABLE_SWAGGER;
     createApp();
 
     const rootRouteCall = mockGet.mock.calls.find((call) => call[0] === '/');
@@ -141,6 +147,8 @@ describe('createApp', () => {
   });
 
   it('responds openapi document in docs.json route handler', () => {
+    process.env.NODE_ENV = 'development';
+    delete process.env.ENABLE_SWAGGER;
     createApp();
 
     const docsRouteCall = mockGet.mock.calls.find(
@@ -160,5 +168,57 @@ describe('createApp', () => {
     expect(mockGet).toHaveBeenCalledWith('/docs.json', expect.any(Function));
     expect(response.status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith(mockOpenApiDocument);
+  });
+
+  it('does not expose swagger routes in production by default', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.ENABLE_SWAGGER;
+
+    createApp();
+
+    const docsRouteCall = mockGet.mock.calls.find(
+      (call) => call[0] === '/docs.json',
+    );
+    const docsUseCall = mockUse.mock.calls.find((call) => call[0] === '/docs');
+
+    expect(mockSwaggerSetup).not.toHaveBeenCalled();
+    expect(docsRouteCall).toBeUndefined();
+    expect(docsUseCall).toBeUndefined();
+  });
+
+  it('allows enabling swagger explicitly in production', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.ENABLE_SWAGGER = 'true';
+
+    createApp();
+
+    const docsRouteCall = mockGet.mock.calls.find(
+      (call) => call[0] === '/docs.json',
+    );
+    const docsUseCall = mockUse.mock.calls.find((call) => call[0] === '/docs');
+
+    expect(mockSwaggerSetup).toHaveBeenCalledWith(mockOpenApiDocument);
+    expect(docsRouteCall).toBeDefined();
+    expect(docsUseCall).toEqual([
+      '/docs',
+      mockSwaggerServe,
+      mockSwaggerSetupMiddleware,
+    ]);
+  });
+
+  it('allows disabling swagger explicitly outside production', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.ENABLE_SWAGGER = 'false';
+
+    createApp();
+
+    const docsRouteCall = mockGet.mock.calls.find(
+      (call) => call[0] === '/docs.json',
+    );
+    const docsUseCall = mockUse.mock.calls.find((call) => call[0] === '/docs');
+
+    expect(mockSwaggerSetup).not.toHaveBeenCalled();
+    expect(docsRouteCall).toBeUndefined();
+    expect(docsUseCall).toBeUndefined();
   });
 });

@@ -14,6 +14,14 @@ function getAllowedOrigins() {
   return process.env.CORS_ORIGIN?.split(',').map((value) => value.trim()) ?? [];
 }
 
+function isSwaggerEnabled() {
+  if (typeof process.env.ENABLE_SWAGGER === 'string') {
+    return process.env.ENABLE_SWAGGER === 'true';
+  }
+
+  return process.env.NODE_ENV !== 'production';
+}
+
 // Faz o wiring dos adapters da arquitetura hexagonal e devolve o app HTTP pronto.
 export function createApp() {
   const app = express();
@@ -41,10 +49,14 @@ export function createApp() {
   app.get('/', (_request, response) => {
     response.status(200).send('Hello World!');
   });
-  app.get('/docs.json', (_request, response) => {
-    response.status(200).json(openApiDocument);
-  });
-  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+
+  if (isSwaggerEnabled()) {
+    app.get('/docs.json', (_request, response) => {
+      response.status(200).json(openApiDocument);
+    });
+    app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+  }
+
   app.use('/auth', buildAuthRouter(authService, sessionStore, tokenService));
 
   app.use(notFoundMiddleware);

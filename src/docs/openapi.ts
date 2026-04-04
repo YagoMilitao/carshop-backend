@@ -1,3 +1,26 @@
+const jsonResponse = (ref: string) =>
+  ({
+    content: {
+      'application/json': {
+        schema: { $ref: ref },
+      },
+    },
+  }) as const;
+
+const jsonErrorResponse = jsonResponse('#/components/schemas/ErrorResponse');
+
+const csrfHeaderParameter = {
+  in: 'header',
+  name: 'x-csrf-token',
+  required: true,
+  schema: { type: 'string' },
+} as const;
+
+const refreshCsrfSecurity = [
+  { refreshTokenCookie: [] },
+  { csrfTokenCookie: [] },
+] as const;
+
 export const openApiDocument = {
   openapi: '3.0.3',
   info: {
@@ -30,7 +53,11 @@ export const openApiDocument = {
         type: 'object',
         required: ['email', 'password'],
         properties: {
-          email: { type: 'string', format: 'email', example: 'admin@carshop.com' },
+          email: {
+            type: 'string',
+            format: 'email',
+            example: 'admin@carshop.com',
+          },
           password: { type: 'string', example: '123456' },
         },
       },
@@ -100,27 +127,15 @@ export const openApiDocument = {
         responses: {
           '200': {
             description: 'Login efetuado com sucesso',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/AuthResponse' },
-              },
-            },
+            ...jsonResponse('#/components/schemas/AuthResponse'),
           },
           '400': {
             description: 'Body inválido',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-              },
-            },
+            ...jsonErrorResponse,
           },
           '401': {
             description: 'Credenciais inválidas',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-              },
-            },
+            ...jsonErrorResponse,
           },
         },
       },
@@ -129,39 +144,20 @@ export const openApiDocument = {
       post: {
         tags: ['Auth'],
         summary: 'Rotaciona access token, refresh token e csrf token',
-        security: [{ refreshTokenCookie: [] }, { csrfTokenCookie: [] }],
-        parameters: [
-          {
-            in: 'header',
-            name: 'x-csrf-token',
-            required: true,
-            schema: { type: 'string' },
-          },
-        ],
+        security: refreshCsrfSecurity,
+        parameters: [csrfHeaderParameter],
         responses: {
           '200': {
             description: 'Sessão renovada',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/AuthResponse' },
-              },
-            },
+            ...jsonResponse('#/components/schemas/AuthResponse'),
           },
           '401': {
             description: 'Refresh token inválido',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-              },
-            },
+            ...jsonErrorResponse,
           },
           '403': {
             description: 'Falha na validação CSRF',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-              },
-            },
+            ...jsonErrorResponse,
           },
         },
       },
@@ -170,39 +166,20 @@ export const openApiDocument = {
       post: {
         tags: ['Auth'],
         summary: 'Revoga a sessão autenticada e remove cookies',
-        security: [{ refreshTokenCookie: [] }, { csrfTokenCookie: [] }],
-        parameters: [
-          {
-            in: 'header',
-            name: 'x-csrf-token',
-            required: true,
-            schema: { type: 'string' },
-          },
-        ],
+        security: refreshCsrfSecurity,
+        parameters: [csrfHeaderParameter],
         responses: {
           '200': {
             description: 'Logout efetuado com sucesso',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/LogoutResponse' },
-              },
-            },
+            ...jsonResponse('#/components/schemas/LogoutResponse'),
           },
           '401': {
             description: 'Sessão inválida',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-              },
-            },
+            ...jsonErrorResponse,
           },
           '403': {
             description: 'Falha na validação CSRF',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-              },
-            },
+            ...jsonErrorResponse,
           },
         },
       },
@@ -215,19 +192,11 @@ export const openApiDocument = {
         responses: {
           '200': {
             description: 'Sessão válida',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/SessionResponse' },
-              },
-            },
+            ...jsonResponse('#/components/schemas/SessionResponse'),
           },
           '401': {
             description: 'Token inválido ou sessão expirada',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-              },
-            },
+            ...jsonErrorResponse,
           },
         },
       },
