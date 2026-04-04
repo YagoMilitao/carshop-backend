@@ -1,4 +1,9 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from 'node:crypto';
 import type { AdminCredentialsProviderPort } from '../../domain/ports/admin-credentials-provider.port';
 import type { SessionStorePort } from '../../domain/ports/session-store.port';
 import type { TokenServicePort } from '../../domain/ports/token-service.port';
