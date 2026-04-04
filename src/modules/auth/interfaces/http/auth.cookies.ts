@@ -1,12 +1,11 @@
-import { randomBytes } from 'crypto';
 import type { Response } from 'express';
-import { getCsrfCookieName, getRefreshCookieName } from './auth.config';
+import { getCsrfCookieName, getRefreshCookieName } from '../../auth.config';
 
 function isProduction() {
   return process.env.NODE_ENV === 'production';
 }
 
-// Calcula o tempo de vida do cookie de refresh e permite override por variável de ambiente.
+// Calcula o tempo de vida do cookie de refresh com possibilidade de override por env.
 function getRefreshTokenMaxAgeMs() {
   const value = process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS;
 
@@ -16,7 +15,7 @@ function getRefreshTokenMaxAgeMs() {
   return Number.isNaN(asNumber) ? 7 * 24 * 60 * 60 * 1000 : asNumber;
 }
 
-// Grava os cookies de autenticação com flags adequadas para sessão e proteção CSRF.
+// Grava os cookies de autenticação com flags de segurança.
 export function setAuthCookies(
   response: Response,
   refreshToken: string,
@@ -43,7 +42,7 @@ export function setAuthCookies(
   });
 }
 
-// Remove os cookies de autenticação ao encerrar a sessão.
+// Remove os cookies quando a sessão é encerrada.
 export function clearAuthCookies(response: Response) {
   const secure = isProduction();
   const sameSite = 'strict' as const;
@@ -63,12 +62,7 @@ export function clearAuthCookies(response: Response) {
   });
 }
 
-// Gera um token aleatório usado pelo padrão double-submit contra CSRF.
-export function createCsrfToken() {
-  return randomBytes(24).toString('hex');
-}
-
-// Faz o parse manual do header Cookie para evitar dependência extra no projeto.
+// Parse manual do header Cookie para evitar dependência extra.
 export function parseCookies(cookieHeader: string | undefined) {
   if (!cookieHeader) return {};
 

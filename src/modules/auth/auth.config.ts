@@ -1,12 +1,10 @@
-import type { StringValue } from 'ms';
-
-function getDuration(value: string | undefined, fallback: StringValue | number) {
+function getDuration(value: string | undefined, fallback: string | number) {
   if (!value) return fallback;
 
   const asNumber = Number(value);
   if (!Number.isNaN(asNumber)) return asNumber;
 
-  return value as StringValue;
+  return value;
 }
 
 // Centraliza a leitura do segredo JWT e aplica um fallback seguro para dev.
