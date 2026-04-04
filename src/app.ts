@@ -1,6 +1,8 @@
 import cors from 'cors';
 import express from 'express';
+import swaggerUi from 'swagger-ui-express';
 import { AuthService } from './modules/auth/application/services/auth.service';
+import { openApiDocument } from './docs/openapi';
 import { InMemorySessionStoreRepository } from './modules/auth/infrastructure/repositories/in-memory-session-store.repository';
 import { EnvAdminCredentialsProvider } from './modules/auth/infrastructure/providers/env-admin-credentials.provider';
 import { JsonWebTokenService } from './modules/auth/infrastructure/security/jsonwebtoken-token.service';
@@ -10,6 +12,14 @@ import { notFoundMiddleware } from './shared/http/not-found.middleware';
 
 function getAllowedOrigins() {
   return process.env.CORS_ORIGIN?.split(',').map((value) => value.trim()) ?? [];
+}
+
+function isSwaggerEnabled() {
+  if (typeof process.env.ENABLE_SWAGGER === 'string') {
+    return process.env.ENABLE_SWAGGER === 'true';
+  }
+
+  return process.env.NODE_ENV !== 'production';
 }
 
 // Faz o wiring dos adapters da arquitetura hexagonal e devolve o app HTTP pronto.
@@ -39,6 +49,14 @@ export function createApp() {
   app.get('/', (_request, response) => {
     response.status(200).send('Hello World!');
   });
+
+  if (isSwaggerEnabled()) {
+    app.get('/docs.json', (_request, response) => {
+      response.status(200).json(openApiDocument);
+    });
+    app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+  }
+
   app.use('/auth', buildAuthRouter(authService, sessionStore, tokenService));
 
   app.use(notFoundMiddleware);
