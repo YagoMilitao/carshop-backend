@@ -1,4 +1,4 @@
-import type { AuthenticatedRequestContext } from '../modules/auth/domain/types/auth.types';
+import type { AuthenticatedRequestContext } from '../core/domain/application/Auth/auth.types';
 
 declare global {
   namespace Express {

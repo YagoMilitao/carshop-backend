@@ -23,5 +23,5 @@
     "noFallthroughCasesInSwitch": false,
     "types": ["node", "jest"]
   },
-  "exclude": ["dist", "test"]
+  "exclude": ["dist"]
 }

@@ -7,18 +7,18 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "ts-node --files src/main.ts",
-    "start:dev": "ts-node --files --transpile-only src/main.ts",
-    "start:debug": "node --inspect -r ts-node/register src/main.ts",
-    "start:prod": "node dist/main.js",
-    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "start": "ts-node --files src/main/index.ts",
+    "start:dev": "ts-node --files --transpile-only src/main/index.ts",
+    "start:debug": "node --inspect -r ts-node/register src/main/index.ts",
+    "start:prod": "node dist/main/index.js",
+    "lint": "eslint \"{src,tests}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:coverage": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./tests/jest-e2e.json"
   },
   "dependencies": {
     "@types/swagger-ui-express": "^4.1.8",
@@ -64,7 +64,7 @@
     ],
     "rootDir": ".",
     "testMatch": [
-      "<rootDir>/test/unit/**/*.spec.ts"
+      "<rootDir>/tests/unit/**/*.spec.ts"
     ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
