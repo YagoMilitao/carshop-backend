@@ -4,26 +4,48 @@ import {
   getRefreshCookieName,
 } from '../../infra/constants/auth.constants';
 
-function isProduction() {
+/**
+ * Indica se a aplicação está rodando em produção.
+ *
+ * Motivo:
+ * em produção devemos ativar a flag Secure dos cookies.
+ */
+function isProduction(): boolean {
   return process.env.NODE_ENV === 'production';
 }
 
-// Calcula o tempo de vida do cookie de refresh com possibilidade de override por env.
-function getRefreshTokenMaxAgeMs() {
+/**
+ * Calcula o tempo de vida do cookie de refresh.
+ *
+ * Permite override por variável de ambiente,
+ * mantendo fallback seguro para desenvolvimento.
+ */
+function getRefreshTokenMaxAgeMs(): number {
   const value = process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS;
 
-  if (!value) return 7 * 24 * 60 * 60 * 1000;
+  if (!value) {
+    return 7 * 24 * 60 * 60 * 1000;
+  }
 
   const asNumber = Number(value);
+
   return Number.isNaN(asNumber) ? 7 * 24 * 60 * 60 * 1000 : asNumber;
 }
 
-// Grava os cookies de autenticação com flags de segurança.
+/**
+ * Grava os cookies de autenticação.
+ *
+ * refresh_token:
+ * - httpOnly para não ser lido por JavaScript
+ *
+ * csrf_token:
+ * - precisa ser lido pelo frontend para enviar no header x-csrf-token
+ */
 export function setAuthCookies(
   response: Response,
   refreshToken: string,
   csrfToken: string,
-) {
+): void {
   const secure = isProduction();
   const sameSite = 'strict' as const;
   const maxAge = getRefreshTokenMaxAgeMs();
@@ -45,8 +67,10 @@ export function setAuthCookies(
   });
 }
 
-// Remove os cookies quando a sessão é encerrada.
-export function clearAuthCookies(response: Response) {
+/**
+ * Remove os cookies de autenticação no logout.
+ */
+export function clearAuthCookies(response: Response): void {
   const secure = isProduction();
   const sameSite = 'strict' as const;
 
@@ -65,16 +89,31 @@ export function clearAuthCookies(response: Response) {
   });
 }
 
-// Parse manual do header Cookie para evitar dependência extra.
-export function parseCookies(cookieHeader: string | undefined) {
-  if (!cookieHeader) return {};
+/**
+ * Representa cookies parseados do header Cookie.
+ */
+export type ParsedCookies = Record<string, string>;
 
-  return cookieHeader.split(';').reduce<Record<string, string>>((acc, part) => {
+/**
+ * Faz parse manual do header Cookie.
+ *
+ * Motivo:
+ * evitar dependência extra e manter controle total do parsing.
+ */
+export function parseCookies(cookieHeader: string | undefined): ParsedCookies {
+  if (!cookieHeader) {
+    return {};
+  }
+
+  return cookieHeader.split(';').reduce<ParsedCookies>((accumulator, part) => {
     const [name, ...rest] = part.trim().split('=');
 
-    if (!name || rest.length === 0) return acc;
+    if (!name || rest.length === 0) {
+      return accumulator;
+    }
 
-    acc[name] = decodeURIComponent(rest.join('='));
-    return acc;
+    accumulator[name] = decodeURIComponent(rest.join('='));
+
+    return accumulator;
   }, {});
 }

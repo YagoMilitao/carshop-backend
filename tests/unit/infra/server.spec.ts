@@ -1,3 +1,5 @@
+import { jest } from '@jest/globals';
+
 const mockUse = jest.fn();
 const mockGet = jest.fn();
 const mockExpressJson = jest.fn(() => 'json-middleware');
@@ -11,7 +13,7 @@ const mockExpressFactory = jest.fn(() => mockAppInstance);
   mockExpressJson;
 
 const mockCorsMiddleware = 'cors-middleware';
-const mockCorsFactory = jest.fn(() => mockCorsMiddleware);
+const mockCorsFactory = jest.fn((_options: unknown) => mockCorsMiddleware);
 const mockSwaggerServe = 'swagger-serve-middleware';
 const mockSwaggerSetupMiddleware = 'swagger-setup-middleware';
 const mockSwaggerSetup = jest.fn(() => mockSwaggerSetupMiddleware);
@@ -74,6 +76,7 @@ jest.mock(
 );
 
 import { createApp } from '../../../src/infra/server';
+import { Mock, UnknownFunction } from 'jest-mock';
 
 describe('createApp', () => {
   const originalEnv = process.env;
@@ -87,7 +90,7 @@ describe('createApp', () => {
     process.env = originalEnv;
   });
 
-  it('wires middlewares and routes with default CORS origin=false', () => {
+  it('wires middlewares and routes with default CORS origin callback', () => {
     delete process.env.CORS_ORIGIN;
     process.env.NODE_ENV = 'development';
     delete process.env.ENABLE_SWAGGER;
@@ -96,28 +99,54 @@ describe('createApp', () => {
 
     expect(app).toBe(mockAppInstance);
     expect(mockCorsFactory).toHaveBeenCalledWith({
-      origin: false,
+      origin: expect.any(Function),
       credentials: true,
       methods: ['GET', 'POST', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
     });
+    const corsOptions = mockCorsFactory.mock.calls[0][0] as {
+      origin: (
+        origin: string | undefined,
+        callback: (error: Error | null, allowed?: boolean) => void,
+      ) => void;
+      credentials: boolean;
+      methods: string[];
+      allowedHeaders: string[];
+    };
+    const allowWithoutOrigin = jest.fn();
+    const rejectUnknownOrigin = jest.fn();
+
+    corsOptions.origin(undefined, allowWithoutOrigin);
+    corsOptions.origin('https://app.carshop.com', rejectUnknownOrigin);
+
+    expect(allowWithoutOrigin).toHaveBeenCalledWith(null, true);
+    expect(rejectUnknownOrigin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'CORS bloqueado para origin: https://app.carshop.com',
+      }),
+    );
+
     expect(mockExpressJson).toHaveBeenCalledTimes(1);
     expect(mockSwaggerSetup).toHaveBeenCalledWith(mockOpenApiDocument);
     expect(mockBuildAuthRouter).toHaveBeenCalledTimes(1);
-    expect(mockUse).toHaveBeenNthCalledWith(1, mockCorsMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(2, 'json-middleware');
+    expect(mockUse).toHaveBeenNthCalledWith(1, expect.any(Function));
+    expect(mockUse).toHaveBeenNthCalledWith(2, mockCorsMiddleware);
     expect(mockUse).toHaveBeenNthCalledWith(
-      3,
+      4,
+      'json-middleware',
+    );
+    expect(mockUse).toHaveBeenNthCalledWith(
+      6,
       '/docs',
       mockSwaggerServe,
       mockSwaggerSetupMiddleware,
     );
-    expect(mockUse).toHaveBeenNthCalledWith(4, '/auth', mockAuthRouter);
-    expect(mockUse).toHaveBeenNthCalledWith(5, mockNotFoundMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(6, mockErrorHandlerMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(7, '/auth', mockAuthRouter);
+    expect(mockUse).toHaveBeenNthCalledWith(8, mockNotFoundMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(9, mockErrorHandlerMiddleware);
   });
 
-  it('normalizes and forwards configured CORS origins', () => {
+  it('normalizes configured CORS origins and allows only listed domains', () => {
     process.env.CORS_ORIGIN =
       ' https://admin.carshop.com,https://app.carshop.com ';
     process.env.NODE_ENV = 'development';
@@ -127,7 +156,28 @@ describe('createApp', () => {
 
     expect(mockCorsFactory).toHaveBeenCalledWith(
       expect.objectContaining({
-        origin: ['https://admin.carshop.com', 'https://app.carshop.com'],
+        origin: expect.any(Function),
+      }),
+    );
+    const corsOptions = mockCorsFactory.mock.calls[0][0] as {
+      origin: (
+        origin: string | undefined,
+        callback: (error: Error | null, allowed?: boolean) => void,
+      ) => void;
+    };
+    const allowAdmin = jest.fn();
+    const allowApp = jest.fn();
+    const rejectUnknown = jest.fn();
+
+    corsOptions.origin('https://admin.carshop.com', allowAdmin);
+    corsOptions.origin('https://app.carshop.com', allowApp);
+    corsOptions.origin('https://evil.example.com', rejectUnknown);
+
+    expect(allowAdmin).toHaveBeenCalledWith(null, true);
+    expect(allowApp).toHaveBeenCalledWith(null, true);
+    expect(rejectUnknown).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'CORS bloqueado para origin: https://evil.example.com',
       }),
     );
   });
@@ -230,3 +280,4 @@ describe('createApp', () => {
     expect(docsUseCall).toBeUndefined();
   });
 });
+

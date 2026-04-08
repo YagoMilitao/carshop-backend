@@ -6,6 +6,10 @@ describe('main bootstrap', () => {
     process.env = { ...originalEnv };
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   afterAll(() => {
     process.env = originalEnv;
   });
@@ -29,11 +33,9 @@ describe('main bootstrap', () => {
 
     expect(createAppMock).toHaveBeenCalledTimes(1);
     expect(listen).toHaveBeenCalledWith(4567, expect.any(Function));
-    expect(logSpy).toHaveBeenCalledWith(
-      'Servidor HTTP rodando em http://localhost:4567',
+    expect(logSpy).toHaveBeenLastCalledWith(
+      '✅ Servidor HTTP rodando em http://localhost:4567',
     );
-
-    logSpy.mockRestore();
   });
 
   it('falls back to port 3000 when PORT is not defined', () => {
@@ -54,10 +56,8 @@ describe('main bootstrap', () => {
     });
 
     expect(listen).toHaveBeenCalledWith(3000, expect.any(Function));
-    expect(logSpy).toHaveBeenCalledWith(
-      'Servidor HTTP rodando em http://localhost:3000',
+    expect(logSpy).toHaveBeenLastCalledWith(
+      '✅ Servidor HTTP rodando em http://localhost:3000',
     );
-
-    logSpy.mockRestore();
   });
 });
