@@ -1,32 +1,25 @@
 import 'dotenv/config';
 
 /**
- * Tipagem do ambiente da aplicação.
- *
- * Motivo:
- * - deixar explícito quais variáveis o sistema usa
- * - melhorar autocomplete
- * - evitar trabalhar com valores soltos e pouco previsíveis
+ * Tipagem central das variáveis de ambiente utilizadas pela aplicação.
  */
 export type Environment = {
   port: number;
   nodeEnv: 'development' | 'test' | 'production';
-  frontendUrl: string;
+  corsOrigins: string[];
+  mongoUri: string;
   jwtSecret: string;
-  jwtAccessExpiresIn: string;
+  jwtExpiresIn: string;
   jwtRefreshExpiresIn: string;
   adminEmail: string;
   adminPassword: string;
-  mongoUri: string;
 };
 
 /**
  * Lê uma variável obrigatória do ambiente.
  *
- * Por que essa função existe?
- * Porque process.env sempre retorna string | undefined.
- * Se a variável não existir, é melhor falhar no startup
- * do que descobrir o erro só no meio de uma request.
+ * Motivo:
+ * falhar no startup é melhor do que descobrir o problema no meio de uma request.
  */
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
@@ -39,30 +32,21 @@ function getRequiredEnv(name: string): string {
 }
 
 /**
- * Converte a porta para number e valida o resultado.
- *
- * Motivo:
- * process.env sempre vem como string,
- * mas a aplicação precisa da porta como número.
+ * Converte e valida a porta da aplicação.
  */
 function getPort(): number {
   const rawPort = process.env.PORT ?? '3000';
   const port = Number(rawPort);
 
   if (Number.isNaN(port) || port <= 0) {
-    throw new Error(
-      'A variável de ambiente "PORT" precisa ser um número válido.',
-    );
+    throw new Error('A variável "PORT" precisa ser um número válido.');
   }
 
   return port;
 }
 
 /**
- * Normaliza o NODE_ENV para os valores aceitos pela aplicação.
- *
- * Motivo:
- * restringir os ambientes válidos e evitar valores inesperados.
+ * Normaliza o ambiente da aplicação.
  */
 function getNodeEnv(): Environment['nodeEnv'] {
   const rawNodeEnv = process.env.NODE_ENV ?? 'development';
@@ -73,7 +57,7 @@ function getNodeEnv(): Environment['nodeEnv'] {
     rawNodeEnv !== 'production'
   ) {
     throw new Error(
-      'A variável de ambiente "NODE_ENV" precisa ser development, test ou production.',
+      'A variável "NODE_ENV" precisa ser development, test ou production.',
     );
   }
 
@@ -81,21 +65,32 @@ function getNodeEnv(): Environment['nodeEnv'] {
 }
 
 /**
- * Objeto central com todas as variáveis já tratadas.
+ * Lê e normaliza as origens permitidas no CORS.
  *
- * Motivo:
- * - concentrar configuração em um único lugar
- * - evitar process.env espalhado pelo sistema
- * - facilitar manutenção e testes
+ * Exemplo:
+ * CORS_ORIGIN=http://localhost:3000,https://meusite.com
  */
+function getCorsOrigins(): string[] {
+  const raw = process.env.CORS_ORIGIN;
+
+  if (!raw) {
+    return [];
+  }
+
+  return raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
 export const env: Environment = {
   port: getPort(),
   nodeEnv: getNodeEnv(),
-  frontendUrl: getRequiredEnv('FRONTEND_URL'),
+  corsOrigins: getCorsOrigins(),
+  mongoUri: getRequiredEnv('MONGO_URI'),
   jwtSecret: getRequiredEnv('JWT_SECRET'),
-  jwtAccessExpiresIn: getRequiredEnv('JWT_ACCESS_EXPIRES_IN'),
-  jwtRefreshExpiresIn: getRequiredEnv('JWT_REFRESH_EXPIRES_IN'),
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '15m',
+  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   adminEmail: getRequiredEnv('ADMIN_EMAIL'),
   adminPassword: getRequiredEnv('ADMIN_PASSWORD'),
-  mongoUri: getRequiredEnv('MONGO_URI'),
 };

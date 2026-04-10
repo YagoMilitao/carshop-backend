@@ -14,8 +14,7 @@ import type { TokenServicePort } from './token-service.port';
 /**
  * Comando usado para refresh e logout.
  *
- * Motivo:
- * essas operações dependem do refresh token e da validação CSRF.
+ * Esses fluxos dependem do refresh token e da validação CSRF.
  */
 export interface RefreshSessionCommand {
   refreshToken?: string;
@@ -26,8 +25,17 @@ export interface RefreshSessionCommand {
 /**
  * Resposta padrão da autenticação.
  *
- * Motivo:
- * padronizar o formato devolvido para o controller HTTP.
+ * accessToken:
+ *   token curto usado nas rotas protegidas.
+ *
+ * refreshToken:
+ *   token usado para renovar a sessão.
+ *
+ * csrfToken:
+ *   token usado na proteção CSRF.
+ *
+ * sessionId:
+ *   identificador lógico da sessão atual.
  */
 export interface AuthTokens {
   accessToken: string;
@@ -38,7 +46,7 @@ export interface AuthTokens {
 }
 
 /**
- * Estrutura retornada ao consultar a sessão atual.
+ * Estrutura retornada ao consultar a sessão autenticada.
  */
 export interface AuthenticatedSessionView {
   sessionId: string;
@@ -47,10 +55,18 @@ export interface AuthenticatedSessionView {
 }
 
 /**
- * Camada de aplicação responsável pelas regras de autenticação.
+ * Serviço de autenticação da camada de aplicação.
  *
- * Motivo:
- * concentrar a regra de negócio fora do Express e fora das bibliotecas concretas.
+ * Responsabilidades:
+ * - validar credenciais do admin
+ * - abrir sessão
+ * - renovar sessão
+ * - revogar sessão
+ * - consultar sessão autenticada
+ *
+ * Importante:
+ * esta classe não conhece Express, cookies ou banco concreto.
+ * Ela trabalha apenas com portas/contratos.
  */
 export class AuthService {
   constructor(
@@ -60,9 +76,10 @@ export class AuthService {
   ) {}
 
   /**
-   * Confere se as credenciais informadas correspondem ao admin configurado.
+   * Valida as credenciais do admin.
    *
-   * Usamos comparação segura para reduzir risco de ataques por timing.
+   * Continua síncrono porque a origem atual das credenciais
+   * vem do provider de ambiente.
    */
   validateAdmin(email: string, password: string): { email: string } {
     const credentials = this.credentialsProvider.getAdminCredentials();
@@ -82,9 +99,12 @@ export class AuthService {
   }
 
   /**
-   * Cria uma nova sessão autenticada e devolve os tokens necessários.
+   * Cria uma nova sessão autenticada.
+   *
+   * Agora é async porque persiste a sessão no repositório,
+   * e o repositório passou a ser assíncrono por causa do MongoDB.
    */
-  login(email: string): AuthTokens {
+  async login(email: string): Promise<AuthTokens> {
     const sessionId = randomUUID();
     const csrfToken = this.createCsrfToken();
 
@@ -104,19 +124,20 @@ export class AuthService {
       expiresAt: (refreshPayload.exp ?? 0) * 1000,
     };
 
-    this.sessionStore.create(session);
+    await this.sessionStore.create(session);
 
     return this.buildAuthResponse(email, sessionId, refreshToken, csrfToken);
   }
 
   /**
-   * Faz rotação de refresh token e CSRF token.
+   * Renova refresh token e CSRF token.
    *
-   * Motivo:
-   * reduzir risco de replay e aumentar segurança da sessão.
+   * Também é async porque:
+   * - consulta a sessão
+   * - atualiza a sessão
    */
-  refresh(command: RefreshSessionCommand): AuthTokens {
-    const session = this.validateRefreshRequest(command);
+  async refresh(command: RefreshSessionCommand): Promise<AuthTokens> {
+    const session = await this.validateRefreshRequest(command);
     const nextCsrfToken = this.createCsrfToken();
 
     const nextRefreshToken = this.tokenService.sign({
@@ -127,7 +148,7 @@ export class AuthService {
 
     const refreshPayload = this.tokenService.verify(nextRefreshToken);
 
-    const updatedSession = this.sessionStore.update(session.id, {
+    const updatedSession = await this.sessionStore.update(session.id, {
       csrfToken: nextCsrfToken,
       refreshTokenHash: this.hashToken(nextRefreshToken),
       expiresAt: (refreshPayload.exp ?? 0) * 1000,
@@ -148,18 +169,19 @@ export class AuthService {
   /**
    * Revoga a sessão atual.
    */
-  logout(command: RefreshSessionCommand): { success: true } {
-    const session = this.validateRefreshRequest(command);
-    this.sessionStore.revoke(session.id);
+  async logout(command: RefreshSessionCommand): Promise<{ success: true }> {
+    const session = await this.validateRefreshRequest(command);
+
+    await this.sessionStore.revoke(session.id);
 
     return { success: true };
   }
 
   /**
-   * Consulta a sessão autenticada atual.
+   * Consulta os dados da sessão autenticada atual.
    */
-  getSession(sessionId: string): AuthenticatedSessionView {
-    const session = this.sessionStore.findById(sessionId);
+  async getSession(sessionId: string): Promise<AuthenticatedSessionView> {
+    const session = await this.sessionStore.findById(sessionId);
 
     if (!session || session.revokedAt || session.expiresAt <= Date.now()) {
       throw new HttpError(401, 'Sessão inválida ou expirada.');
@@ -173,8 +195,10 @@ export class AuthService {
   }
 
   /**
-   * Monta a resposta de autenticação com access token,
-   * refresh token, csrf token e dados da sessão.
+   * Monta a resposta final da autenticação.
+   *
+   * O access token é gerado a cada login/refresh,
+   * enquanto o refresh token já foi gerado antes.
    */
   private buildAuthResponse(
     email: string,
@@ -196,16 +220,19 @@ export class AuthService {
   }
 
   /**
-   * Valida a requisição de refresh/logout.
+   * Valida toda a requisição de refresh/logout.
    *
-   * Esta validação inclui:
-   * - existência do refresh token
-   * - validação do CSRF
-   * - verificação do token
-   * - verificação da sessão
-   * - conferência do hash do refresh armazenado
+   * Regras:
+   * - refresh token precisa existir
+   * - CSRF cookie e header precisam existir e bater
+   * - token precisa ser do tipo refresh
+   * - sessão precisa existir e estar ativa
+   * - email do token precisa bater com a sessão
+   * - hash do refresh token precisa bater com a sessão persistida
    */
-  private validateRefreshRequest(command: RefreshSessionCommand): AuthSession {
+  private async validateRefreshRequest(
+    command: RefreshSessionCommand,
+  ): Promise<AuthSession> {
     if (!command.refreshToken) {
       throw new HttpError(401, 'Refresh token ausente.');
     }
@@ -224,7 +251,7 @@ export class AuthService {
       throw new HttpError(401, 'Token inválido para renovação.');
     }
 
-    const session = this.sessionStore.findById(payload.sid);
+    const session = await this.sessionStore.findById(payload.sid);
 
     if (!session || session.revokedAt || session.expiresAt <= Date.now()) {
       throw new HttpError(401, 'Sessão inválida ou expirada.');
@@ -251,7 +278,7 @@ export class AuthService {
   }
 
   /**
-   * Gera um token CSRF aleatório e seguro.
+   * Gera um CSRF token aleatório.
    */
   private createCsrfToken(): string {
     return randomBytes(24).toString('hex');
@@ -261,17 +288,17 @@ export class AuthService {
    * Gera hash SHA-256 do refresh token.
    *
    * Motivo:
-   * nunca persistimos o refresh token puro na sessão.
+   * nunca persistir o token puro.
    */
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
 
   /**
-   * Faz comparação segura entre duas strings.
+   * Comparação segura de strings.
    *
    * Motivo:
-   * reduzir risco de ataques por análise de tempo.
+   * reduzir risco de ataques por timing.
    */
   private safeEquals(left: string, right: string): boolean {
     const leftBuffer = Buffer.from(left);

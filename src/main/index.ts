@@ -1,15 +1,17 @@
 import { env } from '../infra/config/env';
+import { connectDatabase } from '../infra/database/mongoose';
 import { createApp } from '../infra/server';
 
 /**
- * Inicializa o servidor HTTP da aplicação.
- *
- * Motivo:
- * manter o bootstrap centralizado
- * e tratar erros logo no início da execução.
+ * Inicializa a aplicação:
+ * 1. conecta no banco
+ * 2. cria a aplicação Express
+ * 3. sobe o servidor HTTP
  */
 async function bootstrap(): Promise<void> {
   try {
+    await connectDatabase(env.mongoUri);
+
     const app = createApp();
 
     await new Promise<void>((resolve) => {
@@ -19,10 +21,6 @@ async function bootstrap(): Promise<void> {
       });
     });
   } catch (error: unknown) {
-    /**
-     * Tratamos o erro como unknown para manter tipagem segura.
-     * Só depois verificamos se é instância de Error.
-     */
     if (error instanceof Error) {
       console.error('❌ Erro ao iniciar a aplicação:', error.message);
     } else {

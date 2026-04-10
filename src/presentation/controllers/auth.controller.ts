@@ -13,34 +13,23 @@ import {
 import { validateLoginPayload } from '../helpers/login.validator';
 
 /**
- * Controller HTTP da autenticação.
- *
- * Responsabilidade:
- * adaptar requisições/respostas Express para chamadas da camada de aplicação.
- *
- * Motivo:
- * manter o framework HTTP fora da regra de negócio.
+ * Controller HTTP: adapta requisições Express
+ * para comandos da camada de aplicação.
  */
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * Realiza login do admin.
-   *
-   * Fluxo:
-   * 1. valida payload
-   * 2. valida credenciais
-   * 3. cria sessão e tokens
-   * 4. grava cookies
-   * 5. devolve access token no body
-   */
-  login = (request: Request, response: Response, next: NextFunction): void => {
+  login = async (
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     try {
       const loginInput = validateLoginPayload(request.body);
 
       this.authService.validateAdmin(loginInput.email, loginInput.password);
 
-      const authResult = this.authService.login(loginInput.email);
+      const authResult = await this.authService.login(loginInput.email);
 
       setAuthCookies(response, authResult.refreshToken, authResult.csrfToken);
 
@@ -54,25 +43,15 @@ export class AuthController {
     }
   };
 
-  /**
-   * Renova os tokens da sessão atual.
-   *
-   * Fluxo:
-   * 1. lê refresh token e csrf token dos cookies
-   * 2. lê csrf token do header
-   * 3. delega a renovação ao AuthService
-   * 4. regrava os cookies
-   * 5. devolve novo access token
-   */
-  refresh = (
+  refresh = async (
     request: Request,
     response: Response,
     next: NextFunction,
-  ): void => {
+  ): Promise<void> => {
     try {
       const cookies = parseCookies(request.headers.cookie);
 
-      const authResult = this.authService.refresh({
+      const authResult = await this.authService.refresh({
         refreshToken: cookies[getRefreshCookieName()],
         csrfCookieToken: cookies[getCsrfCookieName()],
         csrfHeaderToken: request.header('x-csrf-token') ?? undefined,
@@ -90,20 +69,15 @@ export class AuthController {
     }
   };
 
-  /**
-   * Encerra a sessão atual.
-   *
-   * Fluxo:
-   * 1. lê cookies
-   * 2. delega logout ao AuthService
-   * 3. limpa cookies
-   * 4. devolve confirmação
-   */
-  logout = (request: Request, response: Response, next: NextFunction): void => {
+  logout = async (
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ): Promise<void> => {
     try {
       const cookies = parseCookies(request.headers.cookie);
 
-      const result = this.authService.logout({
+      const result = await this.authService.logout({
         refreshToken: cookies[getRefreshCookieName()],
         csrfCookieToken: cookies[getCsrfCookieName()],
         csrfHeaderToken: request.header('x-csrf-token') ?? undefined,
@@ -117,22 +91,17 @@ export class AuthController {
     }
   };
 
-  /**
-   * Retorna os dados da sessão autenticada atual.
-   *
-   * Esta rota depende do auth middleware já ter anexado request.auth.
-   */
-  getSession = (
+  getSession = async (
     request: Request,
     response: Response,
     next: NextFunction,
-  ): void => {
+  ): Promise<void> => {
     try {
       if (!request.auth) {
         throw new HttpError(401, 'Não autenticado.');
       }
 
-      const session = this.authService.getSession(request.auth.sessionId);
+      const session = await this.authService.getSession(request.auth.sessionId);
 
       response.status(200).json(session);
     } catch (error: unknown) {

@@ -1,12 +1,11 @@
 import type { AuthenticatedRequestContext } from '../../core/domain/application/Auth/auth.types';
 
 /**
- * Faz o declaration merging do Express para adicionar
- * o campo `auth` no objeto Request.
+ * Declaration merging do Express para adicionar `request.auth`.
  *
  * Motivo:
- * permitir que middlewares adicionem dados ao request
- * de forma tipada e segura.
+ * permitir que o auth middleware anexe contexto autenticado
+ * sem precisar usar `any` ou non-null assertion desnecessária.
  */
 declare global {
   namespace Express {

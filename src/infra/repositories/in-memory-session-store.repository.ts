@@ -1,36 +1,25 @@
 import type { AuthSession } from '../../core/domain/application/Auth/auth-session';
 import type { SessionStorePort } from '../../core/domain/repositories/session-store.repository';
 
-/**
- * Implementação em memória do armazenamento de sessões.
- *
- * Motivo:
- * - simples para desenvolvimento
- * - útil para validar o fluxo de autenticação
- * - fácil de substituir depois por MongoDB ou Redis
- */
 export class InMemorySessionStoreRepository implements SessionStorePort {
   private readonly sessions = new Map<string, AuthSession>();
 
-  /**
-   * Cria uma nova sessão.
-   */
-  create(session: AuthSession): AuthSession {
+  async create(session: AuthSession): Promise<AuthSession> {
+    await Promise.resolve();
     this.sessions.set(session.id, session);
     return session;
   }
 
-  /**
-   * Busca uma sessão pelo id.
-   */
-  findById(id: string): AuthSession | undefined {
+  async findById(id: string): Promise<AuthSession | undefined> {
+    await Promise.resolve();
     return this.sessions.get(id);
   }
 
-  /**
-   * Atualiza parcialmente uma sessão já existente.
-   */
-  update(id: string, update: Partial<AuthSession>): AuthSession | undefined {
+  async update(
+    id: string,
+    update: Partial<AuthSession>,
+  ): Promise<AuthSession | undefined> {
+    await Promise.resolve();
     const currentSession = this.sessions.get(id);
 
     if (!currentSession) {
@@ -47,15 +36,8 @@ export class InMemorySessionStoreRepository implements SessionStorePort {
     return nextSession;
   }
 
-  /**
-   * Revoga uma sessão sem apagar seu histórico.
-   *
-   * Motivo:
-   * marcar a sessão como revogada é melhor do que simplesmente remover,
-   * porque preserva estado e mantém o comportamento alinhado com futuras
-   * implementações em banco.
-   */
-  revoke(id: string): AuthSession | undefined {
+  async revoke(id: string): Promise<AuthSession | undefined> {
+    await Promise.resolve();
     const currentSession = this.sessions.get(id);
 
     if (!currentSession) {
@@ -72,11 +54,8 @@ export class InMemorySessionStoreRepository implements SessionStorePort {
     return revokedSession;
   }
 
-  /**
-   * Informa se a sessão existe, não foi revogada
-   * e ainda não expirou.
-   */
-  isActive(id: string): boolean {
+  async isActive(id: string): Promise<boolean> {
+    await Promise.resolve();
     const session = this.sessions.get(id);
 
     if (!session) {
@@ -90,12 +69,8 @@ export class InMemorySessionStoreRepository implements SessionStorePort {
     return session.expiresAt > Date.now();
   }
 
-  /**
-   * Limpa todas as sessões.
-   *
-   * Útil para testes automatizados.
-   */
-  clear(): void {
+  async clear(): Promise<void> {
+    await Promise.resolve();
     this.sessions.clear();
   }
 }
