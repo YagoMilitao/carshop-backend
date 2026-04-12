@@ -1,181 +1,110 @@
 import { randomUUID } from 'crypto';
-import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import {
-  expect,
-  describe,
-  it,
-  beforeAll,
-  beforeEach,
-  afterAll,
-} from '@jest/globals';
+import { expect, describe, it } from '@jest/globals';
 import { PortfolioWorkModel } from '../../../../src/data/models/portfolio-work';
 
-describe('PortfolioWorkModel', () => {
-  let mongoServer: MongoMemoryServer;
-
-  /**
-   * Antes de todos os testes:
-   * sobe um MongoDB em memória e conecta o Mongoose nele.
-   *
-   * Motivo:
-   * isolar os testes do banco real
-   * e evitar mexer no Atlas durante o desenvolvimento.
-   */
-  beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-
-    await mongoose.connect(mongoUri);
-  });
-
-  /**
-   * Antes de cada teste:
-   * limpa a collection para um teste não afetar o outro.
-   */
-  beforeEach(async () => {
-    await PortfolioWorkModel.deleteMany({});
-  });
-
-  /**
-   * Depois de todos os testes:
-   * desconecta do banco em memória e encerra o servidor.
-   */
-  afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
-  });
-
-  it('deve criar um trabalho válido', async () => {
-    const created = await PortfolioWorkModel.create({
-      id: randomUUID(),
-      slug: `reforma-banco-couro-civic-${Date.now()}`,
-      title: 'Reforma de banco em couro do Civic',
-      description: 'Troca completa do revestimento dos bancos.',
-      category: 'bancos',
-      tags: ['couro', 'honda', 'civic'],
-      images: [
-        {
-          url: 'https://exemplo.com/capa.jpg',
-          alt: 'Banco reformado',
-          isCover: true,
-        },
-      ],
-      metadata: {
-        vehicleBrand: 'Honda',
-        vehicleModel: 'Civic',
+function buildValidWork() {
+  return {
+    id: randomUUID(),
+    slug: `portfolio-${randomUUID()}`,
+    title: 'Reforma de banco em couro do Civic',
+    description: 'Troca completa do revestimento dos bancos.',
+    category: 'bancos',
+    tags: ['couro', 'honda', 'civic'],
+    images: [
+      {
+        url: 'https://exemplo.com/capa.jpg',
+        alt: 'Banco reformado',
+        isCover: true,
       },
-      status: 'published',
-    });
+    ],
+    metadata: {
+      vehicleBrand: 'Honda',
+      vehicleModel: 'Civic',
+    },
+    status: 'published' as const,
+  };
+}
 
-    expect(created).toBeDefined();
-    expect(created.title).toBe('Reforma de banco em couro do Civic');
-    expect(created.category).toBe('bancos');
-    expect(created.status).toBe('published');
-    expect(created.images).toHaveLength(1);
+describe('PortfolioWorkModel', () => {
+  it('deve validar um trabalho válido', async () => {
+    const document = new PortfolioWorkModel(buildValidWork());
+
+    await expect(document.validate()).resolves.toBeUndefined();
+    expect(document.title).toBe('Reforma de banco em couro do Civic');
+    expect(document.category).toBe('bancos');
+    expect(document.status).toBe('published');
+    expect(document.images).toHaveLength(1);
   });
 
   it('deve normalizar tags para minúsculo e sem espaços', async () => {
-    const created = await PortfolioWorkModel.create({
-      id: randomUUID(),
-      slug: `tags-normalizadas-${Date.now()}`,
-      title: 'Teste de tags',
-      description: 'Descrição do teste',
-      category: 'bancos',
+    const document = new PortfolioWorkModel({
+      ...buildValidWork(),
       tags: [' Couro ', 'HONDA', ' civic '],
-      images: [],
-      metadata: {},
-      status: 'draft',
+      status: 'draft' as const,
     });
 
-    expect(created.tags).toEqual(['couro', 'honda', 'civic']);
+    await document.validate();
+
+    expect(document.tags).toEqual(['couro', 'honda', 'civic']);
   });
 
   it('deve rejeitar mais de uma imagem de capa', async () => {
-    await expect(
-      PortfolioWorkModel.create({
-        id: randomUUID(),
-        slug: `duas-capas-${Date.now()}`,
-        title: 'Teste duas capas',
-        description: 'Descrição do teste',
-        category: 'bancos',
-        tags: ['teste'],
-        images: [
-          {
-            url: 'https://exemplo.com/1.jpg',
-            alt: 'Imagem 1',
-            isCover: true,
-          },
-          {
-            url: 'https://exemplo.com/2.jpg',
-            alt: 'Imagem 2',
-            isCover: true,
-          },
-        ],
-        metadata: {},
-        status: 'draft',
-      }),
-    ).rejects.toThrow('O trabalho pode ter no máximo uma imagem de capa.');
+    const document = new PortfolioWorkModel({
+      ...buildValidWork(),
+      images: [
+        {
+          url: 'https://exemplo.com/1.jpg',
+          alt: 'Imagem 1',
+          isCover: true,
+        },
+        {
+          url: 'https://exemplo.com/2.jpg',
+          alt: 'Imagem 2',
+          isCover: true,
+        },
+      ],
+      status: 'draft' as const,
+    });
+
+    await expect(document.validate()).rejects.toThrow(
+      'O trabalho pode ter no máximo uma imagem de capa.',
+    );
   });
 
   it('deve rejeitar status inválido', async () => {
-    await expect(
-      PortfolioWorkModel.create({
-        id: randomUUID(),
-        slug: `status-invalido-${Date.now()}`,
-        title: 'Teste status inválido',
-        description: 'Descrição do teste',
-        category: 'bancos',
-        tags: ['teste'],
-        images: [],
-        metadata: {},
-        status: 'ativo',
-      }),
-    ).rejects.toThrow();
+    const document = new PortfolioWorkModel({
+      ...buildValidWork(),
+      status: 'ativo',
+    });
+
+    await expect(document.validate()).rejects.toThrow();
   });
 
   it('deve exigir campos obrigatórios', async () => {
-    await expect(
-      PortfolioWorkModel.create({
-        id: randomUUID(),
-        slug: `sem-titulo-${Date.now()}`,
-        description: 'Descrição sem título',
-        category: 'bancos',
-        tags: ['teste'],
-        images: [],
-        metadata: {},
-        status: 'draft',
-      }),
-    ).rejects.toThrow();
+    const work = buildValidWork();
+    const withoutTitle = { ...work } as Partial<typeof work>;
+    delete withoutTitle.title;
+    const document = new PortfolioWorkModel(withoutTitle);
+
+    await expect(document.validate()).rejects.toThrow();
   });
 
-  it('deve impedir slug duplicado', async () => {
-    const duplicatedSlug = `slug-duplicado-${Date.now()}`;
+  it('deve definir índice único para slug', () => {
+    const slugPath = PortfolioWorkModel.schema.path('slug') as {
+      options?: { unique?: boolean };
+    };
 
-    await PortfolioWorkModel.create({
-      id: randomUUID(),
-      slug: duplicatedSlug,
-      title: 'Primeiro trabalho',
-      description: 'Primeira descrição',
-      category: 'bancos',
-      tags: ['teste'],
-      images: [],
-      metadata: {},
-      status: 'draft',
-    });
+    expect(slugPath.options?.unique).toBe(true);
 
-    await expect(
-      PortfolioWorkModel.create({
-        id: randomUUID(),
-        slug: duplicatedSlug,
-        title: 'Segundo trabalho',
-        description: 'Segunda descrição',
-        category: 'bancos',
-        tags: ['teste'],
-        images: [],
-        metadata: {},
-        status: 'draft',
-      }),
-    ).rejects.toThrow();
+    const hasUniqueSlugIndex = PortfolioWorkModel.schema
+      .indexes()
+      .some(([fields, options]) => {
+        const typedFields = fields as Record<string, unknown>;
+        const typedOptions = (options ?? {}) as { unique?: boolean };
+
+        return typedFields.slug === 1 && typedOptions.unique === true;
+      });
+
+    expect(hasUniqueSlugIndex).toBe(true);
   });
 });

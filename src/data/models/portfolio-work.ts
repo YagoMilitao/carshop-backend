@@ -174,7 +174,7 @@ const portfolioWorkSchema = new Schema(
  * evitar duplicação visual como:
  * "Civic", "civic", " CIVIC "
  */
-portfolioWorkSchema.pre('save', function normalizeTags() {
+portfolioWorkSchema.pre('validate', function normalizeTags() {
   if (Array.isArray(this.tags)) {
     this.tags = this.tags.map((tag: string) => tag.trim().toLowerCase());
   }
