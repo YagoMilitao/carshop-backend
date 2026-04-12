@@ -27,8 +27,8 @@ describe('AuthService', () => {
     );
   });
 
-  afterEach(() => {
-    sessionStore.clear();
+  afterEach(async () => {
+    await sessionStore.clear();
     jest.restoreAllMocks();
   });
 
@@ -44,19 +44,19 @@ describe('AuthService', () => {
     );
   });
 
-  it('creates an authenticated session on login', () => {
-    const result = service.login('admin@example.com');
+  it('creates an authenticated session on login', async () => {
+    const result = await service.login('admin@example.com');
 
     expect(result.accessToken).toBeTruthy();
     expect(result.refreshToken).toBeTruthy();
     expect(result.csrfToken).toBeTruthy();
-    expect(sessionStore.isActive(result.sessionId)).toBe(true);
+    await expect(sessionStore.isActive(result.sessionId)).resolves.toBe(true);
   });
 
-  it('rotates refresh token and csrf token on refresh', () => {
-    const loginResult = service.login('admin@example.com');
+  it('rotates refresh token and csrf token on refresh', async () => {
+    const loginResult = await service.login('admin@example.com');
 
-    const refreshed = service.refresh({
+    const refreshed = await service.refresh({
       refreshToken: loginResult.refreshToken,
       csrfCookieToken: loginResult.csrfToken,
       csrfHeaderToken: loginResult.csrfToken,
@@ -68,32 +68,34 @@ describe('AuthService', () => {
     expect(refreshed.csrfToken).not.toBe(loginResult.csrfToken);
   });
 
-  it('rejects refresh requests with invalid csrf token', () => {
-    const loginResult = service.login('admin@example.com');
+  it('rejects refresh requests with invalid csrf token', async () => {
+    const loginResult = await service.login('admin@example.com');
 
-    expect(() =>
+    await expect(
       service.refresh({
         refreshToken: loginResult.refreshToken,
         csrfCookieToken: loginResult.csrfToken,
         csrfHeaderToken: 'invalid-csrf',
       }),
-    ).toThrow(HttpError);
+    ).rejects.toThrow(HttpError);
   });
 
-  it('revokes the session on logout', () => {
-    const loginResult = service.login('admin@example.com');
+  it('revokes the session on logout', async () => {
+    const loginResult = await service.login('admin@example.com');
 
-    expect(
+    await expect(
       service.logout({
         refreshToken: loginResult.refreshToken,
         csrfCookieToken: loginResult.csrfToken,
         csrfHeaderToken: loginResult.csrfToken,
       }),
-    ).toEqual({
+    ).resolves.toEqual({
       success: true,
     });
 
-    expect(() => service.getSession(loginResult.sessionId)).toThrow(HttpError);
+    await expect(service.getSession(loginResult.sessionId)).rejects.toThrow(
+      HttpError,
+    );
   });
 
   it('exposes cookie names used by HTTP layer', () => {
