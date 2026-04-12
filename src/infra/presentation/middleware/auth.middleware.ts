@@ -6,12 +6,6 @@ import type { SessionStorePort } from '../../../core/domain/repositories/session
 
 /**
  * Extrai o token Bearer do header Authorization.
- *
- * Exemplo esperado:
- * Authorization: Bearer <token>
- *
- * Motivo:
- * isolar parsing do header e deixar o middleware mais legível.
  */
 function extractBearerToken(
   authorizationHeader: string | undefined,
@@ -24,10 +18,7 @@ function extractBearerToken(
 }
 
 /**
- * Constrói o contexto autenticado anexado ao request.
- *
- * Motivo:
- * manter esse mapeamento explícito e fortemente tipado.
+ * Monta o contexto autenticado anexado ao request.
  */
 function buildAuthenticatedContext(
   email: string,
@@ -41,19 +32,12 @@ function buildAuthenticatedContext(
 
 /**
  * Middleware de autorização por JWT para rotas protegidas.
- *
- * Responsabilidades:
- * - extrair o token do header Authorization
- * - validar o token JWT
- * - garantir que seja um access token
- * - garantir que a sessão associada ainda esteja ativa
- * - anexar contexto autenticado ao request
  */
 export function buildAuthMiddleware(
   sessionStore: SessionStorePort,
   tokenService: TokenServicePort,
 ): RequestHandler {
-  return (request, _response, next) => {
+  return async (request, _response, next) => {
     try {
       const token = extractBearerToken(request.headers.authorization);
 
@@ -67,14 +51,16 @@ export function buildAuthMiddleware(
         throw new HttpError(401, 'Token inválido para acesso.');
       }
 
-      if (!sessionStore.isActive(payload.sid)) {
+      const isActive = await sessionStore.isActive(payload.sid);
+
+      if (!isActive) {
         throw new HttpError(401, 'Sessão inválida ou expirada.');
       }
 
       request.auth = buildAuthenticatedContext(payload.sub, payload.sid);
 
       next();
-    } catch (error) {
+    } catch (error: unknown) {
       next(error);
     }
   };

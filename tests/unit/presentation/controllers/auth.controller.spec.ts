@@ -2,11 +2,20 @@ import type { Request, Response } from 'express';
 import { HttpError } from '../../../../src/core/domain/application/ApplicationError/http-error';
 import type { AuthService } from '../../../../src/core/domain/application/Auth/auth.service';
 import { AuthController } from '../../../../src/presentation/controllers/auth.controller';
+import {
+  expect,
+  describe,
+  it,
+  beforeAll,
+  beforeEach,
+  afterAll,
+  jest,
+} from '@jest/globals';
 
 function createResponseMock() {
   return {
-    cookie: jest.fn(),
-    clearCookie: jest.fn(),
+    cookie: jest.fn().mockReturnThis(),
+    clearCookie: jest.fn().mockReturnThis(),
     status: jest.fn().mockReturnThis(),
     json: jest.fn(),
   } as unknown as Response;
@@ -23,9 +32,9 @@ function createAuthServiceMock() {
 }
 
 describe('AuthController', () => {
-  it('handles login successfully', () => {
+  it('handles login successfully', async () => {
     const authService = createAuthServiceMock();
-    authService.login.mockReturnValue({
+    authService.login.mockResolvedValue({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
       csrfToken: 'csrf-token',
@@ -42,7 +51,7 @@ describe('AuthController', () => {
     const response = createResponseMock();
     const next = jest.fn();
 
-    controller.login(request, response, next);
+    await controller.login(request, response, next);
 
     expect(authService.validateAdmin).toHaveBeenCalledWith(
       'admin@example.com',
@@ -69,12 +78,12 @@ describe('AuthController', () => {
     expect(next).toHaveBeenCalledWith(expect.any(HttpError));
   });
 
-  it('handles refresh successfully', () => {
+  it('handles refresh successfully', async () => {
     const authService = createAuthServiceMock();
-    authService.refresh.mockReturnValue({
+    authService.refresh.mockResolvedValue({
       accessToken: 'new-access-token',
-      refreshToken: 'new-refresh-token',
-      csrfToken: 'new-csrf-token',
+      refreshToken: 'refresh-token',
+      csrfToken: 'csrf-token',
       sessionId: 'session-id',
       tokenType: 'Bearer',
     });
@@ -88,7 +97,7 @@ describe('AuthController', () => {
     const response = createResponseMock();
     const next = jest.fn();
 
-    controller.refresh(request, response, next);
+    await controller.refresh(request, response, next);
 
     expect(authService.refresh).toHaveBeenCalledWith({
       refreshToken: 'refresh-token',
@@ -124,9 +133,9 @@ describe('AuthController', () => {
     expect(next).toHaveBeenCalledWith(expect.any(HttpError));
   });
 
-  it('handles logout successfully', () => {
+  it('handles logout successfully', async () => {
     const authService = createAuthServiceMock();
-    authService.logout.mockReturnValue({ success: true });
+    authService.logout.mockResolvedValue({ success: true });
     const controller = new AuthController(authService);
     const request = {
       headers: {
@@ -137,7 +146,7 @@ describe('AuthController', () => {
     const response = createResponseMock();
     const next = jest.fn();
 
-    controller.logout(request, response, next);
+    await controller.logout(request, response, next);
 
     expect(authService.logout).toHaveBeenCalledWith({
       refreshToken: 'refresh-token',
@@ -149,9 +158,9 @@ describe('AuthController', () => {
     expect(response.json).toHaveBeenCalledWith({ success: true });
   });
 
-  it('handles getSession and forwards errors', () => {
+  it('handles getSession and forwards errors', async () => {
     const authService = createAuthServiceMock();
-    authService.getSession.mockReturnValue({
+    authService.getSession.mockResolvedValue({
       sessionId: 'session-id',
       email: 'admin@example.com',
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -160,10 +169,10 @@ describe('AuthController', () => {
     const response = createResponseMock();
     const next = jest.fn();
 
-    controller.getSession(
+    await controller.getSession(
       {
-        auth: { sessionId: 'session-id', email: 'admin@example.com' },
-      } as Request,
+        auth: { sessionId: 'session-id' },
+      } as unknown as Request,
       response,
       next,
     );
@@ -176,10 +185,10 @@ describe('AuthController', () => {
       throw new HttpError(401, 'Sessão inválida ou expirada.');
     });
 
-    controller.getSession(
+    await controller.getSession(
       {
-        auth: { sessionId: 'session-id', email: 'admin@example.com' },
-      } as Request,
+        auth: { sessionId: 'session-id' },
+      } as unknown as Request,
       response,
       next,
     );

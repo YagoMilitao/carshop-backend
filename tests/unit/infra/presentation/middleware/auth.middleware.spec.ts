@@ -3,6 +3,7 @@ import { HttpError } from '../../../../../src/core/domain/application/Applicatio
 import type { SessionStorePort } from '../../../../../src/core/domain/repositories/session-store.repository';
 import type { TokenServicePort } from '../../../../../src/core/domain/application/Auth/token-service.port';
 import { buildAuthMiddleware } from '../../../../../src/infra/presentation/middleware/auth.middleware';
+import { expect, describe, it, jest } from '@jest/globals';
 
 function createSessionStoreMock() {
   return {
@@ -60,7 +61,7 @@ describe('buildAuthMiddleware', () => {
     expect(error.message).toBe('Token inválido para acesso.');
   });
 
-  it('returns 401 when session is inactive', () => {
+  it('returns 401 when session is inactive', async () => {
     const sessionStore = createSessionStoreMock();
     const tokenService = createTokenServiceMock();
     tokenService.verify.mockReturnValue({
@@ -68,7 +69,7 @@ describe('buildAuthMiddleware', () => {
       sid: 'session-id',
       type: 'access',
     });
-    sessionStore.isActive.mockReturnValue(false);
+    sessionStore.isActive.mockResolvedValue(false);
     const middleware = buildAuthMiddleware(sessionStore, tokenService);
     const request = {
       headers: { authorization: 'Bearer valid-token' },
@@ -76,6 +77,8 @@ describe('buildAuthMiddleware', () => {
     const next = jest.fn();
 
     middleware(request, {} as Response, next);
+
+    await new Promise((resolve) => setImmediate(resolve));
 
     const error = next.mock.calls[0][0] as HttpError;
     expect(error).toBeInstanceOf(HttpError);
@@ -83,7 +86,7 @@ describe('buildAuthMiddleware', () => {
     expect(error.message).toBe('Sessão inválida ou expirada.');
   });
 
-  it('adds auth metadata and calls next with no error on success', () => {
+  it('adds auth metadata and calls next with no error on success', async () => {
     const sessionStore = createSessionStoreMock();
     const tokenService = createTokenServiceMock();
     tokenService.verify.mockReturnValue({
@@ -91,14 +94,16 @@ describe('buildAuthMiddleware', () => {
       sid: 'session-id',
       type: 'access',
     });
-    sessionStore.isActive.mockReturnValue(true);
+    sessionStore.isActive.mockResolvedValue(true);
     const middleware = buildAuthMiddleware(sessionStore, tokenService);
     const request = {
       headers: { authorization: 'Bearer valid-token' },
-    } as Request;
+    } as Request & { auth?: { email: string; sessionId: string } };
     const next = jest.fn();
 
     middleware(request, {} as Response, next);
+
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(request.auth).toEqual({
       email: 'admin@example.com',

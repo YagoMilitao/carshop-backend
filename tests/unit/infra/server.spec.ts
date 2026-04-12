@@ -13,7 +13,9 @@ const mockExpressFactory = jest.fn(() => mockAppInstance);
   mockExpressJson;
 
 const mockCorsMiddleware = 'cors-middleware';
-const mockCorsFactory = jest.fn((_options: unknown) => mockCorsMiddleware);
+const mockCorsFactory = jest.fn(
+  () => mockCorsMiddleware,
+) as unknown as jest.MockedFunction<(options: unknown) => string>;
 const mockSwaggerServe = 'swagger-serve-middleware';
 const mockSwaggerSetupMiddleware = 'swagger-setup-middleware';
 const mockSwaggerSetup = jest.fn(() => mockSwaggerSetupMiddleware);
@@ -22,6 +24,12 @@ const mockBuildAuthRouter = jest.fn(() => mockAuthRouter);
 const mockOpenApiDocument = { openapi: '3.0.3' };
 const mockNotFoundMiddleware = 'not-found-middleware';
 const mockErrorHandlerMiddleware = 'error-handler-middleware';
+
+function loadCreateApp() {
+  const module =
+    require('../../../src/infra/server') as typeof import('../../../src/infra/server');
+  return module.createApp;
+}
 
 jest.mock('express', () => ({
   __esModule: true,
@@ -75,13 +83,11 @@ jest.mock(
   }),
 );
 
-import { createApp } from '../../../src/infra/server';
-import { Mock, UnknownFunction } from 'jest-mock';
-
 describe('createApp', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
+    jest.resetModules();
     process.env = { ...originalEnv };
     jest.clearAllMocks();
   });
@@ -95,6 +101,7 @@ describe('createApp', () => {
     process.env.NODE_ENV = 'development';
     delete process.env.ENABLE_SWAGGER;
 
+    const createApp = loadCreateApp();
     const app = createApp();
 
     expect(app).toBe(mockAppInstance);
@@ -131,10 +138,7 @@ describe('createApp', () => {
     expect(mockBuildAuthRouter).toHaveBeenCalledTimes(1);
     expect(mockUse).toHaveBeenNthCalledWith(1, expect.any(Function));
     expect(mockUse).toHaveBeenNthCalledWith(2, mockCorsMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(
-      4,
-      'json-middleware',
-    );
+    expect(mockUse).toHaveBeenNthCalledWith(4, 'json-middleware');
     expect(mockUse).toHaveBeenNthCalledWith(
       6,
       '/docs',
@@ -152,6 +156,7 @@ describe('createApp', () => {
     process.env.NODE_ENV = 'development';
     delete process.env.ENABLE_SWAGGER;
 
+    const createApp = loadCreateApp();
     createApp();
 
     expect(mockCorsFactory).toHaveBeenCalledWith(
@@ -185,6 +190,7 @@ describe('createApp', () => {
   it('responds hello world in root route handler', () => {
     process.env.NODE_ENV = 'development';
     delete process.env.ENABLE_SWAGGER;
+    const createApp = loadCreateApp();
     createApp();
 
     const rootRouteCall = mockGet.mock.calls.find((call) => call[0] === '/');
@@ -207,6 +213,7 @@ describe('createApp', () => {
   it('responds openapi document in docs.json route handler', () => {
     process.env.NODE_ENV = 'development';
     delete process.env.ENABLE_SWAGGER;
+    const createApp = loadCreateApp();
     createApp();
 
     const docsRouteCall = mockGet.mock.calls.find(
@@ -232,6 +239,7 @@ describe('createApp', () => {
     process.env.NODE_ENV = 'production';
     delete process.env.ENABLE_SWAGGER;
 
+    const createApp = loadCreateApp();
     createApp();
 
     const docsRouteCall = mockGet.mock.calls.find(
@@ -248,6 +256,7 @@ describe('createApp', () => {
     process.env.NODE_ENV = 'production';
     process.env.ENABLE_SWAGGER = 'true';
 
+    const createApp = loadCreateApp();
     createApp();
 
     const docsRouteCall = mockGet.mock.calls.find(
@@ -268,6 +277,7 @@ describe('createApp', () => {
     process.env.NODE_ENV = 'development';
     process.env.ENABLE_SWAGGER = 'false';
 
+    const createApp = loadCreateApp();
     createApp();
 
     const docsRouteCall = mockGet.mock.calls.find(
@@ -280,4 +290,3 @@ describe('createApp', () => {
     expect(docsUseCall).toBeUndefined();
   });
 });
-
