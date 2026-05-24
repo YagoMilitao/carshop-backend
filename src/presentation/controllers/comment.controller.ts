@@ -1,12 +1,12 @@
 import type { NextFunction, Request, Response } from 'express';
 import { CreateCommentUseCase } from '../../usecase/create-comment.use-case';
 import { ListApprovedCommentsUseCase } from '../../usecase/list-approved-comments.use-case';
+import { requireStringRouteParam } from '../helpers/route-param.helper';
+import { validateWithSchema } from '../../infra/presentation/helpers/zod-validation.helper';
 import {
   CreateCommentInput,
   createCommentSchema,
-} from '@/infra/presentation/validators/comment.schema';
-import { requireStringRouteParam } from '../helpers/route-param.helper';
-import { validateWithSchema } from '@/infra/presentation/helpers/zod-validation.helper';
+} from '../../infra/presentation/validators/comment.schema';
 
 /**
  * Controller HTTP dos comentários.
