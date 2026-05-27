@@ -146,8 +146,8 @@ describe('createApp', () => {
       mockSwaggerSetupMiddleware,
     );
     expect(mockUse).toHaveBeenNthCalledWith(7, '/auth', mockAuthRouter);
-    expect(mockUse).toHaveBeenNthCalledWith(8, mockNotFoundMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(9, mockErrorHandlerMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(10, mockNotFoundMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(11, mockErrorHandlerMiddleware);
   });
 
   it('normalizes configured CORS origins and allows only listed domains', () => {
@@ -159,16 +159,20 @@ describe('createApp', () => {
     const createApp = loadCreateApp();
     createApp();
 
-    expect(mockCorsFactory).toHaveBeenCalledWith(
-      expect.objectContaining({
-        origin: expect.any(Function),
-      }),
-    );
+    expect(mockCorsFactory).toHaveBeenCalledWith({
+      origin: expect.any(Function),
+      credentials: true,
+      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    });
     const corsOptions = mockCorsFactory.mock.calls[0][0] as {
       origin: (
         origin: string | undefined,
         callback: (error: Error | null, allowed?: boolean) => void,
       ) => void;
+      credentials: boolean;
+      methods: string[];
+      allowedHeaders: string[];
     };
     const allowAdmin = jest.fn();
     const allowApp = jest.fn();
