@@ -13,6 +13,25 @@ import { CommentModel } from '../../data/models/comment.model';
  * Motivo:
  * concentrar persistência e leitura dos comentários no banco.
  */
+function toComment(document: {
+  id: string;
+  workId: string;
+  authorName: string;
+  content: string;
+  status: 'PENDING' | 'APPROVED';
+  createdAt: Date;
+  updatedAt: Date;
+}): Comment {
+  return {
+    id: document.id,
+    workId: document.workId,
+    authorName: document.authorName,
+    content: document.content,
+    status: document.status,
+    createdAt: document.createdAt.toISOString(),
+    updatedAt: document.updatedAt.toISOString(),
+  };
+}
 export class MongoCommentRepository implements CommentRepositoryPort {
   /**
    * Cria comentário sempre como PENDING.
@@ -29,15 +48,7 @@ export class MongoCommentRepository implements CommentRepositoryPort {
       status: 'PENDING',
     });
 
-    return {
-      id: created.id,
-      workId: created.workId,
-      authorName: created.authorName,
-      content: created.content,
-      status: created.status,
-      createdAt: created.createdAt.toISOString(),
-      updatedAt: created.updatedAt.toISOString(),
-    };
+    return toComment(created);
   }
 
   /**
@@ -51,15 +62,7 @@ export class MongoCommentRepository implements CommentRepositoryPort {
       .sort({ createdAt: -1 })
       .lean();
 
-    return comments.map((comment) => ({
-      id: comment.id,
-      workId: comment.workId,
-      authorName: comment.authorName,
-      content: comment.content,
-      status: comment.status,
-      createdAt: comment.createdAt.toISOString(),
-      updatedAt: comment.updatedAt.toISOString(),
-    }));
+    return comments.map(toComment);
   }
 
   /**
@@ -67,20 +70,7 @@ export class MongoCommentRepository implements CommentRepositoryPort {
    */
   async findById(id: string): Promise<Comment | undefined> {
     const comment = await CommentModel.findOne({ id }).lean();
-
-    if (!comment) {
-      return undefined;
-    }
-
-    return {
-      id: comment.id,
-      workId: comment.workId,
-      authorName: comment.authorName,
-      content: comment.content,
-      status: comment.status,
-      createdAt: comment.createdAt.toISOString(),
-      updatedAt: comment.updatedAt.toISOString(),
-    };
+    return comment ? toComment(comment) : undefined;
   }
 
   /**
@@ -94,19 +84,7 @@ export class MongoCommentRepository implements CommentRepositoryPort {
       new: true,
     }).lean();
 
-    if (!updated) {
-      return undefined;
-    }
-
-    return {
-      id: updated.id,
-      workId: updated.workId,
-      authorName: updated.authorName,
-      content: updated.content,
-      status: updated.status,
-      createdAt: updated.createdAt.toISOString(),
-      updatedAt: updated.updatedAt.toISOString(),
-    };
+    return updated ? toComment(updated) : undefined;
   }
 
   /**
