@@ -2,11 +2,35 @@ import { randomUUID } from 'crypto';
 import type {
   CreateWorkInput,
   WorkRepositoryPort,
+  WorkStatus,
 } from '../../core/domain/repositories/work.repository';
 import type { Work } from '../../core/domain/application/Work/work.types';
 import { WorkModel } from '../../data/models/work.model';
-import { WorkImageModel } from '../../data/models/work-image.model';
 import { CommentModel } from '../../data/models/comment.model';
+
+function toWork(document: {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  status: WorkStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}): Work {
+  return {
+    id: document.id,
+    slug: document.slug,
+    title: document.title,
+    description: document.description,
+    category: document.category,
+    tags: document.tags,
+    status: document.status,
+    createdAt: document.createdAt.toISOString(),
+    updatedAt: document.updatedAt.toISOString(),
+  };
+}
 
 /**
  * Repository Mongo para trabalhos do portfólio.
@@ -24,107 +48,59 @@ export class MongoWorkRepository implements WorkRepositoryPort {
       category: input.category,
       tags: input.tags,
       status: input.status,
+      metadata: input.metadata ?? {},
+      seo: input.seo ?? {},
+      publishedAt: input.status === 'published' ? new Date() : null,
+      deletedAt: null,
     });
 
-    return {
-      id: created.id,
-      slug: created.slug,
-      title: created.title,
-      description: created.description,
-      category: created.category,
-      tags: created.tags,
-      status: created.status,
-      createdAt: created.createdAt.toISOString(),
-      updatedAt: created.updatedAt.toISOString(),
-    };
-  }
-
-  async listPublished(): Promise<Work[]> {
-    const works = await WorkModel.find({ status: 'published' })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    return works.map((work) => ({
-      id: work.id,
-      slug: work.slug,
-      title: work.title,
-      description: work.description,
-      category: work.category,
-      tags: work.tags,
-      status: work.status,
-      createdAt: work.createdAt.toISOString(),
-      updatedAt: work.updatedAt.toISOString(),
-    }));
-  }
-
-  async listAll(): Promise<Work[]> {
-    const works = await WorkModel.find().sort({ createdAt: -1 }).lean();
-
-    return works.map((work) => ({
-      id: work.id,
-      slug: work.slug,
-      title: work.title,
-      description: work.description,
-      category: work.category,
-      tags: work.tags,
-      status: work.status,
-      createdAt: work.createdAt.toISOString(),
-      updatedAt: work.updatedAt.toISOString(),
-    }));
-  }
-
-  async findBySlug(slug: string): Promise<Work | undefined> {
-    const work = await WorkModel.findOne({ slug }).lean();
-
-    if (!work) {
-      return undefined;
-    }
-
-    return {
-      id: work.id,
-      slug: work.slug,
-      title: work.title,
-      description: work.description,
-      category: work.category,
-      tags: work.tags,
-      status: work.status,
-      createdAt: work.createdAt.toISOString(),
-      updatedAt: work.updatedAt.toISOString(),
-    };
-  }
-
-  /**
-   * Delete em cascata manual.
-   *
-   * No Mongo não existe cascade delete automático como em banco relacional.
-   * Então removemos:
-   * - work
-   * - imagens do work
-   * - comentários do work
-   */
-  async deleteById(id: string): Promise<void> {
-    await WorkModel.deleteOne({ id });
-    await WorkImageModel.deleteMany({ workId: id });
-    await CommentModel.deleteMany({ workId: id });
+    return toWork(created);
   }
 
   async findById(id: string): Promise<Work | undefined> {
-    const work = await WorkModel.findOne({ id }).lean();
+    const work = await WorkModel.findOne({ id, deletedAt: null }).lean();
+    return work ? toWork(work) : undefined;
+  }
 
-    if (!work) {
-      return undefined;
-    }
+  async findBySlug(slug: string): Promise<Work | undefined> {
+    const work = await WorkModel.findOne({
+      slug,
+      deletedAt: null,
+    }).lean();
 
-    return {
-      id: work.id,
-      slug: work.slug,
-      title: work.title,
-      description: work.description,
-      category: work.category,
-      tags: work.tags,
-      status: work.status,
-      createdAt: work.createdAt.toISOString(),
-      updatedAt: work.updatedAt.toISOString(),
-    };
+    return work ? toWork(work) : undefined;
+  }
+
+  async listPublished(): Promise<Work[]> {
+    const works = await WorkModel.find({
+      status: 'published',
+      deletedAt: null,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return works.map(toWork);
+  }
+
+  async listAll(): Promise<Work[]> {
+    const works = await WorkModel.find({
+      deletedAt: null,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return works.map(toWork);
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await WorkModel.updateOne(
+      { id, deletedAt: null },
+      { deletedAt: new Date() },
+    );
+  }
+
+  async hardDelete(id: string): Promise<void> {
+    await WorkModel.deleteOne({ id });
+    await CommentModel.deleteMany({ workId: id });
   }
 }

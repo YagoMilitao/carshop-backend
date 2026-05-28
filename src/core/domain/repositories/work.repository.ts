@@ -1,19 +1,31 @@
-import type { Work } from '../application/Work/work.types';
+import { Work } from '../application/Work/work.types';
 
+export type WorkStatus = 'draft' | 'published';
 export interface CreateWorkInput {
   slug: string;
   title: string;
   description: string;
   category: string;
   tags: string[];
-  status: 'draft' | 'published';
+  status: WorkStatus;
+  metadata?: {
+    vehicleBrand?: string;
+    vehicleModel?: string;
+    serviceType?: string;
+  };
+  seo?: {
+    metaTitle?: string;
+    metaDescription?: string;
+    keywords?: string[];
+  };
 }
 
 export interface WorkRepositoryPort {
   create(input: CreateWorkInput): Promise<Work>;
-  listPublished(): Promise<Work[]>;
-  listAll(): Promise<Work[]>;
   findById(id: string): Promise<Work | undefined>;
   findBySlug(slug: string): Promise<Work | undefined>;
-  deleteById(id: string): Promise<void>;
+  listPublished(): Promise<Work[]>;
+  listAll(): Promise<Work[]>;
+  softDelete(id: string): Promise<void>;
+  hardDelete(id: string): Promise<void>;
 }
