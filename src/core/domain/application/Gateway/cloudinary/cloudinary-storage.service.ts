@@ -1,8 +1,8 @@
 import { v2 as cloudinary } from 'cloudinary';
-import type {
+import {
   ImageStoragePort,
   UploadImageResult,
-} from '../../../core/domain/application/Storage/image-storage.port';
+} from '../../Storage/image-storage.port';
 
 /**
  * Adapter concreto de storage usando Cloudinary.

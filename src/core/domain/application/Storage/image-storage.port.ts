@@ -1,5 +1,9 @@
 /**
- * Resultado de upload de imagem.
+ * Resultado retornado depois do upload.
+ *
+ * Motivo:
+ * a aplicação só precisa saber a URL pública
+ * e o identificador necessário para deletar depois.
  */
 export interface UploadImageResult {
   url: string;
@@ -7,14 +11,13 @@ export interface UploadImageResult {
 }
 
 /**
- * Porta de armazenamento.
+ * Porta de storage de imagem.
  *
  * Motivo:
- * o domínio não pode conhecer Cloudinary,
- * S3 ou qualquer fornecedor.
+ * manter Cloudinary fora da regra de negócio.
+ * Se trocar para S3 depois, os use cases não mudam.
  */
 export interface ImageStoragePort {
   upload(filePath: string): Promise<UploadImageResult>;
-
   delete(publicId: string): Promise<void>;
 }

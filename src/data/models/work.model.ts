@@ -1,8 +1,57 @@
 import { Schema, model, type InferSchemaType } from 'mongoose';
 
 /**
+ * Imagem vinculada ao trabalho.
+ *
+ * Motivo:
+ * o Mongo salva só metadados da imagem.
+ * O arquivo real fica no Cloudinary/S3.
+ */
+const workImageSchema = new Schema(
+  {
+    id: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    url: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    publicId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    alt: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 160,
+    },
+
+    isCover: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+
+    order: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+    },
+  },
+  { _id: false },
+);
+
+/**
  * Metadados extras do trabalho.
- * Motivo: guardar dados úteis sem poluir o schema principal.
  */
 const workMetadataSchema = new Schema(
   {
@@ -14,7 +63,7 @@ const workMetadataSchema = new Schema(
 );
 
 /**
- * Campos de SEO para o Next.js depois.
+ * Campos de SEO para uso futuro no Next.js.
  */
 const workSeoSchema = new Schema(
   {
@@ -73,6 +122,25 @@ const workSchema = new Schema(
       index: true,
     },
 
+    /**
+     * Galeria de imagens do trabalho.
+     *
+     * Regra:
+     * no máximo uma imagem pode ser capa.
+     */
+    images: {
+      type: [workImageSchema],
+      required: true,
+      default: [],
+      validate: {
+        validator(images: Array<{ isCover: boolean }>): boolean {
+          const coverCount = images.filter((image) => image.isCover).length;
+          return coverCount <= 1;
+        },
+        message: 'O trabalho pode ter no máximo uma imagem de capa.',
+      },
+    },
+
     metadata: {
       type: workMetadataSchema,
       required: true,
@@ -100,8 +168,9 @@ const workSchema = new Schema(
 
     /**
      * Soft delete.
-     * Se estiver null, o trabalho está ativo.
-     * Se tiver data, foi removido logicamente.
+     *
+     * null = ativo
+     * Date = removido logicamente
      */
     deletedAt: {
       type: Date,
@@ -116,6 +185,12 @@ const workSchema = new Schema(
   },
 );
 
+/**
+ * Normaliza campos antes de salvar.
+ *
+ * Motivo:
+ * evita duplicidade visual como "Couro", " couro " e "COURO".
+ */
 workSchema.pre('save', function normalizeFields() {
   if (Array.isArray(this.tags)) {
     this.tags = this.tags
@@ -128,6 +203,10 @@ workSchema.pre('save', function normalizeFields() {
       .map((keyword: string) => keyword.trim().toLowerCase())
       .filter(Boolean);
   }
+
+  this.images = this.images.sort(
+    (firstImage, secondImage) => firstImage.order - secondImage.order,
+  );
 });
 
 export type WorkDocument = InferSchemaType<typeof workSchema>;

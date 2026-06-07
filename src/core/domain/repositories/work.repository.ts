@@ -1,4 +1,4 @@
-import { Work } from '../application/Work/work.types';
+import { Work, WorkImage } from '../application/Work/work.types';
 
 export type WorkStatus = 'draft' | 'published';
 export interface CreateWorkInput {
@@ -28,4 +28,5 @@ export interface WorkRepositoryPort {
   listAll(): Promise<Work[]>;
   softDelete(id: string): Promise<void>;
   hardDelete(id: string): Promise<void>;
+  addImage(workId: string, image: WorkImage): Promise<void>;
 }

@@ -18,6 +18,7 @@ export interface Work {
   description: string;
   category: string;
   tags: string[];
+  images: WorkImage[];
   status: WorkStatus;
   createdAt: string;
   updatedAt: string;
@@ -28,10 +29,11 @@ export interface Work {
  */
 export interface WorkImage {
   id: string;
-  workId: string;
   url: string;
+  publicId: string;
   alt: string;
   isCover: boolean;
+  order: number;
   createdAt: string;
   updatedAt: string;
 }

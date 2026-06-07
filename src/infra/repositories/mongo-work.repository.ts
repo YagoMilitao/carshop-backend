@@ -4,7 +4,10 @@ import type {
   WorkRepositoryPort,
   WorkStatus,
 } from '../../core/domain/repositories/work.repository';
-import type { Work } from '../../core/domain/application/Work/work.types';
+import type {
+  Work,
+  WorkImage,
+} from '../../core/domain/application/Work/work.types';
 import { WorkModel } from '../../data/models/work.model';
 import { CommentModel } from '../../data/models/comment.model';
 
@@ -26,6 +29,7 @@ function toWork(document: {
     description: document.description,
     category: document.category,
     tags: document.tags,
+    images: [],
     status: document.status,
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
@@ -102,5 +106,32 @@ export class MongoWorkRepository implements WorkRepositoryPort {
   async hardDelete(id: string): Promise<void> {
     await WorkModel.deleteOne({ id });
     await CommentModel.deleteMany({ workId: id });
+  }
+
+  async addImage(workId: string, image: WorkImage): Promise<void> {
+    /**
+     * Se a nova imagem for capa, removemos a capa das outras.
+     * Motivo:
+     * garantir que só exista uma imagem principal.
+     */
+    if (image.isCover) {
+      await WorkModel.updateOne(
+        { id: workId },
+        {
+          $set: {
+            'images.$[].isCover': false,
+          },
+        },
+      );
+    }
+
+    await WorkModel.updateOne(
+      { id: workId, deletedAt: null },
+      {
+        $push: {
+          images: image,
+        },
+      },
+    );
   }
 }
