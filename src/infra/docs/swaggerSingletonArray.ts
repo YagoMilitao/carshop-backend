@@ -1,12 +1,29 @@
+import {
+  adminCommentsPaths,
+  adminCommentsSchemas,
+  adminCommentsTags,
+} from './admin-comments.swagger';
+import {
+  adminWorksPaths,
+  adminWorksSchemas,
+  adminWorksTags,
+} from './admin-works.swagger';
 import { authPaths, authSchemas, authTags } from './auth.swagger';
 import {
-  commentsTags,
-  commentsSchemas,
   commentsPaths,
+  commentsSchemas,
+  commentsTags,
 } from './comments.swagger';
 import { healthPaths, healthTags } from './health.swagger';
+import { mergeOpenApiPaths } from './swagger.merge';
 import { worksPaths, worksSchemas, worksTags } from './works.swagger';
 
+/**
+ * Documento OpenAPI central.
+ *
+ * Os módulos exportam tags, schemas e paths.
+ * Este arquivo apenas reúne todas as partes.
+ */
 export const openApiDocument = {
   openapi: '3.0.3',
 
@@ -14,17 +31,29 @@ export const openApiDocument = {
     title: 'Carshop Backend API',
     version: '1.0.0',
     description:
-      'API do portfólio Carshop com autenticação JWT, works, comentários e upload de imagens.',
+      'API do portfólio Carshop com autenticação JWT, gerenciamento de trabalhos, comentários e imagens.',
   },
 
-  tags: [...healthTags, ...authTags, ...worksTags, ...commentsTags],
+  tags: [
+    ...healthTags,
+    ...authTags,
+    ...worksTags,
+    ...commentsTags,
+    ...adminWorksTags,
+    ...adminCommentsTags,
+  ],
 
   components: {
+    /**
+     * Equivalente ao addBearerAuth() do NestJS.
+     */
     securitySchemes: {
       bearerAuth: {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
+        description:
+          'Informe apenas o access token JWT. O Swagger adicionará o prefixo Bearer.',
       },
 
       refreshTokenCookie: {
@@ -45,20 +74,31 @@ export const openApiDocument = {
         type: 'object',
         required: ['message'],
         properties: {
-          message: { type: 'string' },
+          message: {
+            type: 'string',
+            example: 'Requisição inválida.',
+          },
         },
       },
 
       ...authSchemas,
       ...worksSchemas,
       ...commentsSchemas,
+      ...adminWorksSchemas,
+      ...adminCommentsSchemas,
     },
   },
 
-  paths: {
-    ...healthPaths,
-    ...authPaths,
-    ...worksPaths,
-    ...commentsPaths,
-  },
+  /**
+   * A função de merge preserva operações diferentes
+   * registradas no mesmo endereço, como GET e POST /works.
+   */
+  paths: mergeOpenApiPaths(
+    healthPaths,
+    authPaths,
+    worksPaths,
+    commentsPaths,
+    adminWorksPaths,
+    adminCommentsPaths,
+  ),
 } as const;
