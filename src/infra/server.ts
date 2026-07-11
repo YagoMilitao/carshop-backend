@@ -7,12 +7,13 @@ import {
   registerTerminalMiddlewares,
 } from './config/middleware';
 import { registerRoutes } from './config/routes';
-import { registerSwagger } from './swagger';
+
 import { MongoSessionStoreRepository } from './repositories/mongo-session-store.repository';
 import { MongoWorkRepository } from './repositories/mongo-work.repository';
 import { MongoCommentRepository } from './repositories/mongo-comment.repository';
 import { JsonWebTokenService } from './services/jsonwebtoken-token.service';
 import { CloudinaryStorageService } from './gateway/cloudinary/cloudinary-storage.service';
+import { registerSwagger } from './swagger';
 
 /**
  * Cria e configura a aplicação Express.

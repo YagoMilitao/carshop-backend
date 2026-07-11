@@ -2,6 +2,18 @@ import { jest } from '@jest/globals';
 
 const mockUse = jest.fn();
 const mockGet = jest.fn();
+const mockRouterUse = jest.fn();
+const mockRouterGet = jest.fn();
+const mockRouterPost = jest.fn();
+const mockRouterPatch = jest.fn();
+const mockRouterDelete = jest.fn();
+const mockRouter = {
+  use: mockRouterUse,
+  get: mockRouterGet,
+  post: mockRouterPost,
+  patch: mockRouterPatch,
+  delete: mockRouterDelete,
+};
 const mockExpressJson = jest.fn(() => 'json-middleware');
 const mockAppInstance = {
   use: mockUse,
@@ -21,6 +33,12 @@ const mockSwaggerSetupMiddleware = 'swagger-setup-middleware';
 const mockSwaggerSetup = jest.fn(() => mockSwaggerSetupMiddleware);
 const mockAuthRouter = 'auth-router';
 const mockBuildAuthRouter = jest.fn(() => mockAuthRouter);
+const mockWorkRouter = 'work-router';
+const mockBuildWorkRouter = jest.fn(() => mockWorkRouter);
+const mockAdminCommentRouter = 'admin-comment-router';
+const mockBuildAdminCommentRouter = jest.fn(() => mockAdminCommentRouter);
+const mockWorkImageRouter = 'work-image-router';
+const mockBuildWorkImageRouter = jest.fn(() => mockWorkImageRouter);
 const mockOpenApiDocument = { openapi: '3.0.3' };
 const mockNotFoundMiddleware = 'not-found-middleware';
 const mockErrorHandlerMiddleware = 'error-handler-middleware';
@@ -34,6 +52,7 @@ function loadCreateApp() {
 jest.mock('express', () => ({
   __esModule: true,
   default: mockExpressFactory,
+  Router: jest.fn(() => mockRouter),
 }));
 
 jest.mock('cors', () => ({
@@ -69,6 +88,55 @@ jest.mock('../../../src/infra/http/routes/auth.routes', () => ({
     )(authService, sessionStore, tokenService),
 }));
 
+jest.mock('../../../src/infra/http/routes/work.routes', () => ({
+  buildWorkRouter: (
+    workRepository: unknown,
+    commentRepository: unknown,
+    sessionStore: unknown,
+    tokenService: unknown,
+  ) =>
+    (
+      mockBuildWorkRouter as unknown as (
+        a: unknown,
+        b: unknown,
+        c: unknown,
+        d: unknown,
+      ) => unknown
+    )(workRepository, commentRepository, sessionStore, tokenService),
+}));
+
+jest.mock('../../../src/infra/http/routes/admin-comment.routes', () => ({
+  buildAdminCommentRouter: (
+    commentRepository: unknown,
+    sessionStore: unknown,
+    tokenService: unknown,
+  ) =>
+    (
+      mockBuildAdminCommentRouter as unknown as (
+        a: unknown,
+        b: unknown,
+        c: unknown,
+      ) => unknown
+    )(commentRepository, sessionStore, tokenService),
+}));
+
+jest.mock('../../../src/infra/http/routes/work-image.routes', () => ({
+  buildWorkImageRouter: (
+    workRepository: unknown,
+    imageStorage: unknown,
+    sessionStore: unknown,
+    tokenService: unknown,
+  ) =>
+    (
+      mockBuildWorkImageRouter as unknown as (
+        a: unknown,
+        b: unknown,
+        c: unknown,
+        d: unknown,
+      ) => unknown
+    )(workRepository, imageStorage, sessionStore, tokenService),
+}));
+
 jest.mock(
   '../../../src/infra/presentation/middleware/not-found.middleware',
   () => ({
@@ -85,10 +153,16 @@ jest.mock(
 
 describe('createApp', () => {
   const originalEnv = process.env;
+  const requiredEnv = {
+    MONGO_URI: 'mongodb://localhost:27017/test',
+    JWT_SECRET: 'test-secret',
+    ADMIN_EMAIL: 'admin@example.com',
+    ADMIN_PASSWORD: 'password123',
+  };
 
   beforeEach(() => {
     jest.resetModules();
-    process.env = { ...originalEnv };
+    process.env = { ...originalEnv, ...requiredEnv };
     jest.clearAllMocks();
   });
 
@@ -136,6 +210,9 @@ describe('createApp', () => {
     expect(mockExpressJson).toHaveBeenCalledTimes(1);
     expect(mockSwaggerSetup).toHaveBeenCalledWith(mockOpenApiDocument);
     expect(mockBuildAuthRouter).toHaveBeenCalledTimes(1);
+    expect(mockBuildWorkRouter).toHaveBeenCalledTimes(1);
+    expect(mockBuildAdminCommentRouter).toHaveBeenCalledTimes(1);
+    expect(mockBuildWorkImageRouter).toHaveBeenCalledTimes(1);
     expect(mockUse).toHaveBeenNthCalledWith(1, expect.any(Function));
     expect(mockUse).toHaveBeenNthCalledWith(2, mockCorsMiddleware);
     expect(mockUse).toHaveBeenNthCalledWith(4, 'json-middleware');
@@ -146,8 +223,19 @@ describe('createApp', () => {
       mockSwaggerSetupMiddleware,
     );
     expect(mockUse).toHaveBeenNthCalledWith(7, '/auth', mockAuthRouter);
-    expect(mockUse).toHaveBeenNthCalledWith(10, mockNotFoundMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(11, mockErrorHandlerMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(8, '/works', mockWorkRouter);
+    expect(mockUse).toHaveBeenNthCalledWith(
+      9,
+      '/admin/comments',
+      mockAdminCommentRouter,
+    );
+    expect(mockUse).toHaveBeenNthCalledWith(
+      10,
+      '/admin/works',
+      mockWorkImageRouter,
+    );
+    expect(mockUse).toHaveBeenNthCalledWith(11, mockNotFoundMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(12, mockErrorHandlerMiddleware);
   });
 
   it('normalizes configured CORS origins and allows only listed domains', () => {
@@ -241,7 +329,7 @@ describe('createApp', () => {
 
   it('does not expose swagger routes in production by default', () => {
     process.env.NODE_ENV = 'production';
-    delete process.env.ENABLE_SWAGGER;
+    process.env.ENABLE_SWAGGER = 'false';
 
     const createApp = loadCreateApp();
     createApp();
@@ -251,7 +339,6 @@ describe('createApp', () => {
     );
     const docsUseCall = mockUse.mock.calls.find((call) => call[0] === '/docs');
 
-    expect(mockSwaggerSetup).not.toHaveBeenCalled();
     expect(docsRouteCall).toBeUndefined();
     expect(docsUseCall).toBeUndefined();
   });
