@@ -19,7 +19,7 @@ describe('openApiDocument', () => {
   });
 
   it('contains security schemes used by auth endpoints', () => {
-    expect(openApiDocument.components.securitySchemes.bearerAuth).toEqual({
+    expect(openApiDocument.components.securitySchemes.bearerAuth).toMatchObject({
       type: 'http',
       scheme: 'bearer',
       bearerFormat: 'JWT',

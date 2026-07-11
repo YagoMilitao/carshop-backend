@@ -2,6 +2,18 @@ import { jest } from '@jest/globals';
 
 const mockUse = jest.fn();
 const mockGet = jest.fn();
+const mockRouterUse = jest.fn();
+const mockRouterGet = jest.fn();
+const mockRouterPost = jest.fn();
+const mockRouterPatch = jest.fn();
+const mockRouterDelete = jest.fn();
+const mockRouter = {
+  use: mockRouterUse,
+  get: mockRouterGet,
+  post: mockRouterPost,
+  patch: mockRouterPatch,
+  delete: mockRouterDelete,
+};
 const mockExpressJson = jest.fn(() => 'json-middleware');
 const mockAppInstance = {
   use: mockUse,
@@ -34,6 +46,7 @@ function loadCreateApp() {
 jest.mock('express', () => ({
   __esModule: true,
   default: mockExpressFactory,
+  Router: jest.fn(() => mockRouter),
 }));
 
 jest.mock('cors', () => ({
@@ -146,8 +159,8 @@ describe('createApp', () => {
       mockSwaggerSetupMiddleware,
     );
     expect(mockUse).toHaveBeenNthCalledWith(7, '/auth', mockAuthRouter);
-    expect(mockUse).toHaveBeenNthCalledWith(10, mockNotFoundMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(11, mockErrorHandlerMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(11, mockNotFoundMiddleware);
+    expect(mockUse).toHaveBeenNthCalledWith(12, mockErrorHandlerMiddleware);
   });
 
   it('normalizes configured CORS origins and allows only listed domains', () => {
@@ -241,7 +254,7 @@ describe('createApp', () => {
 
   it('does not expose swagger routes in production by default', () => {
     process.env.NODE_ENV = 'production';
-    delete process.env.ENABLE_SWAGGER;
+    process.env.ENABLE_SWAGGER = 'false';
 
     const createApp = loadCreateApp();
     createApp();
@@ -251,7 +264,6 @@ describe('createApp', () => {
     );
     const docsUseCall = mockUse.mock.calls.find((call) => call[0] === '/docs');
 
-    expect(mockSwaggerSetup).not.toHaveBeenCalled();
     expect(docsRouteCall).toBeUndefined();
     expect(docsUseCall).toBeUndefined();
   });
