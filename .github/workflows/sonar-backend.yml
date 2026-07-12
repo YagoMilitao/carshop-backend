@@ -36,12 +36,14 @@ jobs:
       - name: SonarCloud scan
         uses: SonarSource/sonarqube-scan-action@v7.1.0
         with:
-          scannerVersion: 6.2.0.4584
+          scannerVersion: 8.0.1.6346
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.scanner.skipJreProvisioning=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
-          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
-          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
 
       - name: Check Quality Gate
         uses: SonarSource/sonarqube-quality-gate-action@cf038b0e0cdecfa9e56c198bbb7d21d751d62c3b # v1.2.0
