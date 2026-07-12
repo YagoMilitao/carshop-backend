@@ -1,32 +1,57 @@
 import multer from 'multer';
 
 /**
- * Middleware responsável por receber temporariamente
- * uma única imagem antes de enviá-la ao storage externo.
+ * Tamanho máximo permitido para cada imagem: 5 MB.
+ *
+ * Exportamos a constante para evitar números mágicos
+ * e permitir que os testes confirmem a configuração.
+ */
+export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Tipos MIME permitidos para upload.
+ *
+ * O `as const` mantém os valores literais fortemente tipados.
+ */
+export const ALLOWED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
+
+/**
+ * Verifica se o tipo MIME informado é aceito pela aplicação.
+ *
+ * Motivo:
+ * manter a regra independente do Multer, facilitando testes unitários
+ * e reutilização futura em outros fluxos.
+ */
+export function isAllowedImageMimeType(mimeType: string): boolean {
+  return ALLOWED_IMAGE_MIME_TYPES.includes(
+    mimeType as (typeof ALLOWED_IMAGE_MIME_TYPES)[number],
+  );
+}
+
+/**
+ * Middleware responsável por receber temporariamente uma imagem.
+ *
+ * O arquivo é salvo em `tmp/uploads` antes de ser enviado
+ * ao serviço externo, como Cloudinary.
  */
 export const uploadMiddleware = multer({
   dest: 'tmp/uploads',
 
   limits: {
-    /**
-     * Limite máximo de 5 MB.
-     */
-    fileSize: 5 * 1024 * 1024,
+    fileSize: MAX_IMAGE_SIZE_BYTES,
   },
 
   fileFilter: (_request, file, callback) => {
-    /**
-     * Tipos MIME permitidos.
-     */
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-
-    if (!allowedMimeTypes.includes(file.mimetype)) {
+    if (!isAllowedImageMimeType(file.mimetype)) {
       callback(
         new Error('Formato inválido. Envie uma imagem JPEG, PNG ou WebP.'),
       );
       return;
     }
-
     callback(null, true);
   },
 });
