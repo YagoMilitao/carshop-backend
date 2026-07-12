@@ -7,19 +7,19 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "ts-node --files -r tsconfig-paths/register src/main/index.ts",
     "start:dev": "ts-node --files --transpile-only -r tsconfig-paths/register src/main/index.ts",
     "start:debug": "node --inspect -r ts-node/register -r tsconfig-paths/register src/main/index.ts",
     "start:prod": "node dist/main/index.js",
-    "lint": "eslint \"{src,tests}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:unit": "jest --runInBand",
     "test:cov": "jest --coverage",
     "test:coverage": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./tests/jest-e2e.json",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:portfolio:model": "ts-node -r tsconfig-paths/register src/main/test-portfolio-model.ts"
   },
   "dependencies": {
@@ -79,13 +79,13 @@
     ],
     "rootDir": ".",
     "testMatch": [
-      "<rootDir>/tests/unit/**/*.spec.ts"
+      "<rootDir>/test/unit/**/*.spec.ts"
     ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "setupFiles": [
-      "<rootDir>/tests/jest.setup.ts"
+      "<rootDir>/test/jest.setup.ts"
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"

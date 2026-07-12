@@ -33,7 +33,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['tests/**/*.ts'],
+    files: ['test/**/*.ts'],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
