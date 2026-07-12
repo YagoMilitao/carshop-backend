@@ -5,97 +5,23 @@ import {
 } from './swagger.helpers';
 
 /**
- * Tag das operações administrativas sobre works.
+ * Tag das operações administrativas relacionadas aos trabalhos.
  */
 export const adminWorksTags = [
   {
     name: 'Admin Works',
-    description: 'Gerenciamento administrativo dos trabalhos do portfólio.',
+    description:
+      'Gerenciamento administrativo de trabalhos e imagens do portfólio.',
   },
 ] as const;
 
 /**
- * Schemas usados nas operações administrativas.
+ * Schemas usados pelas rotas administrativas de works.
  */
 export const adminWorksSchemas = {
-  CreateWorkRequest: {
-    type: 'object',
-    required: ['slug', 'title', 'description', 'category', 'tags', 'status'],
-    properties: {
-      slug: {
-        type: 'string',
-        example: 'reforma-banco-couro-civic',
-      },
-      title: {
-        type: 'string',
-        maxLength: 120,
-        example: 'Reforma de banco em couro do Civic',
-      },
-      description: {
-        type: 'string',
-        maxLength: 5000,
-        example:
-          'Troca completa do revestimento dos bancos com acabamento premium.',
-      },
-      category: {
-        type: 'string',
-        example: 'bancos',
-      },
-      tags: {
-        type: 'array',
-        items: {
-          type: 'string',
-        },
-        example: ['couro', 'honda', 'civic'],
-      },
-      status: {
-        type: 'string',
-        enum: ['draft', 'published'],
-        example: 'published',
-      },
-      metadata: {
-        type: 'object',
-        properties: {
-          vehicleBrand: {
-            type: 'string',
-            example: 'Honda',
-          },
-          vehicleModel: {
-            type: 'string',
-            example: 'Civic',
-          },
-          serviceType: {
-            type: 'string',
-            example: 'Reforma de bancos',
-          },
-        },
-      },
-      seo: {
-        type: 'object',
-        properties: {
-          metaTitle: {
-            type: 'string',
-            maxLength: 120,
-            example: 'Reforma de banco em couro do Honda Civic',
-          },
-          metaDescription: {
-            type: 'string',
-            maxLength: 255,
-            example:
-              'Conheça o trabalho de reforma dos bancos em couro deste Honda Civic.',
-          },
-          keywords: {
-            type: 'array',
-            items: {
-              type: 'string',
-            },
-            example: ['couro', 'civic', 'tapeçaria automotiva'],
-          },
-        },
-      },
-    },
-  },
-
+  /**
+   * Resposta devolvida após o upload da imagem.
+   */
   UploadWorkImageResponse: {
     type: 'object',
     required: ['message'],
@@ -108,82 +34,94 @@ export const adminWorksSchemas = {
   },
 } as const;
 
+/**
+ * Rotas administrativas relacionadas aos trabalhos.
+ */
 export const adminWorksPaths = {
-  '/works': {
-    /**
-     * O GET público já existe em works.swagger.ts.
-     *
-     * Este objeto adiciona apenas o POST protegido.
-     * A mesclagem correta será feita depois no documento principal.
-     */
-    post: {
-      tags: ['Admin Works'],
-      summary: 'Cria um novo trabalho',
-      description:
-        'Cria um trabalho no portfólio. Exige autenticação administrativa via JWT.',
-      security: bearerSecurity,
-      requestBody: {
-        required: true,
-        content: {
-          'application/json': {
-            schema: {
-              $ref: '#/components/schemas/CreateWorkRequest',
-            },
-          },
-        },
-      },
-      responses: {
-        '201': successResponse(
-          'Trabalho criado com sucesso.',
-          '#/components/schemas/WorkResponse',
-        ),
-        '400': errorResponse('Payload inválido.'),
-        '401': errorResponse('Token ausente, inválido ou sessão expirada.'),
-        '409': errorResponse('Já existe um trabalho com esse slug.'),
-      },
-    },
-  },
-
   '/admin/works/{workId}/images': {
     post: {
       tags: ['Admin Works'],
-      summary: 'Adiciona uma imagem ao trabalho',
-      description:
-        'Envia uma imagem para o storage externo e salva somente URL e metadados no MongoDB.',
+
+      summary: 'Adiciona uma imagem a um trabalho',
+
+      description: [
+        'Envia uma imagem para o storage externo e salva no MongoDB apenas a URL e os metadados.',
+        '',
+        'Regras do upload:',
+        '- apenas uma imagem por requisição;',
+        '- formatos aceitos: JPEG, PNG e WebP;',
+        '- tamanho máximo: 5 MB;',
+        '- o campo do arquivo deve se chamar `file`;',
+        '- `alt` é usado para acessibilidade e SEO;',
+        '- `isCover=true` define a imagem como capa e remove a marcação de capa das demais imagens.',
+      ].join('\n'),
+
+      /**
+       * Equivalente ao @ApiBearerAuth().
+       *
+       * Faz o Swagger enviar:
+       * Authorization: Bearer <accessToken>
+       */
       security: bearerSecurity,
+
       parameters: [
         {
           in: 'path',
           name: 'workId',
           required: true,
-          description: 'Identificador do trabalho.',
+          description: 'Identificador do trabalho que receberá a imagem.',
           schema: {
             type: 'string',
             format: 'uuid',
           },
+          example: 'cf357670-d168-48b4-a5de-c57dff7858fe',
         },
       ],
+
+      /**
+       * Equivalente ao @ApiConsumes('multipart/form-data')
+       * e ao @ApiBody() do NestJS.
+       */
       requestBody: {
         required: true,
+        description:
+          'Arquivo da imagem e seus metadados. Selecione o arquivo no campo `file`.',
         content: {
           'multipart/form-data': {
             schema: {
               type: 'object',
               required: ['file', 'alt'],
               properties: {
+                /**
+                 * O nome precisa ser igual ao configurado no Multer:
+                 * uploadMiddleware.single('file')
+                 */
                 file: {
                   type: 'string',
                   format: 'binary',
-                  description: 'Imagem JPEG, PNG ou WebP.',
+                  description:
+                    'Imagem JPEG, PNG ou WebP, com tamanho máximo de 5 MB.',
                 },
+
                 alt: {
                   type: 'string',
+                  minLength: 2,
                   maxLength: 160,
-                  example: 'Banco do Honda Civic reformado em couro.',
+                  description:
+                    'Texto alternativo usado para acessibilidade e SEO.',
+                  example: 'Banco do Honda Civic reformado em couro preto.',
                 },
+
                 isCover: {
+                  /**
+                   * Em multipart/form-data, o Express normalmente recebe
+                   * esse valor como texto. Seu controller converte
+                   * request.body.isCover === "true".
+                   */
                   type: 'boolean',
                   default: false,
+                  description:
+                    'Quando true, define esta imagem como capa do trabalho.',
                   example: true,
                 },
               },
@@ -191,14 +129,32 @@ export const adminWorksPaths = {
           },
         },
       },
+
       responses: {
         '201': successResponse(
-          'Imagem adicionada com sucesso.',
+          'Imagem adicionada ao trabalho com sucesso.',
           '#/components/schemas/UploadWorkImageResponse',
         ),
-        '400': errorResponse('Arquivo ou dados do upload inválidos.'),
-        '401': errorResponse('Token ausente, inválido ou sessão expirada.'),
+
+        '400': errorResponse(
+          'Arquivo ausente, formato inválido ou metadados incorretos.',
+        ),
+
+        '401': errorResponse(
+          'Access token ausente, inválido ou sessão expirada.',
+        ),
+
         '404': errorResponse('Trabalho não encontrado.'),
+
+        '413': errorResponse('A imagem ultrapassa o limite de 5 MB.'),
+
+        '415': errorResponse(
+          'Tipo de arquivo não suportado. Envie JPEG, PNG ou WebP.',
+        ),
+
+        '500': errorResponse(
+          'Falha inesperada ao enviar ou persistir a imagem.',
+        ),
       },
     },
   },
