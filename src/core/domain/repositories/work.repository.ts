@@ -29,4 +29,26 @@ export interface WorkRepositoryPort {
   softDelete(id: string): Promise<void>;
   hardDelete(id: string): Promise<void>;
   addImage(workId: string, image: WorkImage): Promise<void>;
+  findById(id: string): Promise<Work | undefined>;
+
+  /**
+   * Também retorna works removidos logicamente.
+   *
+   * Necessário para o hard delete, porque findById normalmente
+   * filtra deletedAt: null.
+   */
+  findByIdIncludingDeleted(id: string): Promise<Work | undefined>;
+
+  /**
+   * Salva os metadados de uma imagem no Work.
+   */
+  addImage(workId: string, image: WorkImage): Promise<Work | undefined>;
+
+  /**
+   * Remove somente os dados persistidos no Mongo.
+   *
+   * A remoção no storage é responsabilidade do caso de uso,
+   * pois o repository não deve conhecer Cloudinary.
+   */
+  hardDeleteData(id: string): Promise<boolean>;
 }

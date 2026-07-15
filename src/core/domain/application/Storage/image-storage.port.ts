@@ -1,9 +1,21 @@
 /**
- * Resultado retornado depois do upload.
+ * Dados necessários para enviar uma imagem ao storage.
  *
- * Motivo:
- * a aplicação só precisa saber a URL pública
- * e o identificador necessário para deletar depois.
+ * O domínio trabalha com Buffer e não conhece Multer,
+ * Cloudinary, arquivos temporários ou caminhos locais.
+ */
+export interface UploadImageInput {
+  buffer: Buffer;
+  mimeType: string;
+  originalName: string;
+  folder: string;
+}
+
+/**
+ * Resultado devolvido pelo storage após o upload.
+ *
+ * A URL será usada para exibição.
+ * O publicId será usado para exclusão futura.
  */
 export interface UploadImageResult {
   url: string;
@@ -11,13 +23,14 @@ export interface UploadImageResult {
 }
 
 /**
- * Porta de storage de imagem.
+ * Porta de armazenamento externo.
  *
  * Motivo:
- * manter Cloudinary fora da regra de negócio.
- * Se trocar para S3 depois, os use cases não mudam.
+ * os casos de uso dependem deste contrato, não do Cloudinary.
+ * Isso permite trocar futuramente para S3 sem alterar a regra de negócio.
  */
 export interface ImageStoragePort {
-  upload(filePath: string): Promise<UploadImageResult>;
+  upload(input: UploadImageInput): Promise<UploadImageResult>;
+
   delete(publicId: string): Promise<void>;
 }

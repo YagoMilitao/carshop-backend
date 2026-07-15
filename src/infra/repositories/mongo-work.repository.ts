@@ -11,17 +11,28 @@ import type {
 import { WorkModel } from '../../data/models/work.model';
 import { CommentModel } from '../../data/models/comment.model';
 
-function toWork(document: {
+type WorkPersistenceDocument = {
   id: string;
   slug: string;
   title: string;
   description: string;
   category: string;
   tags: string[];
-  status: WorkStatus;
+  images: Array<{
+    id: string;
+    url: string;
+    publicId: string;
+    alt: string;
+    isCover: boolean;
+    order: number;
+  }>;
+  status: 'draft' | 'published';
+  deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
-}): Work {
+};
+
+function toWork(document: WorkPersistenceDocument): Work {
   return {
     id: document.id,
     slug: document.slug,
@@ -29,8 +40,16 @@ function toWork(document: {
     description: document.description,
     category: document.category,
     tags: document.tags,
-    images: [],
+    images: document.images.map((image) => ({
+      id: image.id,
+      url: image.url,
+      publicId: image.publicId,
+      alt: image.alt,
+      isCover: image.isCover,
+      order: image.order,
+    })),
     status: document.status,
+    deletedAt: document.deletedAt?.toISOString() ?? null,
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
   };
