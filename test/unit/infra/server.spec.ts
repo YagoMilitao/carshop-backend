@@ -1,383 +1,149 @@
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-const mockUse = jest.fn();
-const mockGet = jest.fn();
-const mockRouterUse = jest.fn();
-const mockRouterGet = jest.fn();
-const mockRouterPost = jest.fn();
-const mockRouterPatch = jest.fn();
-const mockRouterDelete = jest.fn();
-const mockRouter = {
-  use: mockRouterUse,
-  get: mockRouterGet,
-  post: mockRouterPost,
-  patch: mockRouterPatch,
-  delete: mockRouterDelete,
-};
-const mockExpressJson = jest.fn(() => 'json-middleware');
-const mockAppInstance = {
-  use: mockUse,
-  get: mockGet,
-};
+const mockApp = { name: 'express-app' };
+const mockSessionStore = { name: 'session-store' };
+const mockWorkRepository = { name: 'work-repository' };
+const mockCommentRepository = { name: 'comment-repository' };
+const mockTokenService = { name: 'token-service' };
+const mockCredentialsProvider = { name: 'credentials-provider' };
+const mockImageStorage = { name: 'image-storage' };
+const mockAuthService = { name: 'auth-service' };
 
-const mockExpressFactory = jest.fn(() => mockAppInstance);
-(mockExpressFactory as unknown as { json: typeof mockExpressJson }).json =
-  mockExpressJson;
+const mockExpress = jest.fn(() => mockApp);
+const mockMongoSessionStoreRepository = jest.fn(() => mockSessionStore);
+const mockMongoWorkRepository = jest.fn(() => mockWorkRepository);
+const mockMongoCommentRepository = jest.fn(() => mockCommentRepository);
+const mockJsonWebTokenService = jest.fn(() => mockTokenService);
+const mockEnvAdminCredentialsProvider = jest.fn(() => mockCredentialsProvider);
+const mockCloudinaryStorageService = jest.fn(() => mockImageStorage);
+const mockAuthServiceConstructor = jest.fn<
+  (
+    sessionStore: unknown,
+    tokenService: unknown,
+    credentialsProvider: unknown,
+  ) => typeof mockAuthService
+>(() => mockAuthService);
+const mockRegisterBaseMiddlewares = jest.fn();
+const mockRegisterSwagger = jest.fn();
+const mockRegisterRoutes = jest.fn();
+const mockRegisterTerminalMiddlewares = jest.fn();
 
-const mockCorsMiddleware = 'cors-middleware';
-const mockCorsFactory = jest.fn(
-  () => mockCorsMiddleware,
-) as unknown as jest.MockedFunction<(options: unknown) => string>;
-const mockSwaggerServe = 'swagger-serve-middleware';
-const mockSwaggerSetupMiddleware = 'swagger-setup-middleware';
-const mockSwaggerSetup = jest.fn(() => mockSwaggerSetupMiddleware);
-const mockAuthRouter = 'auth-router';
-const mockBuildAuthRouter = jest.fn(() => mockAuthRouter);
-const mockWorkRouter = 'work-router';
-const mockBuildWorkRouter = jest.fn(() => mockWorkRouter);
-const mockAdminCommentRouter = 'admin-comment-router';
-const mockBuildAdminCommentRouter = jest.fn(() => mockAdminCommentRouter);
-const mockWorkImageRouter = 'work-image-router';
-const mockBuildWorkImageRouter = jest.fn(() => mockWorkImageRouter);
-const mockOpenApiDocument = { openapi: '3.0.3' };
-const mockNotFoundMiddleware = 'not-found-middleware';
-const mockErrorHandlerMiddleware = 'error-handler-middleware';
+jest.mock('express', () => ({
+  __esModule: true,
+  default: mockExpress,
+}));
+
+jest.mock('../../../src/core/domain/application/Auth/auth.service', () => ({
+  AuthService: mockAuthServiceConstructor,
+}));
+
+jest.mock('../../../src/infra/config/env-admin-credentials.provider', () => ({
+  EnvAdminCredentialsProvider: mockEnvAdminCredentialsProvider,
+}));
+
+jest.mock('../../../src/infra/config/middleware', () => ({
+  registerBaseMiddlewares: mockRegisterBaseMiddlewares,
+  registerTerminalMiddlewares: mockRegisterTerminalMiddlewares,
+}));
+
+jest.mock('../../../src/infra/config/routes', () => ({
+  registerRoutes: mockRegisterRoutes,
+}));
+
+jest.mock(
+  '../../../src/infra/repositories/mongo-session-store.repository',
+  () => ({
+    MongoSessionStoreRepository: mockMongoSessionStoreRepository,
+  }),
+);
+
+jest.mock('../../../src/infra/repositories/mongo-work.repository', () => ({
+  MongoWorkRepository: mockMongoWorkRepository,
+}));
+
+jest.mock('../../../src/infra/repositories/mongo-comment.repository', () => ({
+  MongoCommentRepository: mockMongoCommentRepository,
+}));
+
+jest.mock('../../../src/infra/services/jsonwebtoken-token.service', () => ({
+  JsonWebTokenService: mockJsonWebTokenService,
+}));
+
+jest.mock(
+  '../../../src/infra/gateway/cloudinary/cloudinary-storage.service',
+  () => ({
+    CloudinaryStorageService: mockCloudinaryStorageService,
+  }),
+);
+
+jest.mock('../../../src/infra/swagger', () => ({
+  registerSwagger: mockRegisterSwagger,
+}));
 
 function loadCreateApp() {
   const module =
     require('../../../src/infra/server') as typeof import('../../../src/infra/server');
+
   return module.createApp;
 }
 
-jest.mock('express', () => ({
-  __esModule: true,
-  default: mockExpressFactory,
-  Router: jest.fn(() => mockRouter),
-}));
-
-jest.mock('cors', () => ({
-  __esModule: true,
-  default: mockCorsFactory,
-}));
-
-jest.mock('swagger-ui-express', () => ({
-  __esModule: true,
-  default: {
-    serve: mockSwaggerServe,
-    setup: (document: unknown) =>
-      (mockSwaggerSetup as unknown as (a: unknown) => unknown)(document),
-  },
-}));
-
-jest.mock('../../../src/infra/docs/swaggerSingletonArray', () => ({
-  openApiDocument: mockOpenApiDocument,
-}));
-
-jest.mock('../../../src/infra/http/routes/auth.routes', () => ({
-  buildAuthRouter: (
-    authService: unknown,
-    sessionStore: unknown,
-    tokenService: unknown,
-  ) =>
-    (
-      mockBuildAuthRouter as unknown as (
-        a: unknown,
-        b: unknown,
-        c: unknown,
-      ) => unknown
-    )(authService, sessionStore, tokenService),
-}));
-
-jest.mock('../../../src/infra/http/routes/work.routes', () => ({
-  buildWorkRouter: (
-    workRepository: unknown,
-    commentRepository: unknown,
-    sessionStore: unknown,
-    tokenService: unknown,
-  ) =>
-    (
-      mockBuildWorkRouter as unknown as (
-        a: unknown,
-        b: unknown,
-        c: unknown,
-        d: unknown,
-      ) => unknown
-    )(workRepository, commentRepository, sessionStore, tokenService),
-}));
-
-jest.mock('../../../src/infra/http/routes/admin-comment.routes', () => ({
-  buildAdminCommentRouter: (
-    commentRepository: unknown,
-    sessionStore: unknown,
-    tokenService: unknown,
-  ) =>
-    (
-      mockBuildAdminCommentRouter as unknown as (
-        a: unknown,
-        b: unknown,
-        c: unknown,
-      ) => unknown
-    )(commentRepository, sessionStore, tokenService),
-}));
-
-jest.mock('../../../src/infra/http/routes/work-image.routes', () => ({
-  buildWorkImageRouter: (
-    workRepository: unknown,
-    imageStorage: unknown,
-    sessionStore: unknown,
-    tokenService: unknown,
-  ) =>
-    (
-      mockBuildWorkImageRouter as unknown as (
-        a: unknown,
-        b: unknown,
-        c: unknown,
-        d: unknown,
-      ) => unknown
-    )(workRepository, imageStorage, sessionStore, tokenService),
-}));
-
-jest.mock(
-  '../../../src/infra/presentation/middleware/not-found.middleware',
-  () => ({
-    notFoundMiddleware: mockNotFoundMiddleware,
-  }),
-);
-
-jest.mock(
-  '../../../src/infra/presentation/middleware/error-handler.middleware',
-  () => ({
-    errorHandlerMiddleware: mockErrorHandlerMiddleware,
-  }),
-);
-
 describe('createApp', () => {
-  const originalEnv = process.env;
-  const requiredEnv = {
-    MONGO_URI: 'mongodb://localhost:27017/test',
-    JWT_SECRET: 'test-secret',
-    ADMIN_EMAIL: 'admin@example.com',
-    ADMIN_PASSWORD: 'password123',
-  };
-
   beforeEach(() => {
-    jest.resetModules();
-    process.env = { ...originalEnv, ...requiredEnv };
     jest.clearAllMocks();
   });
 
-  afterAll(() => {
-    process.env = originalEnv;
-  });
-
-  it('wires middlewares and routes with default CORS origin callback', () => {
-    delete process.env.CORS_ORIGIN;
-    process.env.NODE_ENV = 'development';
-    delete process.env.ENABLE_SWAGGER;
-
+  it('creates and returns the Express application', () => {
     const createApp = loadCreateApp();
+
     const app = createApp();
 
-    expect(app).toBe(mockAppInstance);
-    expect(mockCorsFactory).toHaveBeenCalledWith({
-      origin: expect.any(Function),
-      credentials: true,
-      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    expect(mockExpress).toHaveBeenCalledTimes(1);
+    expect(app).toBe(mockApp);
+  });
+
+  it('creates the dependencies and registers the application layers', () => {
+    const createApp = loadCreateApp();
+
+    createApp();
+
+    expect(mockMongoSessionStoreRepository).toHaveBeenCalledTimes(1);
+    expect(mockMongoWorkRepository).toHaveBeenCalledTimes(1);
+    expect(mockMongoCommentRepository).toHaveBeenCalledTimes(1);
+    expect(mockJsonWebTokenService).toHaveBeenCalledTimes(1);
+    expect(mockEnvAdminCredentialsProvider).toHaveBeenCalledTimes(1);
+    expect(mockCloudinaryStorageService).toHaveBeenCalledTimes(1);
+    expect(mockAuthServiceConstructor).toHaveBeenCalledWith(
+      mockSessionStore,
+      mockTokenService,
+      mockCredentialsProvider,
+    );
+
+    expect(mockRegisterBaseMiddlewares).toHaveBeenCalledWith(mockApp);
+    expect(mockRegisterSwagger).toHaveBeenCalledWith(mockApp);
+    expect(mockRegisterRoutes).toHaveBeenCalledWith(mockApp, {
+      authService: mockAuthService,
+      sessionStore: mockSessionStore,
+      tokenService: mockTokenService,
+      workRepository: mockWorkRepository,
+      commentRepository: mockCommentRepository,
+      imageStorage: mockImageStorage,
     });
-    const corsOptions = mockCorsFactory.mock.calls[0][0] as {
-      origin: (
-        origin: string | undefined,
-        callback: (error: Error | null, allowed?: boolean) => void,
-      ) => void;
-      credentials: boolean;
-      methods: string[];
-      allowedHeaders: string[];
-    };
-    const allowWithoutOrigin = jest.fn();
-    const rejectUnknownOrigin = jest.fn();
-
-    corsOptions.origin(undefined, allowWithoutOrigin);
-    corsOptions.origin('https://app.carshop.com', rejectUnknownOrigin);
-
-    expect(allowWithoutOrigin).toHaveBeenCalledWith(null, true);
-    expect(rejectUnknownOrigin).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'CORS bloqueado para origin: https://app.carshop.com',
-      }),
-    );
-
-    expect(mockExpressJson).toHaveBeenCalledTimes(1);
-    expect(mockSwaggerSetup).toHaveBeenCalledWith(mockOpenApiDocument);
-    expect(mockBuildAuthRouter).toHaveBeenCalledTimes(1);
-    expect(mockBuildWorkRouter).toHaveBeenCalledTimes(1);
-    expect(mockBuildAdminCommentRouter).toHaveBeenCalledTimes(1);
-    expect(mockBuildWorkImageRouter).toHaveBeenCalledTimes(1);
-    expect(mockUse).toHaveBeenNthCalledWith(1, expect.any(Function));
-    expect(mockUse).toHaveBeenNthCalledWith(2, mockCorsMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(4, 'json-middleware');
-    expect(mockUse).toHaveBeenNthCalledWith(
-      6,
-      '/docs',
-      mockSwaggerServe,
-      mockSwaggerSetupMiddleware,
-    );
-    expect(mockUse).toHaveBeenNthCalledWith(7, '/auth', mockAuthRouter);
-    expect(mockUse).toHaveBeenNthCalledWith(8, '/works', mockWorkRouter);
-    expect(mockUse).toHaveBeenNthCalledWith(
-      9,
-      '/admin/comments',
-      mockAdminCommentRouter,
-    );
-    expect(mockUse).toHaveBeenNthCalledWith(
-      10,
-      '/admin/works',
-      mockWorkImageRouter,
-    );
-    expect(mockUse).toHaveBeenNthCalledWith(11, mockNotFoundMiddleware);
-    expect(mockUse).toHaveBeenNthCalledWith(12, mockErrorHandlerMiddleware);
+    expect(mockRegisterTerminalMiddlewares).toHaveBeenCalledWith(mockApp);
   });
 
-  it('normalizes configured CORS origins and allows only listed domains', () => {
-    process.env.CORS_ORIGIN =
-      ' https://admin.carshop.com,https://app.carshop.com ';
-    process.env.NODE_ENV = 'development';
-    delete process.env.ENABLE_SWAGGER;
-
+  it('registers terminal middlewares after Swagger and routes', () => {
     const createApp = loadCreateApp();
+
     createApp();
 
-    expect(mockCorsFactory).toHaveBeenCalledWith({
-      origin: expect.any(Function),
-      credentials: true,
-      methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
-    });
-    const corsOptions = mockCorsFactory.mock.calls[0][0] as {
-      origin: (
-        origin: string | undefined,
-        callback: (error: Error | null, allowed?: boolean) => void,
-      ) => void;
-      credentials: boolean;
-      methods: string[];
-      allowedHeaders: string[];
-    };
-    const allowAdmin = jest.fn();
-    const allowApp = jest.fn();
-    const rejectUnknown = jest.fn();
+    const baseOrder = mockRegisterBaseMiddlewares.mock.invocationCallOrder[0];
+    const swaggerOrder = mockRegisterSwagger.mock.invocationCallOrder[0];
+    const routesOrder = mockRegisterRoutes.mock.invocationCallOrder[0];
+    const terminalOrder =
+      mockRegisterTerminalMiddlewares.mock.invocationCallOrder[0];
 
-    corsOptions.origin('https://admin.carshop.com', allowAdmin);
-    corsOptions.origin('https://app.carshop.com', allowApp);
-    corsOptions.origin('https://evil.example.com', rejectUnknown);
-
-    expect(allowAdmin).toHaveBeenCalledWith(null, true);
-    expect(allowApp).toHaveBeenCalledWith(null, true);
-    expect(rejectUnknown).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'CORS bloqueado para origin: https://evil.example.com',
-      }),
-    );
-  });
-
-  it('responds hello world in root route handler', () => {
-    process.env.NODE_ENV = 'development';
-    delete process.env.ENABLE_SWAGGER;
-    const createApp = loadCreateApp();
-    createApp();
-
-    const rootRouteCall = mockGet.mock.calls.find((call) => call[0] === '/');
-    const rootHandler = rootRouteCall?.[1] as (
-      request: unknown,
-      response: { status: (code: number) => { send: (body: string) => void } },
-    ) => void;
-    const send = jest.fn();
-    const response = {
-      status: jest.fn(() => ({ send })),
-    };
-
-    rootHandler({}, response);
-
-    expect(mockGet).toHaveBeenCalledWith('/', expect.any(Function));
-    expect(response.status).toHaveBeenCalledWith(200);
-    expect(send).toHaveBeenCalledWith('Hello World!');
-  });
-
-  it('responds openapi document in docs.json route handler', () => {
-    process.env.NODE_ENV = 'development';
-    delete process.env.ENABLE_SWAGGER;
-    const createApp = loadCreateApp();
-    createApp();
-
-    const docsRouteCall = mockGet.mock.calls.find(
-      (call) => call[0] === '/docs.json',
-    );
-    const docsHandler = docsRouteCall?.[1] as (
-      request: unknown,
-      response: { status: (code: number) => { json: (body: unknown) => void } },
-    ) => void;
-    const json = jest.fn();
-    const response = {
-      status: jest.fn(() => ({ json })),
-    };
-
-    docsHandler({}, response);
-
-    expect(mockGet).toHaveBeenCalledWith('/docs.json', expect.any(Function));
-    expect(response.status).toHaveBeenCalledWith(200);
-    expect(json).toHaveBeenCalledWith(mockOpenApiDocument);
-  });
-
-  it('does not expose swagger routes in production by default', () => {
-    process.env.NODE_ENV = 'production';
-    process.env.ENABLE_SWAGGER = 'false';
-
-    const createApp = loadCreateApp();
-    createApp();
-
-    const docsRouteCall = mockGet.mock.calls.find(
-      (call) => call[0] === '/docs.json',
-    );
-    const docsUseCall = mockUse.mock.calls.find((call) => call[0] === '/docs');
-
-    expect(docsRouteCall).toBeUndefined();
-    expect(docsUseCall).toBeUndefined();
-  });
-
-  it('allows enabling swagger explicitly in production', () => {
-    process.env.NODE_ENV = 'production';
-    process.env.ENABLE_SWAGGER = 'true';
-
-    const createApp = loadCreateApp();
-    createApp();
-
-    const docsRouteCall = mockGet.mock.calls.find(
-      (call) => call[0] === '/docs.json',
-    );
-    const docsUseCall = mockUse.mock.calls.find((call) => call[0] === '/docs');
-
-    expect(mockSwaggerSetup).toHaveBeenCalledWith(mockOpenApiDocument);
-    expect(docsRouteCall).toBeDefined();
-    expect(docsUseCall).toEqual([
-      '/docs',
-      mockSwaggerServe,
-      mockSwaggerSetupMiddleware,
-    ]);
-  });
-
-  it('allows disabling swagger explicitly outside production', () => {
-    process.env.NODE_ENV = 'development';
-    process.env.ENABLE_SWAGGER = 'false';
-
-    const createApp = loadCreateApp();
-    createApp();
-
-    const docsRouteCall = mockGet.mock.calls.find(
-      (call) => call[0] === '/docs.json',
-    );
-    const docsUseCall = mockUse.mock.calls.find((call) => call[0] === '/docs');
-
-    expect(mockSwaggerSetup).not.toHaveBeenCalled();
-    expect(docsRouteCall).toBeUndefined();
-    expect(docsUseCall).toBeUndefined();
+    expect(baseOrder).toBeLessThan(swaggerOrder);
+    expect(swaggerOrder).toBeLessThan(routesOrder);
+    expect(routesOrder).toBeLessThan(terminalOrder);
   });
 });

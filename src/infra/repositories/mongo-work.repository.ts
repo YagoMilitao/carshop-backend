@@ -40,13 +40,15 @@ function toWork(document: WorkPersistenceDocument): Work {
     description: document.description,
     category: document.category,
     tags: document.tags,
-    images: document.images.map((image) => ({
+    images: (document.images ?? []).map((image) => ({
       id: image.id,
       url: image.url,
       publicId: image.publicId,
       alt: image.alt,
       isCover: image.isCover,
       order: image.order,
+      createdAt: document.createdAt.toISOString(),
+      updatedAt: document.updatedAt.toISOString(),
     })),
     status: document.status,
     deletedAt: document.deletedAt?.toISOString() ?? null,
@@ -79,11 +81,24 @@ export class MongoWorkRepository implements WorkRepositoryPort {
 
     return toWork(created);
   }
-
+ /**
+  * Busca work ativo.
+  */
   async findById(id: string): Promise<Work | undefined> {
     const work = await WorkModel.findOne({ id, deletedAt: null }).lean();
     return work ? toWork(work) : undefined;
   }
+
+  /**
+ * Busca work independentemente do soft delete.
+ */
+async findByIdIncludingDeleted(
+  id: string,
+): Promise<Work | undefined> {
+  const work = await WorkModel.findOne({ id }).lean();
+
+  return work ? toWork(work) : undefined;
+}
 
   async findBySlug(slug: string): Promise<Work | undefined> {
     const work = await WorkModel.findOne({
@@ -127,7 +142,16 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     await CommentModel.deleteMany({ workId: id });
   }
 
-  async addImage(workId: string, image: WorkImage): Promise<void> {
+  async hardDeleteData(id: string): Promise<boolean> {
+    const result = await WorkModel.deleteOne({ id });
+
+    return result.deletedCount > 0;
+  }
+
+  async addImage(
+    workId: string,
+    image: WorkImage,
+  ): Promise<Work | undefined> {
     /**
      * Se a nova imagem for capa, removemos a capa das outras.
      * Motivo:
@@ -152,5 +176,7 @@ export class MongoWorkRepository implements WorkRepositoryPort {
         },
       },
     );
+
+    return this.findById(workId);
   }
 }

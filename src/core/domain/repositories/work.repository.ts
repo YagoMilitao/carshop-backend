@@ -28,8 +28,6 @@ export interface WorkRepositoryPort {
   listAll(): Promise<Work[]>;
   softDelete(id: string): Promise<void>;
   hardDelete(id: string): Promise<void>;
-  addImage(workId: string, image: WorkImage): Promise<void>;
-  findById(id: string): Promise<Work | undefined>;
 
   /**
    * Também retorna works removidos logicamente.
