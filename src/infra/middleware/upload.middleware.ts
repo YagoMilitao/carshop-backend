@@ -42,6 +42,7 @@ export const uploadMiddleware = multer({
   dest: 'tmp/uploads',
 
   limits: {
+    files: 1,
     fileSize: MAX_IMAGE_SIZE_BYTES,
   },
 

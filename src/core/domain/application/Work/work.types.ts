@@ -22,6 +22,7 @@ export interface Work {
   status: WorkStatus;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 /**
