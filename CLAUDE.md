@@ -18,7 +18,9 @@ Also use these documents as sources of truth:
 
 @README.md
 
-## Public Repository Safety
+---
+
+# Public Repository Safety
 
 Treat all files under `specs/` as public information.
 
@@ -28,7 +30,22 @@ production data or sensitive user information into specifications.
 Specifications may reference environment variable names but never
 their actual values.
 
-## Swagger
+If any agent detects a possible secret, credential, token, private key,
+connection string, production credential or other sensitive value in a
+versioned file:
+
+1. Do not reproduce the value in agent output.
+2. Refer to it using `<REDACTED>`.
+3. Report the affected file.
+4. Treat the finding as a `BLOCKER`.
+5. Do not consider the task complete until the exposure has been handled.
+
+Everything written under `specs/` must be safe to publish in a public
+GitHub repository.
+
+---
+
+# Swagger
 
 - Swagger UI is served at `GET /docs`, and the OpenAPI JSON document is served at `GET /docs.json`.
 - Swagger availability is controlled by `ENABLE_SWAGGER` and `NODE_ENV`; it is disabled by default in production and enabled by default in other environments.
@@ -36,20 +53,57 @@ their actual values.
 - Whenever an endpoint, payload, response, status code, authentication requirement, cookie, or header changes, update the corresponding Swagger fragment and tests in the same change.
 - Keep the documented contract synchronized with the actual routes, middlewares, controllers, and validation schemas.
 
-## Project overview
+---
 
-Node.js/Express + TypeScript backend for a car-upholstery-restoration shop portfolio site. The shop owner (admin) uploads photos of finished jobs ("works") to Cloudinary; visitors browse published works and leave comments that require admin approval before they appear publicly. Auth is JWT access+refresh with rotating sessions and CSRF protection. Data is persisted in MongoDB via Mongoose.
+# Project Overview
 
-## Agent workflow
+Node.js/Express + TypeScript backend for a car-upholstery-restoration shop portfolio site.
 
-Project subagents live in `.claude/agents/`.
-## Spec-Driven Development Workflow
+The shop owner (admin) uploads photos of finished jobs ("works") to Cloudinary.
+
+Visitors browse published works and leave comments that require admin approval before they appear publicly.
+
+Authentication uses JWT access + refresh tokens with rotating sessions and CSRF protection.
+
+Data is persisted in MongoDB via Mongoose.
+
+---
+
+# Agent Workflow
+
+Project subagents live in:
+
+`.claude/agents/`
+
+Available specialized agents:
+
+- `task-reader`: retrieves a task from Notion by its project ID, such as `CARSHOP-21`, and returns structured requirements and Definition of Done. Read-only and does not touch the repository.
+- `spec-writer`: converts structured Notion requirements into a versioned, testable specification under `specs/CARSHOP-{number}/`. It does not make architectural decisions.
+- `knowledge-reader`: retrieves relevant historical engineering knowledge from the CarShop Obsidian knowledge base. Read-only.
+- `architect`: performs read-only repository analysis and implementation planning for non-trivial changes.
+- `developer`: implements an approved plan end-to-end without committing or pushing.
+- `tester`: creates or updates tests under `test/` and runs relevant validation commands. It does not edit production code.
+- `reviewer`: performs an independent read-only review and reports findings by severity with file and line evidence.
+- `task-manager`: controllably updates the task's operational state and technical outcome in Notion after the quality gate passes. It does not change product requirements.
+- `knowledge-manager`: evaluates completed work and records reusable engineering knowledge in Obsidian when appropriate.
+- `plan-writer`: persists an approved architect plan under
+`specs/CARSHOP-{number}/plan.md`; it does not make architectural
+decisions and cannot edit production code.
+
+The main Claude conversation acts as the workflow coordinator.
+
+---
+
+# Spec-Driven Development Workflow
 
 Non-trivial implementation work originating from a `CARSHOP-{number}`
 task follows Spec-Driven Development.
 
-Mandatory pipeline:
+## Canonical Pipeline
 
+This is the single canonical mandatory workflow:
+
+```text
 task-reader
     ↓
 spec-writer
@@ -62,6 +116,8 @@ READY FOR IMPLEMENTATION?
     ├── no → STOP
     └── yes
           ↓
+      plan-writer
+          ↓
       developer
           ↓
         tester
@@ -69,168 +125,447 @@ READY FOR IMPLEMENTATION?
        reviewer
           ↓
       quality gate
-          ↓
-     task-manager
-          ↓
-  knowledge-manager
+       ├── fail → focused correction loop
+       └── pass
+              ↓
+         task-manager
+              ↓
+      knowledge-manager
+```
 
-- `task-manager`: controllably updates the task's state and technical outcome in Notion after the quality gate has been approved; does not change requirements.
-- `task-reader`: retrieves a task from Notion by its project ID (e.g. `CARSHOP-21`) and returns structured requirements/DoD; read-only, does not touch the repository.
-- `architect`: read-only analysis and implementation planning for non-trivial changes.
-- `developer`: implements an approved plan end-to-end without committing or pushing.
-- `tester`: creates or updates tests under `test/` and runs the relevant validation commands; it does not edit production code.
-- `reviewer`: performs an independent read-only review, reporting findings by severity with file and line evidence.
-- `spec-writer`: converts structured Notion requirements into a
-  versioned, testable specification under `specs/CARSHOP-{number}/`;
-  it does not make architectural decisions.
+## Workflow Authority
 
-The mandatory workflow is:
+The pipeline defined above is the single canonical workflow for
+non-trivial `CARSHOP-{number}` implementation tasks.
 
-task-reader
-    ↓
-architect
-    ↓
-READY FOR IMPLEMENTATION?
-    ├── no  → STOP
-    └── yes
-          ↓
-    developer
-          ↓
-        tester
-          ↓
-       reviewer
-          ↓
-       task-manager
-          ↓
-    quality gate
+No other section may define a conflicting or alternative mandatory pipeline.
 
-### Specification Gate
+The phase descriptions below explain this pipeline. They do not replace,
+reorder or omit its stages.
+
+If any later instruction conflicts with the canonical pipeline, the
+canonical pipeline takes precedence.
+
+A stage may only be skipped when this document explicitly marks it as
+conditional.
+
+Currently, only `knowledge-reader` is conditional.
+
+---
+
+
+# Specification Gate
 
 Production implementation must not begin until a versioned specification
 exists for non-trivial `CARSHOP-{number}` work.
 
 Expected location:
 
-specs/CARSHOP-{number}/spec.md
+`specs/CARSHOP-{number}/spec.md`
 
-The specification defines WHAT must be achieved.
+The specification defines **WHAT** must be achieved.
 
-The architect defines HOW the current system should achieve it.
+The architect defines **HOW** the current system should achieve it.
 
 The developer implements the approved plan.
 
-Never modify the specification merely to make an implementation easier.
+Never modify the specification merely to make an implementation easier or
+to make failing tests pass.
 
 If implementation reveals a genuine requirement problem:
 
-STOP
+`STOP`
 
 Return the issue to the coordinator.
 
 Update the specification only when the requirement itself has been
 clarified or changed.
 
-### Phase 1 — Requirements
+---
+
+# Phase 1 — Requirements Retrieval
 
 When the user references a task using `CARSHOP-{number}`:
 
 1. Invoke `task-reader`.
 2. Retrieve the task from Notion.
-3. Treat its structured output as the product specification.
+3. Treat its structured output as the source requirements for the specification.
 
 Do not ask the user to manually copy requirements that can be obtained from Notion.
 
-If `task-reader` reports BLOCKING information, stop the workflow.
+The task-reader must not invent missing information.
 
-### Phase 2 — Architecture
+If `task-reader` reports `BLOCKING` information:
 
-Pass the complete task-reader output to `architect`.
+`STOP`
 
-The architect must inspect the repository and return either:
+Do not invoke `spec-writer`.
+
+---
+
+# Phase 2 — Specification
+
+Pass the complete `task-reader` output to `spec-writer`.
+
+The `spec-writer` must create or update:
+
+`specs/CARSHOP-{number}/spec.md`
+
+The specification must contain testable requirements and acceptance criteria
+without prematurely defining implementation details that belong to the architect.
+
+The specification must comply with:
+
+@.claude/rules/spec-security.md
+
+Before continuing, the specification must be:
+
+`READY`
+
+If the specification reports:
+
+`BLOCKED`
+
+then:
+
+`STOP`
+
+Do not invoke `knowledge-reader`, `architect` or `developer`.
+
+---
+
+# Phase 3 — Knowledge Retrieval
+
+Before architecture analysis, determine whether historical engineering
+knowledge could materially influence the solution.
+
+Invoke `knowledge-reader` when the task involves:
+
+- architecture;
+- authentication or authorization;
+- security;
+- persistence;
+- external integrations;
+- API contracts;
+- infrastructure;
+- shared services;
+- reusable patterns;
+- cross-cutting concerns;
+- significant technical decisions.
+
+Pass the versioned specification to `knowledge-reader`.
+
+The `knowledge-reader` must search Obsidian using technical concepts,
+not only the task ID.
+
+Relevant historical knowledge must be passed to `architect`.
+
+For trivial changes where historical knowledge cannot materially affect
+the solution, `knowledge-reader` may be skipped.
+
+Obsidian provides historical engineering context.
+
+It is not the source of truth for the current implementation.
+
+The repository remains the source of truth for the current code.
+
+---
+
+# Phase 4 — Architecture
+
+Pass to `architect`:
+
+- original task ID;
+- versioned specification;
+- relevant historical knowledge when available.
+
+The architect must inspect the actual repository before proposing a solution.
+
+The architect must validate historical decisions against the current code.
+
+If Obsidian and the repository disagree, the architect must explicitly
+identify the conflict and determine the current behavior from the repository.
+
+The architect must return exactly one implementation verdict:
 
 - `READY FOR IMPLEMENTATION`
 - `BLOCKED`
 
-Only continue when the verdict is `READY FOR IMPLEMENTATION`.
+Only continue when the verdict is:
 
-### Phase 3 — Implementation
+`READY FOR IMPLEMENTATION`
+
+If the architect returns:
+
+`BLOCKED`
+
+then:
+
+`STOP`
+
+Do not invoke `developer`.
+
+---
+# Phase 5 — Plan Persistence
+
+When `architect` returns:
+
+`READY FOR IMPLEMENTATION`
+
+invoke `plan-writer`.
+
+Pass:
+
+- original task ID;
+- versioned specification;
+- complete architect output.
+
+The plan-writer must persist the approved plan at:
+
+`specs/CARSHOP-{number}/plan.md`
+
+The plan-writer must not introduce new architectural decisions.
+
+Implementation cannot begin until `plan.md` exists successfully.
+
+If plan persistence fails:
+
+`STOP`
+
+Do not invoke `developer`.
+
+# Phase 6 — Implementation
 
 Pass to `developer`:
 
 - original task ID;
-- task-reader specification;
-- architect plan.
+- `specs/CARSHOP-{number}/spec.md`;
+- `specs/CARSHOP-{number}/plan.md`;
+- architect plan;
+- relevant historical knowledge when it materially affects implementation.
+
+The developer must implement the approved plan.
 
 The developer must not reinterpret product requirements.
 
-### Phase 4 — Testing
+The developer must not silently change the specification.
+
+The developer must preserve unrelated existing changes.
+
+The developer must not commit or push.
+
+If implementation reveals a decision that cannot safely be made from the
+approved specification and architecture:
+
+`STOP`
+
+Return the issue to the coordinator for classification.
+
+---
+
+# Phase 7 — Testing
 
 After implementation, invoke `tester`.
 
 The tester receives:
 
-- original specification;
+- original task ID;
+- versioned specification;
 - architect plan;
-- developer summary;
+- developer implementation summary;
 - current diff.
 
-### Phase 5 — Review
+The tester must map verification to the specification's acceptance criteria.
+
+When the specification contains IDs such as:
+
+- `FR-*`
+- `NFR-*`
+- `AC-*`
+
+the tester must use them for traceability where applicable.
+
+Example:
+
+```text
+AC-001 → PASS
+AC-002 → PASS
+AC-003 → NOT VERIFIED
+```
+
+The tester may create or update tests under `test/`.
+
+The tester must not fix production code.
+
+If a production defect is discovered, report it back to the coordinator.
+
+Never modify the specification merely to make a test pass.
+
+---
+
+# Phase 8 — Review
 
 After testing, invoke `reviewer`.
 
 The reviewer receives:
 
-- original specification;
+- original task ID;
+- versioned specification;
 - architect plan;
 - implementation;
-- test results;
+- tester results;
 - current diff.
 
-### Phase 6 — Task Completion
+The reviewer must independently inspect the diff and relevant surrounding code.
 
-After `reviewer` completes successfully, evaluate the quality gate.
+Do not rely only on the developer summary.
+
+The reviewer must evaluate:
+
+- correctness;
+- specification compliance;
+- architecture;
+- security;
+- persistence;
+- API contracts;
+- Swagger synchronization when applicable;
+- test coverage;
+- regressions;
+- scope creep;
+- accidental disclosure of sensitive information.
+
+When a versioned specification exists, also verify:
+
+- implemented requirements;
+- acceptance criteria;
+- unrequested behavior;
+- divergence between implementation and specification.
+
+Use:
+
+`SPEC VIOLATION`
+
+when implementation contradicts an explicit requirement or acceptance criterion.
+
+Use:
+
+`SCOPE CREEP`
+
+when implementation introduces significant behavior not justified by the
+specification or approved plan.
+
+Any secret, credential or sensitive production information accidentally
+included in `specs/` or another versioned file is a:
+
+`BLOCKER`
+
+---
+
+# Phase 9 — Quality Gate
+
+After `reviewer` completes, evaluate the quality gate.
 
 The quality gate passes only when:
 
 - implementation is complete;
 - required validation was executed;
 - acceptance criteria are satisfied;
-- no BLOCKER finding remains open;
-- no HIGH finding remains open.
+- no `BLOCKER` finding remains open;
+- no `HIGH` finding remains open;
+- no unresolved specification violation prevents acceptance;
+- no sensitive information exposure remains unresolved.
 
-When the quality gate passes and the work originated from a
-`CARSHOP-{number}` task, invoke `task-manager`.
+If reviewer reports:
 
-Pass to `task-manager`:
+`BLOCKER`
+
+or
+
+`HIGH`
+
+the task is not complete.
+
+Do not invoke `task-manager` for completion.
+
+Send only the focused findings back to `developer`.
+
+Then run:
+
+```text
+developer
+    ↓
+tester
+    ↓
+reviewer
+    ↓
+quality gate
+```
+
+again.
+
+Do not restart architecture unless the finding exposes an architectural problem.
+
+If the finding exposes a requirement/specification problem:
+
+`STOP`
+
+Return the issue to the coordinator instead of silently modifying the spec.
+
+---
+
+# Phase 10 — Task Completion
+
+Only after the quality gate passes may `task-manager` be invoked.
+
+When the work originated from a `CARSHOP-{number}` task, pass to
+`task-manager`:
 
 - task ID;
-- original task-reader specification;
+- original task-reader requirements;
+- versioned specification;
 - developer implementation summary;
 - tester validation results;
-- reviewer findings/verdict.
+- reviewer findings/verdict;
+- quality gate result.
 
 The task-manager may update the Notion task to `Done` and record a concise
 technical completion summary.
 
-The task-manager must never change product requirements, Description,
-Definition of Done, Priority, Sprint, Epic or other planning properties
-unless the user explicitly requested that change.
+The task-manager must never fabricate implementation, testing or review results.
+
+The task-manager must never change:
+
+- product requirements;
+- Description;
+- Definition of Done;
+- Priority;
+- Sprint;
+- Epic;
+- other planning properties;
+
+unless the user explicitly requests that planning change.
+
+Explicit user requests do not authorize fabrication of workflow evidence.
 
 If the quality gate does not pass:
 
-DO NOT invoke task-manager for completion.
+`DO NOT invoke task-manager for completion.`
 
-Return the focused problem to the appropriate agent.
+---
 
-### Phase 7 — Knowledge Evaluation
+# Phase 11 — Knowledge Evaluation
 
-After a Notion task successfully passes the quality gate and
-`task-manager` completes its work, invoke `knowledge-manager`.
+After:
+
+1. the quality gate passes; and
+2. `task-manager` successfully completes its work;
+
+invoke `knowledge-manager`.
 
 Pass:
 
 - task ID;
-- structured specification;
+- versioned specification;
 - architect decisions;
 - developer implementation summary;
 - tester results;
@@ -239,7 +574,7 @@ Pass:
 The knowledge-manager must first evaluate whether reusable engineering
 knowledge was produced.
 
-It must NOT create a note simply because a task was completed.
+It must not create a note simply because a task was completed.
 
 Knowledge worthy of persistence includes:
 
@@ -263,174 +598,24 @@ If reusable knowledge exists:
 
 The knowledge-manager must never use Obsidian as a duplicate task tracker.
 
-### Quality Gate
+---
 
-If reviewer reports:
-
-BLOCKER
-or
-HIGH
-
-the task is not complete.
-
-Send only the focused findings back to `developer`.
-
-Then run:
-
-developer
-    ↓
-tester
-    ↓
-reviewer
-
-again.
-
-Do not restart architecture unless the finding exposes an architectural problem.
-
-## Commands
-
-```bash
-npm run start:dev        # run with ts-node (transpile-only, fast reload-free dev)
-npm run start            # run with ts-node (full type-checking)
-npm run build             # compile to dist/ via tsc -p tsconfig.build.json
-npm run start:prod        # run compiled output (node dist/main/index.js)
-
-npm run lint              # eslint --fix on src/ and test/
-npm run format             # prettier --write on src/ and test/
-
-npm test                  # jest unit tests (test/unit/**/*.spec.ts)
-npm run test:watch        # jest watch mode
-npm run test:coverage     # jest with coverage -> coverage/lcov.info (consumed by Sonar)
-npm run test:e2e          # jest with test/jest-e2e.json config (test/e2e/**/*.e2e-spec.ts)
-```
-
-Run a single unit test file:
-
-```bash
-npx jest test/unit/core/domain/application/Auth/auth.service.spec.ts
-```
-
-Run a single e2e test file:
-
-```bash
-npx jest --config ./test/jest-e2e.json test/e2e/app.e2e-spec.ts
-```
-
-Unit tests require env vars to be set (there's no `.env` loaded automatically for `test`) — `test/jest.setup.ts` only patches a `jest-mock` internal, it does not seed env. Individual specs typically set `process.env.*` themselves before importing modules that read `env`.
-
-### Knowledge Retrieval
-
-Before architecture analysis for non-trivial changes, determine whether
-historical engineering knowledge could materially influence the solution.
-
-Invoke `knowledge-reader` when the task involves:
-
-- architecture;
-- authentication or authorization;
-- security;
-- persistence;
-- external integrations;
-- API contracts;
-- infrastructure;
-- shared services;
-- reusable patterns;
-- cross-cutting concerns;
-- significant technical decisions.
-
-Pass the task-reader specification to `knowledge-reader`.
-
-The knowledge-reader must search Obsidian by technical concepts,
-not only by task ID.
-
-Pass relevant knowledge to `architect` together with the original
-task specification.
-
-For trivial changes where historical knowledge cannot materially affect
-the solution, skip knowledge-reader.
-
-## Architecture
-
-The app follows a hexagonal-ish layering, but the layer names don't map 1:1 onto top-level folders — pay attention to actual import paths, not just directory names:
-
-- **`src/core/domain`** — domain layer: entities/types and _ports_ (interfaces only). `application/Auth/*.port.ts` defines `TokenServicePort` and `admin-credentials-provider.port.ts`; `repositories/*.repository.ts` defines `WorkRepositoryPort`, `CommentRepositoryPort`, `SessionStorePort` as interfaces (despite the "repository" filename, these are ports, not implementations). `application/Auth/auth.service.ts` is the actual business-logic `AuthService`, depending only on ports.
-- **`src/data/models`** — Mongoose schemas/models (`work.model.ts`, `comment.model.ts`, `auth-session.model.ts`, `category.model.ts`, `tag.model.ts`, `work-image.model.ts`, `admin-user.model.ts`).
-- **`src/usecase`** — one class per use case (`create-work.use-case.ts`, `list-works.use-case.ts`, `create-comment.use-case.ts`, `approve-comment.use-case.ts`, `upload-work-image.use-case.ts`, etc.). Each takes repository _ports_ via constructor injection and contains the actual business rule.
-- **`src/presentation/controllers`** — Express controllers (`work.controller.ts`, `comment.controller.ts`, `admin-comment.controller.ts`, `work-image.controller.ts`, `auth.controller.ts`). Controllers parse/validate the request, call a use case, and map the result to an HTTP response; errors are passed to `next()` for the central error handler.
-- **`src/presentation/helpers`** — controller-adjacent helpers (`auth.cookies.ts` for setting/clearing the refresh/CSRF cookies, `login.validator.ts`, `route-param.helper.ts`).
-- **`src/infra`** — infrastructure/adapters and the composition root:
-  - `infra/server.ts` — **the real composition root**, invoked by `src/main/index.ts`. Instantiates concrete repositories/services, wires `AuthService`, registers middlewares, swagger, and routes. (`src/infra/http/server.ts` is a legacy/unused file — a standalone `app` never wired into `main/index.ts`; don't confuse it with `infra/server.ts`.)
-  - `infra/config/env.ts` — typed, validated env loading (throws at startup if required vars are missing).
-  - `infra/config/middleware.ts` — global middleware registration (helmet, cors, rate limit, json body parser, morgan) plus terminal middlewares (404, error handler).
-  - `infra/config/routes.ts` — mounts the four route groups: `/auth`, `/works`, `/admin/comments`, `/admin/works`.
-  - `infra/http/routes/*.routes.ts` — per-feature router builders. Each one instantiates its own use cases/controllers from injected ports and wires the auth middleware onto the routes that need it. This is where controllers, use cases, and ports actually get connected — read here first to trace a request end-to-end.
-  - `infra/repositories/mongo-*.repository.ts` — concrete Mongoose-backed implementations of the domain ports (plus `in-memory-session-store.repository.ts`, used in tests or as a fallback).
-  - `infra/gateway/cloudinary/cloudinary-storage.service.ts` — the real `ImageStoragePort` implementation used by `infra/server.ts`. (`src/core/domain/application/Gateway/cloudinary/cloudinary-storage.service.ts` is a duplicate left over from an earlier layering pass — not imported by the composition root.)
-  - `infra/services/jsonwebtoken-token.service.ts` — `TokenServicePort` implementation using `jsonwebtoken`.
-  - `infra/middleware/upload.middleware.ts` — Multer config (5 MB limit, JPEG/PNG/WebP only, temp storage in `tmp/uploads`) used by the work-image upload route.
-  - `infra/presentation/middleware/*` — `auth.middleware.ts` (JWT bearer validation + session lookup), `csrf-protection.middleware.ts` (double-submit check for `/auth/refresh` and `/auth/logout`), `rate-limit.middleware.ts`, `error-handler.middleware.ts`, `not-found.middleware.ts`.
-  - `infra/docs/*.swagger.ts` + `infra/swagger.ts` — hand-written OpenAPI fragments merged and served at `GET /docs` (UI) and `GET /docs.json`, gated by `ENABLE_SWAGGER`/`NODE_ENV` (see `infra/config/env.ts` and `infra/swagger.ts`).
-- **`src/main/index.ts`** — process entrypoint: connects Mongoose, calls `createApp()` from `infra/server.ts`, starts the HTTP listener.
-
-There are also several `.gitkeep`-only placeholder directories (`src/adapter/*`, `src/data/protocols/*`, `src/main/controllers`, `src/main/routes`, `src/utils`) reserved for future layering but currently empty — don't assume code lives there.
-
-Three ambient Express `Request.auth` declarations exist (`src/@types/express/index.d.ts`, `src/types/express.d.ts`, `src/presentation/protocols/express.d.ts`); they overlap via declaration merging. If you need to change the shape of `request.auth`, update `core/domain/application/Auth/auth.types.ts`'s `AuthenticatedRequestContext` and check all three files stay consistent.
-
-### Request flow example (creating a work image)
-
-`infra/http/routes/work-image.routes.ts` → `uploadMiddleware` (multer) → `authMiddleware` (JWT + session check) → `WorkImageController` → `UploadWorkImageUseCase` → `ImageStoragePort` (Cloudinary) + `WorkRepositoryPort` (Mongo).
-
-### Auth model
-
-- Login (`POST /auth/login`) issues a short-lived JWT access token (body) plus an `HttpOnly` `refresh_token` cookie and a readable `csrf_token` cookie (double-submit pattern).
-- `POST /auth/refresh` and `POST /auth/logout` require the `X-CSRF-Token` header to match the `csrf_token` cookie, and rotate the session on refresh.
-- Sessions are tracked server-side (`SessionStorePort`, Mongo-backed) so logout/revocation is explicit, not just token expiry.
-- `infra/presentation/middleware/auth.middleware.ts` validates the bearer token, its type, and the session status before attaching `request.auth`.
-
-## Environment variables
-
-`.env.example` is the authoritative list (more complete than the README): `NODE_ENV`, `PORT`, `CORS_ORIGIN`, `MONGO_URI`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`, `JWT_REFRESH_COOKIE_MAX_AGE_MS`, `ENABLE_SWAGGER`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. `infra/config/env.ts` throws at startup if a required var (`MONGO_URI`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`) is missing.
-
-## Testing conventions
-
-- Unit tests live under `test/unit/`, mirroring the `src/` path of the file under test (e.g. `src/infra/repositories/mongo-work.repository.ts` → `test/unit/infra/repositories/mongo-work.repository.spec.ts`). When adding a new source file, put its spec at the matching mirrored path.
-- E2E tests live under `test/e2e/*.e2e-spec.ts` and run under a separate Jest config (`test/jest-e2e.json`) — they are not picked up by plain `npm test`.
-- The `@/*` path alias maps to `src/*` (see `tsconfig.json` and both Jest configs' `moduleNameMapper`); most existing code uses relative imports, but `@/` is valid and used in a few files.
-- Repository tests (`mongo-*.repository.spec.ts`) mock the Mongoose models directly with `jest.mock('.../data/models/...')` rather than hitting a real database. `mongodb-memory-server` is a devDependency but isn't wired into the current unit test suite.
-
-## Obsidian Knowledge Base
-
-Long-term engineering knowledge for this project is stored in Obsidian.
-
-Vault:
-
-Defined by the `OBSIDIAN_VAULT_ID` environment variable (see `.env.example`).
-Never hardcode the vault ID here or in any other committed file — it
-identifies a local, machine-specific vault.
-
-Project knowledge root:
-
-`CarShop/`
-
-Allowed knowledge directories:
-
-- `CarShop/Architecture/`
-- `CarShop/ADR/`
-- `CarShop/Patterns/`
-- `CarShop/Learnings/`
-- `CarShop/Troubleshooting/`
-
-The `knowledge-manager` must never write outside this scope.
-
-## Unexpected Change Requests
+# Unexpected Change Requests
 
 During implementation, external coding agents such as Codex may identify
 changes that were not explicitly covered by the approved plan.
 
 Do not accept such changes automatically.
 
+Suggestions produced by external coding agents are proposals, not sources
+of truth.
+
+Never accept a Codex, Claude or other external-agent suggestion solely
+because the agent recommended it.
+
 Classify the proposed change first.
 
-### Developer-level change
+## Developer-Level Change
 
 The developer may proceed when the change:
 
@@ -442,9 +627,9 @@ The developer may proceed when the change:
 - does not introduce a new dependency;
 - does not expand task scope.
 
-### Architecture-level change
+## Architecture-Level Change
 
-Return the proposal to `arquiteto` when it may affect:
+Return the proposal to `architect` when it may affect:
 
 - architecture;
 - module boundaries;
@@ -460,26 +645,539 @@ Return the proposal to `arquiteto` when it may affect:
 
 The architect must evaluate the proposal against:
 
-- the current spec;
+- the current specification;
 - the existing repository;
 - relevant historical knowledge.
 
-### Requirement-level change
+If the architect changes the implementation plan without changing product
+behavior, the specification does not need to change.
 
-If the proposed change alters WHAT the system must do rather than HOW it
-is implemented:
+## Requirement-Level Change
 
-STOP.
+If the proposed change alters **WHAT** the system must do rather than
+**HOW** it is implemented:
+
+`STOP`
 
 Do not allow the developer or architect to silently modify the requirement.
 
-Return the issue to the coordinator and determine whether the specification
-must be clarified or updated.
+Return the issue to the coordinator.
 
-### External Agent Rule
+Determine whether the underlying Notion requirement needs clarification.
 
-Suggestions produced by external coding agents are proposals, not sources
-of truth.
+Only after the requirement has actually been clarified or changed may the
+versioned specification be updated.
 
-Never accept a Codex/Claude/external-agent suggestion solely because the
-agent recommended it.
+---
+
+# Commands
+
+```bash
+npm run start:dev        # run with ts-node (transpile-only, fast reload-free dev)
+npm run start            # run with ts-node (full type-checking)
+npm run build            # compile to dist/ via tsc -p tsconfig.build.json
+npm run start:prod       # run compiled output (node dist/main/index.js)
+
+npm run lint             # eslint --fix on src/ and test/
+npm run format           # prettier --write on src/ and test/
+
+npm test                 # jest unit tests (test/unit/**/*.spec.ts)
+npm run test:watch       # jest watch mode
+npm run test:coverage    # jest with coverage -> coverage/lcov.info
+npm run test:e2e         # jest with test/jest-e2e.json config
+```
+
+Run a single unit test file:
+
+```bash
+npx jest test/unit/core/domain/application/Auth/auth.service.spec.ts
+```
+
+Run a single e2e test file:
+
+```bash
+npx jest --config ./test/jest-e2e.json test/e2e/app.e2e-spec.ts
+```
+
+Unit tests require env vars to be set.
+
+There is no `.env` loaded automatically for `test`.
+
+`test/jest.setup.ts` only patches a `jest-mock` internal; it does not seed env.
+
+Individual specs typically set `process.env.*` themselves before importing
+modules that read `env`.
+
+---
+
+# Architecture
+
+The app follows a hexagonal-ish layering, but the layer names do not map
+1:1 onto top-level folders.
+
+Pay attention to actual import paths, not just directory names.
+
+## `src/core/domain`
+
+Domain layer.
+
+Contains entities/types and ports/interfaces.
+
+`application/Auth/*.port.ts` defines ports such as:
+
+- `TokenServicePort`
+- `admin-credentials-provider.port.ts`
+
+`repositories/*.repository.ts` defines ports such as:
+
+- `WorkRepositoryPort`
+- `CommentRepositoryPort`
+- `SessionStorePort`
+
+Despite the `repository` filename, these are ports, not implementations.
+
+`application/Auth/auth.service.ts` is the actual business-logic
+`AuthService`, depending only on ports.
+
+## `src/data/models`
+
+Mongoose schemas/models:
+
+- `work.model.ts`
+- `comment.model.ts`
+- `auth-session.model.ts`
+- `category.model.ts`
+- `tag.model.ts`
+- `work-image.model.ts`
+- `admin-user.model.ts`
+
+## `src/usecase`
+
+One class per use case, including:
+
+- `create-work.use-case.ts`
+- `list-works.use-case.ts`
+- `create-comment.use-case.ts`
+- `approve-comment.use-case.ts`
+- `upload-work-image.use-case.ts`
+
+Each takes repository ports via constructor injection and contains the
+business rule.
+
+## `src/presentation/controllers`
+
+Express controllers:
+
+- `work.controller.ts`
+- `comment.controller.ts`
+- `admin-comment.controller.ts`
+- `work-image.controller.ts`
+- `auth.controller.ts`
+
+Controllers:
+
+1. parse/validate the request;
+2. call a use case;
+3. map the result to an HTTP response;
+4. pass errors to `next()` for the central error handler.
+
+## `src/presentation/helpers`
+
+Controller-adjacent helpers including:
+
+- `auth.cookies.ts`
+- `login.validator.ts`
+- `route-param.helper.ts`
+
+## `src/infra`
+
+Infrastructure/adapters and composition root.
+
+### `src/infra/server.ts`
+
+This is the real composition root.
+
+It is invoked by:
+
+`src/main/index.ts`
+
+It:
+
+- instantiates concrete repositories/services;
+- wires `AuthService`;
+- registers middlewares;
+- registers Swagger;
+- registers routes.
+
+`src/infra/http/server.ts` is a legacy/unused file.
+
+It contains a standalone `app` that is not wired into `main/index.ts`.
+
+Do not confuse it with `src/infra/server.ts`.
+
+### `src/infra/config/env.ts`
+
+Typed, validated environment loading.
+
+Throws at startup if required environment variables are missing.
+
+### `src/infra/config/middleware.ts`
+
+Global middleware registration:
+
+- helmet;
+- cors;
+- rate limiting;
+- JSON body parser;
+- morgan.
+
+Also registers terminal middleware:
+
+- 404;
+- error handler.
+
+### `src/infra/config/routes.ts`
+
+Mounts:
+
+- `/auth`
+- `/works`
+- `/admin/comments`
+- `/admin/works`
+
+### `src/infra/http/routes/*.routes.ts`
+
+Per-feature router builders.
+
+Each one instantiates its own use cases/controllers from injected ports and
+wires authentication middleware onto routes that require it.
+
+This is where controllers, use cases and ports actually get connected.
+
+Read here first when tracing a request end-to-end.
+
+### `src/infra/repositories`
+
+Contains concrete Mongoose-backed implementations of domain ports.
+
+Also contains:
+
+`in-memory-session-store.repository.ts`
+
+used in tests or as a fallback.
+
+### Cloudinary
+
+The real `ImageStoragePort` implementation used by `infra/server.ts` is:
+
+`src/infra/gateway/cloudinary/cloudinary-storage.service.ts`
+
+The following file is a duplicate left from an earlier layering pass and is
+not imported by the composition root:
+
+`src/core/domain/application/Gateway/cloudinary/cloudinary-storage.service.ts`
+
+### JWT
+
+`src/infra/services/jsonwebtoken-token.service.ts`
+
+implements `TokenServicePort` using `jsonwebtoken`.
+
+### Upload Middleware
+
+`src/infra/middleware/upload.middleware.ts`
+
+uses Multer with:
+
+- 5 MB limit;
+- JPEG/PNG/WebP only;
+- temporary storage under `tmp/uploads`.
+
+It is used by the work-image upload route.
+
+### Presentation Middleware
+
+`src/infra/presentation/middleware/*` includes:
+
+- `auth.middleware.ts`
+- `csrf-protection.middleware.ts`
+- `rate-limit.middleware.ts`
+- `error-handler.middleware.ts`
+- `not-found.middleware.ts`
+
+### Swagger
+
+`src/infra/docs/*.swagger.ts`
+
+and:
+
+`src/infra/swagger.ts`
+
+contain the hand-written OpenAPI fragments and assembly logic.
+
+Swagger is served through:
+
+- `GET /docs`
+- `GET /docs.json`
+
+and is gated by:
+
+- `ENABLE_SWAGGER`
+- `NODE_ENV`
+
+## `src/main/index.ts`
+
+Process entrypoint.
+
+It:
+
+1. connects Mongoose;
+2. calls `createApp()` from `infra/server.ts`;
+3. starts the HTTP listener.
+
+---
+
+# Placeholder and Legacy Directories
+
+Several `.gitkeep`-only placeholder directories exist:
+
+- `src/adapter/*`
+- `src/data/protocols/*`
+- `src/main/controllers`
+- `src/main/routes`
+- `src/utils`
+
+They are reserved for future layering but currently empty.
+
+Do not assume code lives there.
+
+Three ambient Express `Request.auth` declarations exist:
+
+- `src/@types/express/index.d.ts`
+- `src/types/express.d.ts`
+- `src/presentation/protocols/express.d.ts`
+
+They overlap through declaration merging.
+
+If the shape of `request.auth` changes, update:
+
+`src/core/domain/application/Auth/auth.types.ts`
+
+specifically:
+
+`AuthenticatedRequestContext`
+
+and verify all three ambient declarations remain consistent.
+
+---
+
+# Request Flow Example
+
+Creating a work image follows:
+
+```text
+infra/http/routes/work-image.routes.ts
+    ↓
+uploadMiddleware
+    ↓
+authMiddleware
+    ↓
+WorkImageController
+    ↓
+UploadWorkImageUseCase
+    ↓
+ImageStoragePort (Cloudinary)
++
+WorkRepositoryPort (Mongo)
+```
+
+---
+
+# Authentication Model
+
+Login:
+
+`POST /auth/login`
+
+issues:
+
+- short-lived JWT access token in the response body;
+- `HttpOnly` `refresh_token` cookie;
+- readable `csrf_token` cookie.
+
+`POST /auth/refresh`
+
+and:
+
+`POST /auth/logout`
+
+require the `X-CSRF-Token` header to match the `csrf_token` cookie.
+
+Refresh rotates the session.
+
+Sessions are tracked server-side using `SessionStorePort`, backed by Mongo,
+so logout/revocation is explicit rather than relying only on token expiry.
+
+`infra/presentation/middleware/auth.middleware.ts` validates:
+
+- bearer token;
+- token type;
+- session status;
+
+before attaching:
+
+`request.auth`.
+
+---
+
+# Environment Variables
+
+`.env.example` is the authoritative list.
+
+It is more complete than the README.
+
+Known variable names include:
+
+- `NODE_ENV`
+- `PORT`
+- `CORS_ORIGIN`
+- `MONGO_URI`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN`
+- `JWT_REFRESH_EXPIRES_IN`
+- `JWT_REFRESH_COOKIE_MAX_AGE_MS`
+- `ENABLE_SWAGGER`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `OBSIDIAN_VAULT_ID`
+
+`infra/config/env.ts` throws at startup if required variables are missing.
+
+Never copy actual environment variable values into:
+
+- `CLAUDE.md`;
+- `specs/`;
+- documentation;
+- agent outputs intended for version control.
+
+---
+
+# Testing Conventions
+
+Unit tests live under:
+
+`test/unit/`
+
+and mirror the `src/` path of the file under test.
+
+Example:
+
+```text
+src/infra/repositories/mongo-work.repository.ts
+↓
+test/unit/infra/repositories/mongo-work.repository.spec.ts
+```
+
+When adding a new source file, put its spec at the matching mirrored path.
+
+E2E tests live under:
+
+`test/e2e/*.e2e-spec.ts`
+
+and run under:
+
+`test/jest-e2e.json`
+
+They are not picked up by plain:
+
+`npm test`
+
+The `@/*` path alias maps to:
+
+`src/*`
+
+See:
+
+- `tsconfig.json`
+- Jest configs' `moduleNameMapper`
+
+Most existing code uses relative imports, but `@/` is valid and used in
+some files.
+
+Repository tests such as:
+
+`mongo-*.repository.spec.ts`
+
+mock Mongoose models directly using `jest.mock(...)`.
+
+They do not hit a real database.
+
+`mongodb-memory-server` is a devDependency but is not wired into the current
+unit test suite.
+
+---
+
+# Obsidian Knowledge Base
+
+Long-term engineering knowledge for this project is stored in Obsidian.
+
+The Vault is defined by:
+
+`OBSIDIAN_VAULT_ID`
+
+from the local environment.
+
+Never hardcode the Vault ID here or in another committed file.
+
+It identifies a local, machine-specific Vault.
+
+Project knowledge root:
+
+`CarShop/`
+
+Allowed knowledge directories:
+
+- `CarShop/Architecture/`
+- `CarShop/ADR/`
+- `CarShop/Patterns/`
+- `CarShop/Learnings/`
+- `CarShop/Troubleshooting/`
+
+`knowledge-reader` must only read project-relevant knowledge within this scope.
+
+`knowledge-manager` must never write outside this scope.
+
+Notion is the source of truth for tasks and product requirements.
+
+The repository is the source of truth for the current implementation.
+
+Obsidian is the source of historical engineering knowledge.
+
+A historical Obsidian note must never override contradictory evidence from
+the current repository without explicit architectural evaluation.
+
+## Agent Environment Isolation
+
+Specialized agents must follow least-privilege access to environment variables.
+
+An agent must not source `.env` merely to obtain one configuration value.
+
+Agents must never load unrelated application secrets into child processes.
+
+For Obsidian agents:
+
+- `knowledge-reader`
+- `knowledge-manager`
+
+the only application-external configuration they require is:
+
+`OBSIDIAN_VAULT_ID`
+
+This variable must already be present in the Claude Code process environment.
+
+If it is missing, the Obsidian agent must return `BLOCKED`.
+
+It must not source `.env` or inspect unrelated environment values.

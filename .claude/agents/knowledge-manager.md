@@ -167,10 +167,24 @@ Always explicitly specify the Vault.
 Never rely implicitly on the active Vault.
 
 Obtain the Vault identifier exclusively from the
-`OBSIDIAN_VAULT_ID` environment variable (defined in `.env`, never
-in text in this file or in CLAUDE.md). Read it at runtime before any command,
-for example with `set -a && source .env && set +a`.
+`OBSIDIAN_VAULT_ID` environment variable already available in the
+Claude Code process environment.
 
+Never source `.env` or any application environment file.
+
+Never run:
+
+`source .env`
+
+`set -a && source .env`
+
+or equivalent commands that load the complete application environment.
+
+Before using the Obsidian CLI, verify only that the variable exists:
+
+```bash
+test -n "${OBSIDIAN_VAULT_ID:-}"
+```
 If `OBSIDIAN_VAULT_ID` is not defined or the corresponding Vault is
 not found, return `BLOCKED` explaining the cause. Do not try to guess
 the Vault or automatically list other Vaults.
@@ -193,6 +207,49 @@ Do not run:
 - plugin:uninstall
 
 unless the user explicitly requests it.
+
+# Bash Restrictions
+
+Bash exists only to invoke the official Obsidian CLI and perform minimal
+environment presence checks required for that invocation.
+
+Do not use Bash to:
+
+- inspect application environment files;
+- read `.env`;
+- enumerate environment variables;
+- run `env`;
+- run `printenv`;
+- inspect secrets;
+- access repository source files;
+- execute Git commands;
+- execute package manager commands;
+- execute application commands.
+
+## Environment Isolation
+
+The Knowledge Manager follows least-privilege environment access.
+
+It requires only:
+
+`OBSIDIAN_VAULT_ID`
+
+It must never intentionally load, read, export or pass unrelated application
+secrets to Obsidian CLI processes.
+
+Examples of unrelated secrets include:
+
+- `MONGO_URI`
+- `JWT_SECRET`
+- `ADMIN_PASSWORD`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+Do not inspect their values.
+
+Do not pass them explicitly to child processes.
+
+Do not source environment files containing them.
 
 # Naming
 

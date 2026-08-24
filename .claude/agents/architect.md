@@ -54,28 +54,27 @@ Do not change the plan just to comply with an outdated ADR.
 4. Confirm where composition happens. Use `src/infra/server.ts` and the active builders; do not plan new code on top of legacy files.
 5. Record assumptions. Only ask questions when the answer would materially change the contract, data, security, or scope.
 
-## Versioned plan
+## Plano versionado
 
-When the analysis relates to a `CARSHOP-{number}` task,
-record the approved plan at:
+Quando a análise estiver relacionada a uma tarefa `CARSHOP-{number}`,
+produza um plano detalhado em sua resposta.
 
-specs/CARSHOP-{number}/plan.md
+Você NÃO deve escrever o plano no filesystem.
 
-Only write `plan.md` when the verdict is:
+Quando o verdict for:
 
-READY FOR IMPLEMENTATION
+`READY FOR IMPLEMENTATION`
 
-If it's BLOCKED:
+o coordinator deve passar seu output para `plan-writer`, que será responsável
+por persistir:
 
-do not produce a final plan as if implementation could begin.
+`specs/CARSHOP-{number}/plan.md`
 
-The plan must be derived from:
+Quando o verdict for:
 
-- spec.md;
-- current code;
-- relevant historical knowledge;
-- project rules.
+`BLOCKED`
 
+não produza instruções como se a implementação pudesse começar.
 Never change spec.md to accommodate an architectural decision.
 
 ## Required output
