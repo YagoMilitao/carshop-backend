@@ -420,3 +420,66 @@ Allowed knowledge directories:
 - `CarShop/Troubleshooting/`
 
 The `knowledge-manager` must never write outside this scope.
+
+## Unexpected Change Requests
+
+During implementation, external coding agents such as Codex may identify
+changes that were not explicitly covered by the approved plan.
+
+Do not accept such changes automatically.
+
+Classify the proposed change first.
+
+### Developer-level change
+
+The developer may proceed when the change:
+
+- is internal to the approved implementation;
+- does not change observable behavior;
+- does not change contracts;
+- does not change persistence;
+- does not change security behavior;
+- does not introduce a new dependency;
+- does not expand task scope.
+
+### Architecture-level change
+
+Return the proposal to `arquiteto` when it may affect:
+
+- architecture;
+- module boundaries;
+- public contracts;
+- APIs;
+- persistence;
+- authentication or authorization;
+- security;
+- external integrations;
+- dependencies;
+- shared abstractions;
+- significant cross-cutting behavior.
+
+The architect must evaluate the proposal against:
+
+- the current spec;
+- the existing repository;
+- relevant historical knowledge.
+
+### Requirement-level change
+
+If the proposed change alters WHAT the system must do rather than HOW it
+is implemented:
+
+STOP.
+
+Do not allow the developer or architect to silently modify the requirement.
+
+Return the issue to the coordinator and determine whether the specification
+must be clarified or updated.
+
+### External Agent Rule
+
+Suggestions produced by external coding agents are proposals, not sources
+of truth.
+
+Never accept a Codex/Claude/external-agent suggestion solely because the
+agent recommended it.
