@@ -43,6 +43,9 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Claude Code personal project settings
+/.claude/settings.local.json
+
 # temp directory
 .temp
 .tmp
