@@ -208,23 +208,31 @@ Do not run:
 
 unless the user explicitly requests it.
 
-# Bash Restrictions
+## Bash Restrictions
 
-Bash exists only to invoke the official Obsidian CLI and perform minimal
-environment presence checks required for that invocation.
+Bash is available only for:
+
+- verifying the presence of `OBSIDIAN_VAULT_ID` without printing its value;
+- invoking the official Obsidian CLI for the operations permitted by this agent.
 
 Do not use Bash to:
 
-- inspect application environment files;
 - read `.env`;
+- source `.env`;
 - enumerate environment variables;
 - run `env`;
 - run `printenv`;
-- inspect secrets;
-- access repository source files;
+- inspect credentials;
 - execute Git commands;
-- execute package manager commands;
-- execute application commands.
+- execute package-manager commands;
+- execute application commands;
+- inspect unrelated repository files.
+
+If `OBSIDIAN_VAULT_ID` is unavailable:
+
+`BLOCKED`
+
+Do not attempt to retrieve it from `.env`.
 
 ## Environment Isolation
 

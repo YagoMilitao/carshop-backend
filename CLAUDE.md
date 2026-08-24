@@ -75,6 +75,10 @@ Project subagents live in:
 
 `.claude/agents/`
 
+Each agent's declared tools and permissions are security boundaries, not suggestions.
+
+Agents must not use broader capabilities or indirect workarounds to bypass those boundaries.
+
 Available specialized agents:
 
 - `task-reader`: retrieves a task from Notion by its project ID, such as `CARSHOP-21`, and returns structured requirements and Definition of Done. Read-only and does not touch the repository.
@@ -93,6 +97,74 @@ decisions and cannot edit production code.
 The main Claude conversation acts as the workflow coordinator.
 
 ---
+
+# Agent Security and Least Privilege
+
+All specialized agents must follow the principle of least privilege.
+
+An agent must have access only to the tools, files, services, environment
+variables and operations required to perform its assigned responsibility.
+
+Access available to one agent must not be assumed to be appropriate for
+another agent.
+
+## General Rules
+
+Agents must:
+
+- use only the minimum capabilities required for their role;
+- respect their declared read/write boundaries;
+- access only the external services required by their responsibility;
+- avoid reading files unrelated to their task;
+- avoid accessing environment variables unrelated to their task;
+- avoid passing unrelated environment variables to child processes;
+- never broaden their own permissions to make a task easier;
+- never bypass another agent's responsibility boundary.
+
+If an agent cannot complete its responsibility with its permitted access:
+
+`STOP`
+
+Return:
+
+`BLOCKED`
+
+Explain which capability is missing and why it is required.
+
+Do not work around the restriction by using another available tool.
+
+## Environment Isolation
+
+Agents must follow least-privilege access to environment variables.
+
+Never source the complete application environment merely to obtain one
+configuration value.
+
+Agents must not run commands whose purpose is to enumerate or expose the
+complete process environment, including:
+
+- `env`
+- `printenv`
+- `export -p`
+- `set` for environment discovery
+- `source .env`
+- `. .env`
+- `set -a && source .env`
+
+unless an explicitly documented agent responsibility requires loading that
+environment and the operation has been intentionally approved.
+
+When an agent requires a specific environment variable, that variable should
+already be available in the agent's process environment.
+
+The agent may verify the presence of the required variable without printing
+its value.
+
+Example:
+
+```bash
+test -n "${OBSIDIAN_VAULT_ID:-}"
+```
 
 # Spec-Driven Development Workflow
 
