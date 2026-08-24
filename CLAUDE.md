@@ -12,10 +12,21 @@ Before implementing anything, read and follow:
 @.claude/rules/testing.md
 @.claude/rules/typescript.md
 @.claude/rules/usecases.md
+@.claude/rules/spec-security.md
 
 Also use these documents as sources of truth:
 
 @README.md
+
+## Public Repository Safety
+
+Treat all files under `specs/` as public information.
+
+Never copy secrets, credentials, `.env` values, private URLs,
+production data or sensitive user information into specifications.
+
+Specifications may reference environment variable names but never
+their actual values.
 
 ## Swagger
 

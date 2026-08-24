@@ -68,3 +68,14 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+
+# AI temporary artifacts
+.claude/tmp/
+.claude/cache/
+specs/**/.draft/
+specs/**/*.tmp.md
+
+# Security scan reports
+gitleaks-report.json
+gitleaks-report.*

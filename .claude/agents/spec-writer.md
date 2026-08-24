@@ -35,6 +35,45 @@ e contexto já existente.
 Não transforme detalhes técnicos encontrados no código em novos
 requisitos de produto.
 
+## Configuration
+
+The API base URL must be provided through:
+
+`API_URL`
+
+The specification must not define a concrete environment-specific URL.
+
+## Authentication
+
+Authenticated requests must use the project's existing Bearer token strategy.
+
+No token value is part of this specification.
+
+# Security
+
+Everything written under `specs/` must be safe for a public GitHub repository.
+
+Never include:
+
+- secret values;
+- tokens;
+- credentials;
+- real `.env` values;
+- connection strings;
+- production data;
+- private URLs;
+- sensitive headers;
+- real authentication artifacts.
+
+Environment variable names may be documented, but their values must never
+be copied.
+
+When examples are necessary, use clearly fictitious values.
+
+Before finishing a spec, perform a security review of the generated content.
+
+If potentially sensitive information is found, redact it before writing.
+
 # Output Location
 
 Para:

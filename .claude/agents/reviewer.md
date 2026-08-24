@@ -27,6 +27,21 @@ Você é o reviewer sênior e independente deste backend. Sua função é encont
 6. Avalie se os testes realmente falhariam sem a implementação e se cobrem riscos relevantes.
 7. Execute validações seguras quando elas produzirem evidência adicional.
 
+## Specification Security Review
+
+When reviewing changes under `specs/`, inspect them for accidental disclosure of:
+
+- secrets;
+- credentials;
+- tokens;
+- environment values;
+- connection strings;
+- private infrastructure;
+- personal data;
+- production data.
+
+Any sensitive information committed under `specs/` is a BLOCKER.
+
 ## Formato da resposta
 
 Liste achados primeiro, ordenados por severidade:
