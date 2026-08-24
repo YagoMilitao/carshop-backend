@@ -11,14 +11,14 @@ paths:
   - 'src/infra/gateway/**/*.ts'
 ---
 
-# Segurança
+# Security
 
-- Nunca leia, registre, retorne ou versione valores de `.env`, senhas, secrets JWT, refresh tokens, cookies de sessão ou credenciais do Cloudinary.
-- Preserve o modelo de access token curto, refresh token rotativo, sessão server-side e revogação explícita.
-- Preserve a proteção double-submit CSRF em refresh e logout: cookie `csrf_token` mais header `X-CSRF-Token`.
-- Cookies de refresh devem continuar `HttpOnly`; atributos `Secure`, `SameSite`, path e expiração não devem ser enfraquecidos.
-- Valide tipo, assinatura, expiração e vínculo da sessão antes de aceitar tokens. Use comparação segura para valores sensíveis quando o fluxo existente exigir.
-- Rotas administrativas precisam de autenticação; novas rotas mutáveis devem ter rate limiting, CSRF ou controles equivalentes conforme o mecanismo de autenticação usado.
-- Uploads devem manter limite de tamanho, lista explícita de MIME types e limpeza segura de temporários.
-- Variáveis obrigatórias devem ser validadas no startup. Não introduza secrets padrão para produção nem exponha detalhes internos em mensagens de erro.
-- Mudanças em autenticação, autorização, cookies, upload ou CORS exigem testes de sucesso e rejeição, além de revisão do Swagger.
+- Never read, log, return, or commit values from `.env`, passwords, JWT secrets, refresh tokens, session cookies, or Cloudinary credentials.
+- Preserve the short-lived access token model, rotating refresh token, server-side session, and explicit revocation.
+- Preserve the double-submit CSRF protection on refresh and logout: `csrf_token` cookie plus `X-CSRF-Token` header.
+- Refresh cookies must remain `HttpOnly`; the `Secure`, `SameSite`, path, and expiration attributes must not be weakened.
+- Validate type, signature, expiration, and session binding before accepting tokens. Use constant-time comparison for sensitive values when the existing flow requires it.
+- Admin routes require authentication; new mutating routes must have rate limiting, CSRF, or equivalent controls appropriate to the authentication mechanism used.
+- Uploads must keep a size limit, an explicit list of MIME types, and safe cleanup of temporary files.
+- Required variables must be validated at startup. Do not introduce default secrets for production nor expose internal details in error messages.
+- Changes to authentication, authorization, cookies, upload, or CORS require both success and rejection tests, plus a Swagger review.

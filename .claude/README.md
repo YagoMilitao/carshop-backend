@@ -1,30 +1,30 @@
-# Configuração do Claude Code
+# Claude Code configuration
 
-Esta pasta contém as instruções compartilhadas usadas pelo Claude Code neste repositório.
+This folder contains the shared instructions used by Claude Code in this repository.
 
-## Estrutura
+## Structure
 
-- `../CLAUDE.md`: contexto essencial, comandos e fluxo obrigatório do projeto.
-- `agents/`: subagentes especializados para arquitetura, desenvolvimento, testes e revisão.
-- `rules/`: regras carregadas quando o Claude trabalha nos caminhos indicados no frontmatter de cada arquivo.
-- `skills/implementar/SKILL.md`: workflow reutilizável para implementar uma especificação com `/implementar`.
-- `settings.json`: permissões compartilhadas e versionáveis.
-- `settings.local.json`: preferências e permissões pessoais deste clone. O arquivo é ignorado pelo Git.
+- `../CLAUDE.md`: essential project context, commands, and mandatory workflow.
+- `agents/`: specialized subagents for architecture, development, testing, and review.
+- `rules/`: rules loaded when Claude works on the paths indicated in each file's frontmatter.
+- `skills/implementar/SKILL.md`: reusable workflow for implementing a specification with `/implementar`.
+- `settings.json`: shared, version-controlled permissions.
+- `settings.local.json`: personal preferences and permissions for this clone. This file is ignored by Git.
 
-## Uso no VS Code
+## Usage in VS Code
 
-1. Abra a raiz do repositório no VS Code.
-2. Abra uma conversa na extensão oficial Claude Code.
-3. Execute `/context` para confirmar que `CLAUDE.md` e as regras foram carregados.
-4. Execute `/agents` e confirme os agentes `arquiteto`, `desenvolvedor`, `tester` e `reviewer` na Library.
-5. Execute `/skills` para confirmar que `/implementar` está disponível.
-6. Crie uma especificação a partir de `docs/specs/TEMPLATE.md`.
-7. Inicie a implementação com `/implementar @docs/specs/<nome>.md`.
+1. Open the repository root in VS Code.
+2. Open a conversation in the official Claude Code extension.
+3. Run `/context` to confirm that `CLAUDE.md` and the rules were loaded.
+4. Run `/agents` and confirm the `architect`, `developer`, `tester`, and `reviewer` agents in the Library.
+5. Run `/skills` to confirm that `/implementar` is available.
+6. Create a specification from `docs/specs/TEMPLATE.md`.
+7. Start the implementation with `/implementar @docs/specs/<name>.md`.
 
-Use `/memory` para inspecionar os arquivos de instruções, `/permissions` para conferir as permissões resolvidas e `/doctor` para diagnosticar configurações inválidas.
+Use `/memory` to inspect the instruction files, `/permissions` to check resolved permissions, and `/doctor` to diagnose invalid configuration.
 
-## Escopos
+## Scopes
 
-- Regras da equipe devem ser versionadas em `CLAUDE.md`, `agents/`, `rules/`, `skills/` ou `settings.json`.
-- Preferências pessoais devem ficar em `settings.local.json` ou em `~/.claude/`.
-- Requisitos de uma única funcionalidade devem ficar em `docs/specs/`, não nas regras permanentes.
+- Team rules must be versioned in `CLAUDE.md`, `agents/`, `rules/`, `skills/`, or `settings.json`.
+- Personal preferences must live in `settings.local.json` or in `~/.claude/`.
+- Requirements for a single feature must live in `docs/specs/`, not in the permanent rules.

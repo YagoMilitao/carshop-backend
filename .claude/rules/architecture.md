@@ -13,16 +13,16 @@ Before implementing a feature:
 5. Do not introduce a new architectural pattern without justification.
 
 
-# Arquitetura e dependências
+# Architecture and dependencies
 
-- Respeite a direção das dependências: domínio e casos de uso não dependem de Express, Mongoose, Cloudinary ou detalhes de infraestrutura.
-- Coloque contratos de fronteira em ports do domínio e implementações concretas em `src/infra`. Crie uma nova abstração somente quando existir uma fronteira real a isolar.
-- Coloque regras de negócio em `src/usecase` ou, no módulo de autenticação, no `AuthService`. Um caso de uso deve depender de ports injetados pelo construtor.
-- Use `src/infra/server.ts` como composition root principal e os builders em `src/infra/http/routes` para a composição por funcionalidade.
-- Não implemente funcionalidades novas em `src/infra/http/server.ts`; esse arquivo é legado e não é chamado por `src/main/index.ts`.
-- Use `src/infra/gateway/cloudinary/cloudinary-storage.service.ts` como adapter de imagens ativo. O arquivo de Cloudinary dentro de `src/core/domain/application/Gateway` é uma duplicação legada.
-- Ao adicionar uma funcionalidade HTTP, verifique o fluxo completo: contrato/tipos, port, caso de uso, adapter, controller, rota, composition root, documentação e testes.
-- Preserve compatibilidade dos contratos públicos, a menos que a especificação solicite explicitamente uma quebra.
+- Respect the direction of dependencies: the domain and use cases must not depend on Express, Mongoose, Cloudinary, or infrastructure details.
+- Put boundary contracts in domain ports and concrete implementations in `src/infra`. Only create a new abstraction when a real boundary needs to be isolated.
+- Put business rules in `src/usecase`, or in the auth module's `AuthService`. A use case must depend on ports injected through the constructor.
+- Use `src/infra/server.ts` as the main composition root and the builders in `src/infra/http/routes` for per-feature composition.
+- Do not implement new features in `src/infra/http/server.ts`; that file is legacy and is not called by `src/main/index.ts`.
+- Use `src/infra/gateway/cloudinary/cloudinary-storage.service.ts` as the active image adapter. The Cloudinary file under `src/core/domain/application/Gateway` is a legacy duplicate.
+- When adding an HTTP feature, check the full flow: contract/types, port, use case, adapter, controller, route, composition root, documentation, and tests.
+- Preserve compatibility of public contracts unless the specification explicitly requests a breaking change.
 
 Avoid:
 

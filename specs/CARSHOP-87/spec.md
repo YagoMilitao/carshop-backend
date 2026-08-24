@@ -32,11 +32,11 @@ FR-002. O sistema de agentes deve fornecer um agente (`spec-writer`) capaz de tr
 
 FR-003. O sistema de agentes deve fornecer um agente (`knowledge-reader`) capaz de recuperar conhecimento técnico histórico relevante do Obsidian antes de decisões arquiteturais, quando a tarefa envolver arquitetura, autenticação/autorização, segurança, persistência, integrações externas, contratos de API, infraestrutura, serviços compartilhados, padrões reutilizáveis ou decisões técnicas significativas.
 
-FR-004. O sistema de agentes deve fornecer um agente (`arquiteto`) que realiza apenas análise somente-leitura do repositório e produz um plano de implementação, retornando um veredito explícito: `READY FOR IMPLEMENTATION` ou `BLOCKED`.
+FR-004. O sistema de agentes deve fornecer um agente (`architect`) que realiza apenas análise somente-leitura do repositório e produz um plano de implementação, retornando um veredito explícito: `READY FOR IMPLEMENTATION` ou `BLOCKED`.
 
-FR-005. A implementação de código de produção não deve iniciar enquanto o veredito do `arquiteto` não for `READY FOR IMPLEMENTATION`.
+FR-005. A implementação de código de produção não deve iniciar enquanto o veredito do `architect` não for `READY FOR IMPLEMENTATION`.
 
-FR-006. O sistema de agentes deve fornecer um agente (`desenvolvedor`) que implementa o plano aprovado de ponta a ponta, sem realizar commit, push ou comandos destrutivos.
+FR-006. O sistema de agentes deve fornecer um agente (`developer`) que implementa o plano aprovado de ponta a ponta, sem realizar commit, push ou comandos destrutivos.
 
 FR-007. O sistema de agentes deve fornecer um agente (`tester`) que cria ou atualiza testes sob `test/`, executa os comandos de validação relevantes e mapeia os testes aos requisitos e critérios de aceite da especificação correspondente. O `tester` não deve corrigir código de produção.
 
@@ -44,7 +44,7 @@ FR-008. O sistema de agentes deve fornecer um agente (`reviewer`) que realiza re
 
 FR-009. Deve existir um quality gate que impede a conclusão de uma tarefa quando existir qualquer finding classificado como BLOCKER ou HIGH em aberto.
 
-FR-010. Quando o `reviewer` reportar um finding BLOCKER ou HIGH, o achado deve retornar ao `desenvolvedor`, seguido de nova execução de `tester` e `reviewer`, sem reiniciar a fase de arquitetura a menos que o achado exponha um problema arquitetural.
+FR-010. Quando o `reviewer` reportar um finding BLOCKER ou HIGH, o achado deve retornar ao `developer`, seguido de nova execução de `tester` e `reviewer`, sem reiniciar a fase de arquitetura a menos que o achado exponha um problema arquitetural.
 
 FR-011. O sistema de agentes deve fornecer um agente (`task-manager`) que, somente após o quality gate ser aprovado, atualiza de forma controlada o status e o resultado técnico da tarefa no Notion, sem alterar requisitos, Descrição, Definition of Done, Prioridade, Sprint, Epic ou outras propriedades de planejamento, salvo solicitação explícita do usuário.
 
@@ -58,7 +58,7 @@ FR-015. O Obsidian não deve ser utilizado como rastreador duplicado de tarefas 
 
 FR-016. As especificações versionadas não devem ser alteradas apenas para facilitar a implementação ou fazer testes passarem; alterações de especificação só são válidas quando o próprio requisito for esclarecido ou modificado na fonte original (Notion).
 
-FR-017. O pipeline completo de agentes (Notion → `task-reader` → `spec-writer` → `knowledge-reader` quando relevante → `arquiteto` → gate READY/BLOCKED → `desenvolvedor` → `tester` → `reviewer` → quality gate → `task-manager` → `knowledge-manager` → Obsidian) deve estar documentado no repositório e não deve realizar commit ou push automático em nenhuma etapa.
+FR-017. O pipeline completo de agentes (Notion → `task-reader` → `spec-writer` → `knowledge-reader` quando relevante → `architect` → gate READY/BLOCKED → `developer` → `tester` → `reviewer` → quality gate → `task-manager` → `knowledge-manager` → Obsidian) deve estar documentado no repositório e não deve realizar commit ou push automático em nenhuma etapa.
 
 ## Non-Functional Requirements
 
@@ -78,15 +78,15 @@ AC-003. Quando o `spec-writer` for invocado para uma tarefa `CARSHOP-{number}`, 
 
 AC-004. Quando existir uma especificação anterior para a mesma tarefa, o `spec-writer` deve preservar o conteúdo ainda válido e atualizar somente as partes cujos requisitos mudaram.
 
-AC-005. Quando a tarefa envolver arquitetura, segurança, autenticação/autorização, persistência, integrações externas, contratos de API, infraestrutura, serviços compartilhados ou decisões técnicas significativas, o `knowledge-reader` deve ser invocado antes da análise do `arquiteto`.
+AC-005. Quando a tarefa envolver arquitetura, segurança, autenticação/autorização, persistência, integrações externas, contratos de API, infraestrutura, serviços compartilhados ou decisões técnicas significativas, o `knowledge-reader` deve ser invocado antes da análise do `architect`.
 
-AC-006. Quando o `arquiteto` for invocado, ele deve produzir análise somente leitura (nenhuma edição de código) e retornar exatamente um dos vereditos: `READY FOR IMPLEMENTATION` ou `BLOCKED`.
+AC-006. Quando o `architect` for invocado, ele deve produzir análise somente leitura (nenhuma edição de código) e retornar exatamente um dos vereditos: `READY FOR IMPLEMENTATION` ou `BLOCKED`.
 
-AC-007. Quando o veredito do `arquiteto` for `BLOCKED`, a implementação não deve prosseguir para o `desenvolvedor`.
+AC-007. Quando o veredito do `architect` for `BLOCKED`, a implementação não deve prosseguir para o `developer`.
 
-AC-008. Quando o `arquiteto` receber instrução técnica inadequada ou conflitante com as regras do repositório, ele deve resistir a essa instrução e não incorporá-la ao plano sem justificativa compatível com a arquitetura existente.
+AC-008. Quando o `architect` receber instrução técnica inadequada ou conflitante com as regras do repositório, ele deve resistir a essa instrução e não incorporá-la ao plano sem justificativa compatível com a arquitetura existente.
 
-AC-009. Quando o `desenvolvedor` implementar um plano aprovado, nenhum commit, push ou comando destrutivo deve ser executado por ele durante a tarefa.
+AC-009. Quando o `developer` implementar um plano aprovado, nenhum commit, push ou comando destrutivo deve ser executado por ele durante a tarefa.
 
 AC-010. Quando o `tester` for invocado, os testes criados ou atualizados devem estar mapeados explicitamente aos requisitos e/ou critérios de aceite da especificação correspondente, e nenhuma alteração de código de produção deve ser feita pelo `tester`.
 
@@ -110,8 +110,8 @@ AC-018. Quando uma implementação revelar um problema genuíno de requisito, o 
 
 - Esta tarefa não abrange funcionalidade de produto do carshop-backend (API, domínio, persistência, autenticação de usuários finais); os artefatos envolvidos residem majoritariamente fora do código-fonte de aplicação (`CLAUDE.md`, `.claude/rules/`, `.claude/agents/`, integrações Notion/Obsidian).
 - O pipeline não deve realizar commit ou push automático em nenhuma etapa.
-- O `arquiteto` deve permanecer somente-leitura.
-- O `desenvolvedor` não deve executar commit, push ou comandos destrutivos.
+- O `architect` deve permanecer somente-leitura.
+- O `developer` não deve executar commit, push ou comandos destrutivos.
 - O `tester` não deve corrigir código de produção.
 - O `reviewer` deve permanecer independente e somente-leitura.
 - O `task-manager` não deve alterar requisitos ou propriedades de planejamento da tarefa no Notion sem solicitação explícita do usuário.

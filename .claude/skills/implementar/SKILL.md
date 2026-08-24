@@ -1,67 +1,67 @@
 ---
 name: implementar
-description: Implementa uma funcionalidade completa neste backend a partir de uma descrição ou especificação, incluindo código, testes, documentação e validação. Use somente quando o usuário invocar /implementar.
+description: Implements a complete feature in this backend from a description or specification, including code, tests, documentation, and validation. Use only when the user invokes /implementar.
 disable-model-invocation: true
 ---
 
-# Implementar funcionalidade
+# Implement feature
 
-A entrada da tarefa é: `$ARGUMENTS`.
+The task input is: `$ARGUMENTS`.
 
-Se a entrada apontar para um arquivo, leia-o integralmente. Se estiver vazia ou não definir um objetivo verificável, solicite a descrição ou o caminho de uma especificação antes de editar.
+If the input points to a file, read it in full. If it's empty or doesn't define a verifiable goal, ask for the description or the path of a specification before editing.
 
-## Coordenação dos agentes
+## Agent coordination
 
-Para toda funcionalidade que altere código de produção, a conversa principal atua como coordenadora e delega sequencialmente:
+For any feature that changes production code, the main conversation acts as coordinator and delegates sequentially:
 
-1. `arquiteto`: analisa o requisito e devolve o plano, riscos e estratégia de testes.
-2. `desenvolvedor`: recebe a especificação e o plano e implementa a mudança completa.
-3. `tester`: recebe a especificação, o plano, o resumo da implementação e o diff; complementa os testes e executa as validações.
-4. `reviewer`: recebe todo o contexto anterior e faz a revisão independente final.
+1. `architect`: analyzes the requirement and returns the plan, risks, and test strategy.
+2. `developer`: receives the specification and plan and implements the complete change.
+3. `tester`: receives the specification, the plan, the implementation summary, and the diff; adds tests and runs the validations.
+4. `reviewer`: receives all prior context and performs the final independent review.
 
-Não execute `desenvolvedor` e `tester` em paralelo no mesmo worktree. Se o `reviewer` encontrar um problema `BLOCKER` ou `HIGH`, delegue a correção específica ao `desenvolvedor`, repita a validação afetada com o `tester` e peça confirmação final ao `reviewer`. Após duas rodadas de correção sem resolução, pare e reporte o bloqueio com evidências.
+Do not run `developer` and `tester` in parallel on the same worktree. If `reviewer` finds a `BLOCKER` or `HIGH` issue, delegate the specific fix to `developer`, repeat the affected validation with `tester`, and ask `reviewer` for final confirmation. After two correction rounds without resolution, stop and report the blocker with evidence.
 
-Mudanças triviais apenas em documentação ou configuração podem ser realizadas diretamente quando os agentes não acrescentariam verificação útil.
+Trivial changes limited to documentation or configuration can be done directly when the agents wouldn't add useful verification.
 
-## 1. Entender
+## 1. Understand
 
-- Leia `CLAUDE.md`, a especificação e os arquivos diretamente envolvidos.
-- Inspecione `git status` e preserve alterações preexistentes.
-- Transforme o pedido em objetivo, escopo, fora de escopo e critérios de aceite.
-- Trace uma funcionalidade semelhante de ponta a ponta antes de escolher a estrutura.
-- Faça uma suposição razoável quando ela não mudar materialmente o produto; registre-a. Pergunte apenas quando a decisão ausente mudar contrato, segurança, dados ou escopo.
+- Read `CLAUDE.md`, the specification, and the files directly involved.
+- Inspect `git status` and preserve pre-existing changes.
+- Turn the request into a goal, scope, out-of-scope, and acceptance criteria.
+- Trace a similar feature end-to-end before choosing the structure.
+- Make a reasonable assumption when it won't materially change the product; record it. Only ask when the missing decision would change the contract, security, data, or scope.
 
-## 2. Planejar
+## 2. Plan
 
-- Delegue a análise ao `arquiteto` e apresente ao usuário um plano curto com os arquivos/camadas afetados, riscos e validações previstas.
-- Se o usuário pediu apenas um plano ou a sessão está em Plan Mode, pare antes das edições.
-- Fora de Plan Mode, prossiga após o plano, exceto quando for necessária uma decisão material do usuário.
+- Delegate the analysis to `architect` and present the user with a short plan listing the affected files/layers, risks, and planned validations.
+- If the user only asked for a plan, or the session is in Plan Mode, stop before making edits.
+- Outside Plan Mode, proceed after the plan, except when a material decision from the user is needed.
 
-## 3. Implementar
+## 3. Implement
 
-- Delegue a implementação ao `desenvolvedor`, passando a especificação completa, o plano aprovado e qualquer decisão do usuário.
-- Faça a menor alteração coerente que satisfaça todos os critérios.
-- Para endpoints, cubra conforme necessário: tipos/ports, caso de uso, adapter/model, controller, validação, rota, composição, Swagger e testes.
-- Preserve compatibilidade e alterações do usuário fora do escopo.
-- Não leia arquivos de secrets, não faça commit/push e não execute ações destrutivas.
+- Delegate the implementation to `developer`, passing the complete specification, the approved plan, and any user decision.
+- Make the smallest coherent change that satisfies all criteria.
+- For endpoints, cover as needed: types/ports, use case, adapter/model, controller, validation, route, composition, Swagger, and tests.
+- Preserve compatibility and out-of-scope user changes.
+- Do not read secret files, do not commit/push, and do not run destructive actions.
 
-## 4. Validar
+## 4. Validate
 
-- Delegue a criação e execução aprofundada dos testes ao `tester`.
-- Rode primeiro os testes diretamente relacionados.
-- Para TypeScript, rode `npm test` e `npm run build` ao finalizar.
-- Rode `npm run test:e2e` quando o contrato HTTP, middleware ou composição do servidor mudar.
-- Revise `git diff` para detectar alterações acidentais, código incompleto e documentação ausente.
-- Não esconda falhas. Diferencie claramente regressões introduzidas de problemas preexistentes.
-- Após os testes, delegue a revisão independente ao `reviewer` e processe os achados conforme a severidade.
+- Delegate thorough test creation and execution to `tester`.
+- Run the most directly related tests first.
+- For TypeScript, run `npm test` and `npm run build` at the end.
+- Run `npm run test:e2e` when the HTTP contract, middleware, or server composition changes.
+- Review `git diff` to detect accidental changes, incomplete code, and missing documentation.
+- Don't hide failures. Clearly distinguish regressions introduced by this change from pre-existing issues.
+- After testing, delegate the independent review to `reviewer` and process the findings by severity.
 
-## 5. Entregar
+## 5. Deliver
 
-Informe de forma objetiva:
+Report objectively:
 
-- o resultado implementado;
-- os arquivos ou áreas principais alterados;
-- os comandos de validação e seus resultados;
-- limitações, suposições ou próximos passos realmente necessários.
+- the implemented result;
+- the main files or areas changed;
+- the validation commands and their results;
+- limitations, assumptions, or genuinely necessary next steps.
 
-Para requisitos extensos, prefira receber um arquivo criado a partir de `docs/specs/TEMPLATE.md`.
+For larger requirements, prefer receiving a file created from `docs/specs/TEMPLATE.md`.

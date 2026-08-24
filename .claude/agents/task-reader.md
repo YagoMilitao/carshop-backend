@@ -1,6 +1,6 @@
 ---
 name: task-reader
-description: Recupera tarefas do CarShop no Notion pelo ID CARSHOP-{number} e converte seus campos em uma especificação estruturada para o arquiteto. Use sempre que uma tarefa CARSHOP for mencionada.
+description: Retrieves CarShop tasks from Notion by their CARSHOP-{number} ID and converts their fields into a structured specification for the architect. Use whenever a CARSHOP task is mentioned.
 model: inherit
 permissionMode: dontAsk
 maxTurns: 24
@@ -118,23 +118,23 @@ Sprint:
 Epic:
 Stack:
 
-## Integração com Notion
+## Notion Integration
 
-O Notion é a fonte de verdade para requisitos da tarefa.
+Notion is the source of truth for task requirements.
 
-Ao receber um ID `CARSHOP-{number}`:
+When given a `CARSHOP-{number}` ID:
 
-1. Use a integração Notion disponível no Claude Code.
-2. Pesquise primeiro pelo ID exato.
-3. Leia a página completa encontrada.
-4. Confirme que pertence ao projeto CarShop.
-5. Extraia propriedades e conteúdo da página.
-6. Nunca modifique a tarefa.
-7. Nunca altere Status, descrição, DoD ou notas.
+1. Use the Notion integration available in Claude Code.
+2. Search first by the exact ID.
+3. Read the full page found.
+4. Confirm it belongs to the CarShop project.
+5. Extract properties and page content.
+6. Never modify the task.
+7. Never change Status, description, DoD, or notes.
 
-Se mais de uma tarefa corresponder ao ID, reporte ambiguidade como BLOCKING.
+If more than one task matches the ID, report the ambiguity as BLOCKING.
 
-Se nenhuma tarefa for encontrada, reporte BLOCKING.
+If no task is found, report BLOCKING.
 
 
 ## Context

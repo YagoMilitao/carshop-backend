@@ -4,13 +4,13 @@ paths:
   - 'test/**/*.ts'
 ---
 
-# Testes e validação
+# Testing and validation
 
-- Testes unitários ficam em `test/unit`, espelhando o caminho do arquivo em `src`; testes E2E ficam em `test/e2e/*.e2e-spec.ts`.
-- Use Jest e siga os padrões de mocks já presentes. Repositories Mongo são testados mockando os modelos Mongoose, sem conexão real por padrão.
-- Configure variáveis de ambiente de teste antes de importar módulos que leem `process.env` e restaure estado global após cada cenário.
-- Toda correção de bug deve incluir um teste que falhe sem a correção. Toda funcionalidade deve cobrir caminho feliz, validação e principal caso de erro.
-- Teste comportamento e contratos observáveis; evite acoplar testes a detalhes internos que não fazem parte do requisito.
-- Execute primeiro o teste mais específico. Depois execute `npm test` e `npm run build` quando houver alteração em TypeScript.
-- Execute `npm run test:e2e` quando mudar rotas, middlewares, autenticação, cookies, composição do servidor ou contratos HTTP ponta a ponta.
-- Não remova assertions, ignore testes ou reduza cobertura apenas para fazer a suíte passar. Se uma falha for preexistente, registre evidências no resultado final.
+- Unit tests live in `test/unit`, mirroring the file's path under `src`; E2E tests live in `test/e2e/*.e2e-spec.ts`.
+- Use Jest and follow the mocking patterns already present. Mongo repositories are tested by mocking the Mongoose models, without a real connection by default.
+- Set test environment variables before importing modules that read `process.env`, and restore global state after each scenario.
+- Every bug fix must include a test that fails without the fix. Every feature must cover the happy path, validation, and the main error case.
+- Test observable behavior and contracts; avoid coupling tests to internal details that aren't part of the requirement.
+- Run the most specific test first. Then run `npm test` and `npm run build` when there's a TypeScript change.
+- Run `npm run test:e2e` when routes, middlewares, authentication, cookies, server composition, or end-to-end HTTP contracts change.
+- Do not remove assertions, skip tests, or reduce coverage just to make the suite pass. If a failure is pre-existing, record evidence in the final result.

@@ -6,12 +6,12 @@ paths:
   - 'src/infra/presentation/validators/**/*.ts'
 ---
 
-# Controllers e rotas
+# Controllers and routes
 
-- Mantenha controllers finos: adapte Express, valide a entrada, chame um caso de uso e transforme o resultado em resposta HTTP. Regras de negócio pertencem ao caso de uso ou serviço de aplicação.
-- Valide bodies com schemas Zod e `validateWithSchema` quando houver estrutura de payload. Valide parâmetros de rota com os helpers existentes.
-- Preserve o padrão de handlers arrow `async` e capture falhas como `unknown`, encaminhando-as ao middleware central com `next(error)`.
-- Faça a composição de controllers, casos de uso e middlewares nos builders de rotas. Não importe modelos Mongoose diretamente em controllers.
-- Rotas administrativas devem usar `authMiddleware`. `POST /auth/refresh` e `POST /auth/logout` devem manter `csrfProtectionMiddleware`.
-- Não altere silenciosamente status HTTP, formato de resposta, nomes de cookies ou headers que já façam parte do contrato público.
-- Ao criar ou modificar endpoints, atualize os testes de controller/rota, o fragmento Swagger correspondente e os schemas OpenAPI afetados.
+- Keep controllers thin: adapt Express, validate input, call a use case, and map the result to an HTTP response. Business rules belong in the use case or application service.
+- Validate bodies with Zod schemas and `validateWithSchema` when the payload has structure. Validate route params with the existing helpers.
+- Preserve the `async` arrow handler pattern and catch failures as `unknown`, forwarding them to the central middleware with `next(error)`.
+- Compose controllers, use cases, and middlewares in the route builders. Do not import Mongoose models directly into controllers.
+- Admin routes must use `authMiddleware`. `POST /auth/refresh` and `POST /auth/logout` must keep `csrfProtectionMiddleware`.
+- Do not silently change HTTP status, response format, cookie names, or headers that are already part of the public contract.
+- When creating or modifying endpoints, update the controller/route tests, the corresponding Swagger fragment, and the affected OpenAPI schemas.

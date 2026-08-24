@@ -1,48 +1,49 @@
 # Specs Security Rules
-`specs/` pode conter decisões e requisitos.
-Nunca pode conter credenciais, secrets ou valores reais de ambiente.
 
-Tudo dentro de `specs/` será considerado potencialmente público e versionado no Git.
+`specs/` may contain decisions and requirements.
+It must never contain credentials, secrets, or real environment values.
 
-Portanto, nunca escreva em `specs/`:
+Everything inside `specs/` is considered potentially public and versioned in Git.
 
-- senhas;
+Therefore, never write the following into `specs/`:
+
+- passwords;
 - tokens;
 - API keys;
-- secrets JWT;
+- JWT secrets;
 - cookies;
 - session IDs;
-- credenciais de banco de dados;
+- database credentials;
 - connection strings;
-- valores reais de `.env`;
-- conteúdo real de `.env`;
-- chaves privadas;
-- certificados privados;
+- real `.env` values;
+- real `.env` content;
+- private keys;
+- private certificates;
 - credentials JSON;
 - service accounts;
 - access tokens;
 - refresh tokens;
 - OAuth client secrets;
 - webhook secrets;
-- dados pessoais de usuários;
-- emails privados quando não forem necessários;
-- IPs internos;
-- hostnames internos;
-- URLs privadas de serviços;
-- URLs assinadas;
-- tokens presentes em URLs;
-- dados reais de produção;
-- dumps de banco;
-- stack traces contendo dados sensíveis;
-- conteúdo bruto de requests/responses que possa conter autenticação;
-- headers `Authorization`;
-- headers `Cookie` ou `Set-Cookie`.
+- personal user data;
+- private emails when not necessary;
+- internal IPs;
+- internal hostnames;
+- private service URLs;
+- signed URLs;
+- tokens present in URLs;
+- real production data;
+- database dumps;
+- stack traces containing sensitive data;
+- raw request/response content that may contain authentication data;
+- `Authorization` headers;
+- `Cookie` or `Set-Cookie` headers.
 
 ## Environment Variables
 
-É permitido mencionar apenas o NOME de uma variável.
+Only the NAME of a variable may be mentioned.
 
-Permitido:
+Allowed:
 
 `JWT_SECRET`
 
@@ -50,19 +51,19 @@ Permitido:
 
 `CLOUDINARY_API_KEY`
 
-Não permitido:
+Not allowed:
 
 `JWT_SECRET=my-real-secret`
 
 `MONGO_URI=mongodb+srv://user:password@...`
 
-Nunca copie valores de `.env` para uma spec.
+Never copy `.env` values into a spec.
 
 ## URLs
 
-Prefira placeholders.
+Prefer placeholders.
 
-Permitido:
+Allowed:
 
 `https://api.example.com`
 
@@ -70,42 +71,42 @@ Permitido:
 
 `process.env.API_URL`
 
-Não permitido:
+Not allowed:
 
-URLs privadas de produção ou homologação que contenham informações sensíveis.
+Private production or staging URLs that contain sensitive information.
 
 ## Authentication
 
-Descreva mecanismos, nunca credenciais reais.
+Describe mechanisms, never real credentials.
 
-Permitido:
+Allowed:
 
-"Use Bearer token no header Authorization."
+"Use a Bearer token in the Authorization header."
 
-Não permitido:
+Not allowed:
 
 "Authorization: Bearer eyJhbGci..."
 
 ## Database
 
-Descreva schemas e comportamentos.
+Describe schemas and behaviors.
 
-Não inclua:
+Do not include:
 
-- usuários reais;
-- documentos reais;
-- IDs reais quando forem sensíveis;
+- real users;
+- real documents;
+- real IDs when sensitive;
 - dumps;
 - connection strings;
 - credentials.
 
-Use dados fictícios em exemplos.
+Use fictitious data in examples.
 
 ## Examples
 
-Todo exemplo deve utilizar valores artificiais.
+Every example must use artificial values.
 
-Bom:
+Good:
 
 ```json
 {

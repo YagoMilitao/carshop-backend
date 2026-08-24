@@ -56,13 +56,13 @@ spec-writer
     ↓
 knowledge-reader (when relevant)
     ↓
-arquiteto
+architect
     ↓
 READY FOR IMPLEMENTATION?
     ├── no → STOP
     └── yes
           ↓
-      desenvolvedor
+      developer
           ↓
         tester
           ↓
@@ -74,10 +74,10 @@ READY FOR IMPLEMENTATION?
           ↓
   knowledge-manager
 
-- `task-manager`: atualiza de forma controlada o estado e o resultado técnico da tarefa no Notion depois que o quality gate foi aprovado; não altera requisitos.
+- `task-manager`: controllably updates the task's state and technical outcome in Notion after the quality gate has been approved; does not change requirements.
 - `task-reader`: retrieves a task from Notion by its project ID (e.g. `CARSHOP-21`) and returns structured requirements/DoD; read-only, does not touch the repository.
-- `arquiteto`: read-only analysis and implementation planning for non-trivial changes.
-- `desenvolvedor`: implements an approved plan end-to-end without committing or pushing.
+- `architect`: read-only analysis and implementation planning for non-trivial changes.
+- `developer`: implements an approved plan end-to-end without committing or pushing.
 - `tester`: creates or updates tests under `test/` and runs the relevant validation commands; it does not edit production code.
 - `reviewer`: performs an independent read-only review, reporting findings by severity with file and line evidence.
 - `spec-writer`: converts structured Notion requirements into a
@@ -88,13 +88,13 @@ The mandatory workflow is:
 
 task-reader
     ↓
-arquiteto
+architect
     ↓
 READY FOR IMPLEMENTATION?
     ├── no  → STOP
     └── yes
           ↓
-    desenvolvedor
+    developer
           ↓
         tester
           ↓
@@ -144,7 +144,7 @@ If `task-reader` reports BLOCKING information, stop the workflow.
 
 ### Phase 2 — Architecture
 
-Pass the complete task-reader output to `arquiteto`.
+Pass the complete task-reader output to `architect`.
 
 The architect must inspect the repository and return either:
 
@@ -155,7 +155,7 @@ Only continue when the verdict is `READY FOR IMPLEMENTATION`.
 
 ### Phase 3 — Implementation
 
-Pass to `desenvolvedor`:
+Pass to `developer`:
 
 - original task ID;
 - task-reader specification;
@@ -273,11 +273,11 @@ HIGH
 
 the task is not complete.
 
-Send only the focused findings back to `desenvolvedor`.
+Send only the focused findings back to `developer`.
 
 Then run:
 
-desenvolvedor
+developer
     ↓
 tester
     ↓
@@ -342,7 +342,7 @@ Pass the task-reader specification to `knowledge-reader`.
 The knowledge-reader must search Obsidian by technical concepts,
 not only by task ID.
 
-Pass relevant knowledge to `arquiteto` together with the original
+Pass relevant knowledge to `architect` together with the original
 task specification.
 
 For trivial changes where historical knowledge cannot materially affect

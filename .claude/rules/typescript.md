@@ -4,16 +4,16 @@ paths:
   - 'test/**/*.ts'
 ---
 
-# TypeScript e estilo
+# TypeScript and style
 
-- Mantenha compatibilidade com TypeScript strict, CommonJS e target ES2020 definidos em `tsconfig.json`.
-- Prefira tipos explícitos nas fronteiras públicas e `unknown` para valores não confiáveis ou erros capturados. Não introduza `any`, `as any`, `@ts-nocheck`, `@ts-ignore` ou casts inseguros sem necessidade documentada.
-- Use `import type` para imports usados somente como tipo e preserve o estilo de imports do arquivo próximo. O alias `@/*` aponta para `src/*`.
-- Preserve injeção por construtor e propriedades `private readonly` nos serviços e casos de uso.
-- Reutilize helpers e tipos existentes antes de criar versões duplicadas.
-- Siga Prettier: aspas simples, trailing commas e formatação automática. Não faça alterações de formatação em arquivos fora do escopo.
-- Não adicione uma biblioteca quando a plataforma ou uma dependência existente resolver o problema de forma simples e segura.
-- Não altere scripts, versões de dependências ou lockfiles como efeito colateral de uma funcionalidade sem explicar a necessidade.
+- Maintain compatibility with TypeScript strict mode, CommonJS, and the ES2020 target defined in `tsconfig.json`.
+- Prefer explicit types at public boundaries and `unknown` for untrusted values or caught errors. Do not introduce `any`, `as any`, `@ts-nocheck`, `@ts-ignore`, or unsafe casts without documented necessity.
+- Use `import type` for type-only imports and preserve the import style of the nearby file. The `@/*` alias points to `src/*`.
+- Preserve constructor injection and `private readonly` properties in services and use cases.
+- Reuse existing helpers and types before creating duplicate versions.
+- Follow Prettier: single quotes, trailing commas, and automatic formatting. Do not make formatting changes to files outside the scope.
+- Do not add a library when the platform or an existing dependency solves the problem simply and safely.
+- Do not change scripts, dependency versions, or lockfiles as a side effect of a feature without explaining the need.
 - explicit domain types
 - interfaces where extension is expected
 - type aliases for unions and compositions

@@ -5,13 +5,13 @@ paths:
   - 'src/infra/gateway/**/*.ts'
 ---
 
-# Persistência e integrações
+# Persistence and integrations
 
-- Mantenha detalhes de Mongoose e Cloudinary nos adapters de infraestrutura.
-- Converta documentos de persistência para tipos do domínio em funções de mapeamento explícitas. Datas expostas pelo domínio/API devem seguir o formato já usado pelo projeto.
-- Consultas de entidades ativas devem considerar `deletedAt: null` quando o modelo usa soft delete.
-- Preserve unicidade, índices, validações e normalizações declaradas nos schemas ao adicionar campos.
-- Use `.lean()` em leituras quando não for necessário comportamento de documento Mongoose e mantenha a ordenação definida pelos requisitos.
-- Operações destrutivas e cascatas precisam ser explícitas, limitadas ao identificador solicitado e cobertas por teste.
-- Não exponha credenciais ou respostas brutas do provider. Traduza erros externos para o contrato de erro da aplicação quando necessário.
-- Ao alterar schema ou mapeamento, atualize tipos, ports, testes de repository e documentação de ambiente/contrato relacionados.
+- Keep Mongoose and Cloudinary details inside infrastructure adapters.
+- Convert persistence documents to domain types in explicit mapping functions. Dates exposed by the domain/API must follow the format already used by the project.
+- Queries for active entities must consider `deletedAt: null` when the model uses soft delete.
+- Preserve uniqueness, indexes, validations, and normalizations declared on the schemas when adding fields.
+- Use `.lean()` on reads when Mongoose document behavior isn't needed, and keep the ordering defined by the requirements.
+- Destructive and cascading operations must be explicit, limited to the requested identifier, and covered by tests.
+- Do not expose credentials or raw provider responses. Translate external errors to the application's error contract when necessary.
+- When changing a schema or mapping, update related types, ports, repository tests, and environment/contract documentation.

@@ -6,11 +6,11 @@ paths:
   - 'src/presentation/controllers/**/*.ts'
 ---
 
-# OpenAPI e contrato HTTP
+# OpenAPI and HTTP contract
 
-- O comportamento real da rota, do controller e do middleware é a fonte para documentar o endpoint; não documente um contrato que o código não entrega.
-- Mantenha os fragmentos por domínio em `src/infra/docs` e use o mecanismo existente de merge para preservar operações diferentes no mesmo path.
-- Documente parâmetros, body, respostas de sucesso, principais erros, autenticação e proteção CSRF aplicáveis.
-- Reutilize schemas e security schemes existentes antes de duplicá-los.
-- Preserve os endpoints `/docs` e `/docs.json` e o controle por `ENABLE_SWAGGER`/`NODE_ENV`.
-- Quando o contrato mudar, atualize documentação e testes no mesmo conjunto de alterações.
+- The actual behavior of the route, controller, and middleware is the source for documenting the endpoint; do not document a contract the code doesn't deliver.
+- Keep per-domain fragments in `src/infra/docs` and use the existing merge mechanism to preserve different operations on the same path.
+- Document parameters, body, success responses, main errors, authentication, and applicable CSRF protection.
+- Reuse existing schemas and security schemes before duplicating them.
+- Preserve the `/docs` and `/docs.json` endpoints and the `ENABLE_SWAGGER`/`NODE_ENV` gating.
+- When the contract changes, update documentation and tests in the same set of changes.
