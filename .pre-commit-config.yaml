@@ -1,0 +1,13 @@
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: check-specs-security
+        name: Check specs for sensitive data
+        entry: scripts/check-specs-security.sh
+        language: system
+        pass_filenames: false
