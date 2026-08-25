@@ -32,6 +32,28 @@ export const adminWorksSchemas = {
       },
     },
   },
+
+  DeleteWorkImageResponse: {
+    type: 'object',
+    required: ['success'],
+    properties: {
+      success: {
+        type: 'boolean',
+        example: true,
+      },
+    },
+  },
+
+  HardDeleteWorkResponse: {
+    type: 'object',
+    required: ['success'],
+    properties: {
+      success: {
+        type: 'boolean',
+        example: true,
+      },
+    },
+  },
 } as const;
 
 /**
@@ -154,6 +176,105 @@ export const adminWorksPaths = {
 
         '500': errorResponse(
           'Falha inesperada ao enviar ou persistir a imagem.',
+        ),
+      },
+    },
+  },
+
+  '/admin/works/{workId}/images/{imageId}': {
+    delete: {
+      tags: ['Admin Works'],
+
+      summary: 'Remove uma imagem de um trabalho',
+
+      description:
+        'Remove o arquivo do storage externo (usando o publicId persistido) e o metadado correspondente no MongoDB.',
+
+      security: bearerSecurity,
+
+      parameters: [
+        {
+          in: 'path',
+          name: 'workId',
+          required: true,
+          description: 'Identificador do trabalho dono da imagem.',
+          schema: {
+            type: 'string',
+            format: 'uuid',
+          },
+          example: 'cf357670-d168-48b4-a5de-c57dff7858fe',
+        },
+        {
+          in: 'path',
+          name: 'imageId',
+          required: true,
+          description: 'Identificador da imagem a ser removida.',
+          schema: {
+            type: 'string',
+            format: 'uuid',
+          },
+        },
+      ],
+
+      responses: {
+        '200': successResponse(
+          'Imagem removida com sucesso.',
+          '#/components/schemas/DeleteWorkImageResponse',
+        ),
+
+        '401': errorResponse(
+          'Access token ausente, inválido ou sessão expirada.',
+        ),
+
+        '404': errorResponse('Trabalho ou imagem não encontrado(a).'),
+
+        '500': errorResponse('Falha inesperada ao remover a imagem.'),
+      },
+    },
+  },
+
+  '/admin/works/{workId}': {
+    delete: {
+      tags: ['Admin Works'],
+
+      summary: 'Remove definitivamente um trabalho',
+
+      description: [
+        'Remove todas as imagens do trabalho no storage externo, remove o trabalho e seus comentários do MongoDB.',
+        '',
+        'Se a remoção de qualquer arquivo no storage externo falhar, a operação é abortada antes de alterar o MongoDB, para evitar registros órfãos.',
+      ].join('\n'),
+
+      security: bearerSecurity,
+
+      parameters: [
+        {
+          in: 'path',
+          name: 'workId',
+          required: true,
+          description: 'Identificador do trabalho a ser removido.',
+          schema: {
+            type: 'string',
+            format: 'uuid',
+          },
+          example: 'cf357670-d168-48b4-a5de-c57dff7858fe',
+        },
+      ],
+
+      responses: {
+        '200': successResponse(
+          'Trabalho removido com sucesso.',
+          '#/components/schemas/HardDeleteWorkResponse',
+        ),
+
+        '401': errorResponse(
+          'Access token ausente, inválido ou sessão expirada.',
+        ),
+
+        '404': errorResponse('Trabalho não encontrado.'),
+
+        '502': errorResponse(
+          'Falha ao remover arquivos do armazenamento externo. Tente novamente.',
         ),
       },
     },

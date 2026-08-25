@@ -43,6 +43,14 @@ export interface WorkRepositoryPort {
   addImage(workId: string, image: WorkImage): Promise<Work | undefined>;
 
   /**
+   * Remove os metadados de uma imagem do Work.
+   *
+   * A remoção no storage externo é responsabilidade do caso de uso,
+   * pois o repository não deve conhecer Cloudinary.
+   */
+  removeImage(workId: string, imageId: string): Promise<void>;
+
+  /**
    * Remove somente os dados persistidos no Mongo.
    *
    * A remoção no storage é responsabilidade do caso de uso,

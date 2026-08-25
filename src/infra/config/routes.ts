@@ -12,6 +12,7 @@ import { buildAuthRouter } from '../http/routes/auth.routes';
 import { buildWorkRouter } from '../http/routes/work.routes';
 import { buildAdminCommentRouter } from '../http/routes/admin-comment.routes';
 import { buildWorkImageRouter } from '../http/routes/work-image.routes';
+import { buildAdminWorkRouter } from '../http/routes/admin-work.routes';
 
 /**
  * Dependências necessárias para registrar todas as rotas.
@@ -101,11 +102,28 @@ export function registerRoutes(
    * Rotas administrativas de imagens dos works.
    *
    * Base:
-   * POST /admin/works/:workId/images
+   * POST   /admin/works/:workId/images
+   * DELETE /admin/works/:workId/images/:imageId
    */
   app.use(
     '/admin/works',
     buildWorkImageRouter(
+      dependencies.workRepository,
+      dependencies.imageStorage,
+      dependencies.sessionStore,
+      dependencies.tokenService,
+    ),
+  );
+
+  /**
+   * Rotas administrativas de works.
+   *
+   * Base:
+   * DELETE /admin/works/:workId
+   */
+  app.use(
+    '/admin/works',
+    buildAdminWorkRouter(
       dependencies.workRepository,
       dependencies.imageStorage,
       dependencies.sessionStore,
