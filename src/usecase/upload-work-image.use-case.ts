@@ -1,5 +1,5 @@
-import { randomUUID } from 'crypto';
-import { promises as fs } from 'fs';
+import { randomUUID } from 'node:crypto';
+import { promises as fs } from 'node:fs';
 import { HttpError } from '../core/domain/application/ApplicationError/http-error';
 import type { ImageStoragePort } from '../core/domain/application/Storage/image-storage.port';
 import type { WorkRepositoryPort } from '../core/domain/repositories/work.repository';
