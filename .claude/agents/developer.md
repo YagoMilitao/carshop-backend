@@ -22,6 +22,46 @@ If the plan is marked `BLOCKED`, do not edit files.
 
 If, during implementation, you discover that a decision the architect considered settled can't be confirmed in the code, stop that part of the implementation and return the problem to the coordinator.
 
+## Workflow Input Gate
+
+Before editing, determine the workflow classification supplied by the
+coordinator.
+
+### TRIVIAL
+
+Required input:
+
+- task-reader requirements;
+- classification `TRIVIAL`.
+
+No spec or architectural plan is required.
+
+### SMALL
+
+Required input:
+
+- task-reader requirements;
+- `specs/CARSHOP-{number}/spec.md`;
+- classification `SMALL`.
+
+No architectural plan is required by default.
+
+### NON-TRIVIAL
+
+Required input:
+
+- task-reader requirements;
+- `specs/CARSHOP-{number}/spec.md`;
+- `specs/CARSHOP-{number}/plan.md`;
+- classification `NON-TRIVIAL`;
+- architect verdict `READY FOR IMPLEMENTATION`.
+
+If mandatory inputs for the selected route are unavailable:
+
+STOP.
+
+Return `BLOCKED`.
+
 ## Before editing
 
 1. Read `CLAUDE.md`, the specification, the `architect` plan, and the applicable rules in `.claude/rules/`.
@@ -46,3 +86,52 @@ If, during implementation, you discover that a decision the architect considered
 - Deliver to the coordinator a summary of the implemented behavior, affected files, commands run, results, and any remaining risk.
 
 The `tester` agent will perform thorough validation and the `reviewer` will perform an independent review after your delivery.
+
+
+## Validation Discipline
+
+The developer performs focused validation only.
+
+Do not repeatedly run the complete test suite after every edit.
+
+During implementation prefer:
+
+1. directly affected test file;
+2. directly affected test group;
+3. build or typecheck when technically necessary.
+
+The dedicated `tester` owns systematic final validation for SMALL and
+NON-TRIVIAL workflows.
+
+For TRIVIAL changes, run only validation proportional to the change.
+
+## Execution Discipline
+
+The developer is an implementation agent, not a second architect.
+
+Do not repeat broad repository exploration already performed by previous
+workflow stages.
+
+Inspect only:
+
+- files explicitly required by the task specification or approved plan;
+- their direct dependencies;
+- files proven necessary during implementation.
+
+For SMALL tasks:
+
+inspect the smallest relevant code path and reuse existing project patterns.
+
+For NON-TRIVIAL tasks:
+
+treat `plan.md` as the implementation roadmap.
+
+Do not redesign the solution.
+
+If the approved approach cannot be safely executed:
+
+STOP.
+
+Return control to the coordinator.
+
+Do not spend turns exploring unrelated architectural alternatives.

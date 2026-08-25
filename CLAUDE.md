@@ -171,12 +171,204 @@ test -n "${OBSIDIAN_VAULT_ID:-}"
 Non-trivial implementation work originating from a `CARSHOP-{number}`
 task follows Spec-Driven Development.
 
-## Canonical Pipeline
+# Canonical Workflow
 
-This is the single canonical mandatory workflow:
+All implementation work associated with a `CARSHOP-{number}` task must enter
+through the canonical workflow defined in this section.
+
+The workflow always begins with:
+
+`task-reader`
+
+After requirements retrieval, the coordinator must classify the task as:
+
+- `TRIVIAL`
+- `SMALL`
+- `NON-TRIVIAL`
+
+The selected route is determined exclusively by the complexity classification
+rules defined below.
+
+Agents must not invent alternative routes.
+
+No other section of this document may define a conflicting workflow.
+
+The coordinator owns task classification and workflow routing.
+
+Do not create a dedicated agent solely for complexity classification.
+
+# Workflow Complexity Classification
+
+After `task-reader` successfully retrieves the task, the coordinator must
+classify the implementation before invoking additional implementation agents.
+
+The coordinator must return exactly one classification:
+
+`TRIVIAL`
+
+`SMALL`
+
+`NON-TRIVIAL`
+
+Classification must be based on:
+
+- requirements retrieved from Notion;
+- Definition of Done;
+- explicit constraints;
+- known task scope.
+
+Do not classify based solely on task title.
+
+# Workflow Reclassification
+
+Classification may escalate when new evidence reveals greater complexity.
+
+Allowed escalation:
+
+```text
+TRIVIAL
+    ↓
+SMALL
+    ↓
+NON-TRIVIAL
+```
+
+## Conservative Classification
+
+When uncertain between:
+
+`TRIVIAL` and `SMALL`
+
+choose:
+
+`SMALL`
+
+When uncertain between:
+
+`SMALL` and `NON-TRIVIAL`
+
+choose:
+
+`NON-TRIVIAL`
+
+Never downgrade task complexity merely to reduce execution time.
+
+## TRIVIAL
+
+Classify as `TRIVIAL` only when the change has no meaningful architectural,
+behavioral, persistence, security or contract impact.
+
+Typical examples:
+
+- typo correction;
+- copy/text change;
+- formatting-only adjustment;
+- documentation-only correction;
+- obvious local rename with no behavioral impact;
+- simple constant or label adjustment whose expected behavior is unambiguous.
+
+A task is NOT TRIVIAL if it changes:
+
+- business rules;
+- API behavior;
+- persistence;
+- authentication;
+- authorization;
+- security;
+- integrations;
+- dependencies;
+- shared abstractions;
+- architecture.
+
+### TRIVIAL Route
 
 ```text
 task-reader
+    ↓
+classification: TRIVIAL
+    ↓
+developer
+    ↓
+reviewer
+    ↓
+task-manager
+```
+## SMALL
+
+Classify as `SMALL` when behavior changes but the implementation remains
+localized, straightforward and does not require an architectural decision.
+
+A SMALL task:
+
+- has clear requirements;
+- has limited implementation scope;
+- does not alter architecture;
+- does not alter persistence design;
+- does not alter authentication or authorization;
+- does not introduce security-sensitive behavior;
+- does not introduce a new external integration;
+- does not introduce a new dependency;
+- does not materially change a public API contract;
+- does not require changing shared architectural boundaries.
+
+Examples may include:
+
+- localized validation changes;
+- isolated behavior adjustments;
+- small endpoint behavior corrections without contract redesign;
+- localized UI/backend behavior with clear existing patterns;
+- simple bug fixes where root cause and expected behavior are well-defined.
+
+### SMALL Route
+
+```text
+task-reader
+    ↓
+classification: SMALL
+    ↓
+spec-writer
+    ↓
+developer
+    ↓
+tester
+    ↓
+reviewer
+    ↓
+quality gate
+    ↓
+task-manager
+```
+
+## NON-TRIVIAL
+
+Classify as `NON-TRIVIAL` when any meaningful technical decision or
+cross-cutting impact exists.
+
+Use `NON-TRIVIAL` when the task affects one or more of:
+
+- architecture;
+- module boundaries;
+- shared abstractions;
+- authentication;
+- authorization;
+- security;
+- persistence design;
+- data migration;
+- public API contracts;
+- external integrations;
+- infrastructure;
+- dependency introduction or replacement;
+- shared middleware;
+- cross-cutting behavior;
+- multiple architectural layers;
+- significant ambiguity in implementation requirements.
+
+### NON-TRIVIAL Route
+
+```text
+task-reader
+    ↓
+classification: NON-TRIVIAL
     ↓
 spec-writer
     ↓
@@ -197,89 +389,139 @@ READY FOR IMPLEMENTATION?
        reviewer
           ↓
       quality gate
-       ├── fail → focused correction loop
-       └── pass
-              ↓
-         task-manager
-              ↓
-      knowledge-manager
+          ↓
+     task-manager
+          ↓
+  knowledge-manager
 ```
 
 ## Workflow Authority
 
-The pipeline defined above is the single canonical workflow for
-non-trivial `CARSHOP-{number}` implementation tasks.
+The workflow defined in this section is the single canonical workflow for
+all `CARSHOP-{number}` implementation tasks.
 
-No other section may define a conflicting or alternative mandatory pipeline.
+The canonical workflow contains three official routes:
 
-The phase descriptions below explain this pipeline. They do not replace,
-reorder or omit its stages.
+- `TRIVIAL`
+- `SMALL`
+- `NON-TRIVIAL`
 
-If any later instruction conflicts with the canonical pipeline, the
-canonical pipeline takes precedence.
+The coordinator must select exactly one route using the complexity
+classification rules defined above.
 
-A stage may only be skipped when this document explicitly marks it as
-conditional.
+No other section may define a conflicting workflow or reorder the stages
+of an official route.
 
-Currently, only `knowledge-reader` is conditional.
+The phase descriptions below describe stages that may apply to one or more
+routes. They do not imply that every stage runs for every classification.
 
+A stage must be executed only when required by the selected route.
+
+Conditional and route-specific behavior is defined explicitly in each phase.
+
+If any later instruction conflicts with the selected canonical route,
+the canonical route takes precedence.
 ---
 
 
 # Specification Gate
 
-Production implementation must not begin until a versioned specification
-exists for non-trivial `CARSHOP-{number}` work.
+A versioned specification is mandatory for:
+
+- `SMALL`;
+- `NON-TRIVIAL`;
+
+CARSHOP implementation tasks.
 
 Expected location:
 
 `specs/CARSHOP-{number}/spec.md`
 
-The specification defines **WHAT** must be achieved.
+A specification is not required for `TRIVIAL` changes.
 
-The architect defines **HOW** the current system should achieve it.
+The specification defines WHAT must be achieved.
 
-The developer implements the approved plan.
+Implementation decisions define HOW it will be achieved.
 
-Never modify the specification merely to make an implementation easier or
-to make failing tests pass.
+For NON-TRIVIAL tasks, the architect owns HOW.
 
-If implementation reveals a genuine requirement problem:
+For SMALL tasks, the developer may choose implementation details as long as
+they remain within:
 
-`STOP`
+- the specification;
+- existing architecture;
+- existing project conventions.
 
-Return the issue to the coordinator.
+Never modify the specification merely to:
 
-Update the specification only when the requirement itself has been
-clarified or changed.
+- simplify implementation;
+- accommodate an implementation mistake;
+- make failing tests pass.
 
+If implementation reveals an actual requirement problem:
+
+STOP.
+
+Return control to the coordinator.
 ---
 
 # Phase 1 — Requirements Retrieval
 
-When the user references a task using `CARSHOP-{number}`:
+Every `CARSHOP-{number}` implementation workflow begins with `task-reader`.
 
-1. Invoke `task-reader`.
-2. Retrieve the task from Notion.
-3. Treat its structured output as the source requirements for the specification.
+The task-reader must retrieve the task from Notion and return structured
+requirements.
 
-Do not ask the user to manually copy requirements that can be obtained from Notion.
+Do not ask the user to manually copy requirements that can be obtained
+through the configured Notion integration.
 
-The task-reader must not invent missing information.
+If task-reader reports:
 
-If `task-reader` reports `BLOCKING` information:
+`BLOCKING`
 
-`STOP`
+STOP.
 
+Do not classify or implement the task.
 Do not invoke `spec-writer`.
 
 ---
 
-# Phase 2 — Specification
+# Phase 2 — Complexity Routing
 
-Pass the complete `task-reader` output to `spec-writer`.
+After successful requirements retrieval, the coordinator must classify the
+task according to the Workflow Complexity Classification rules.
 
-The `spec-writer` must create or update:
+Return exactly:
+
+`TRIVIAL`
+
+or
+
+`SMALL`
+
+or
+
+`NON-TRIVIAL`
+
+Then execute only the corresponding canonical route.
+
+Do not execute agents belonging exclusively to a more expensive route unless
+new evidence requires reclassification.
+
+# Phase 3 — Specification
+
+Invoke `spec-writer` only for:
+
+- SMALL;
+- NON-TRIVIAL;
+
+tasks.
+
+Do not invoke `spec-writer` for TRIVIAL work.
+
+Pass the complete task-reader output.
+
+The spec-writer must create or update:
 
 `specs/CARSHOP-{number}/spec.md`
 
@@ -306,12 +548,13 @@ Do not invoke `knowledge-reader`, `architect` or `developer`.
 
 ---
 
-# Phase 3 — Knowledge Retrieval
+# Phase 4 — Knowledge Retrieval
+This phase applies only to `NON-TRIVIAL` tasks.
 
-Before architecture analysis, determine whether historical engineering
-knowledge could materially influence the solution.
+Even for NON-TRIVIAL tasks, `knowledge-reader` is conditional.
 
-Invoke `knowledge-reader` when the task involves:
+Invoke it only when historical engineering knowledge may materially
+influence the solution, including:
 
 - architecture;
 - authentication or authorization;
@@ -327,24 +570,20 @@ Invoke `knowledge-reader` when the task involves:
 
 Pass the versioned specification to `knowledge-reader`.
 
-The `knowledge-reader` must search Obsidian using technical concepts,
-not only the task ID.
+Search Obsidian by technical concepts, not only by task ID.
 
-Relevant historical knowledge must be passed to `architect`.
+Pass relevant historical knowledge to `architect`.
 
-For trivial changes where historical knowledge cannot materially affect
-the solution, `knowledge-reader` may be skipped.
+Skip this phase when no relevant historical decision is likely to affect
+the task.
 
-Obsidian provides historical engineering context.
+Obsidian is historical context.
 
-It is not the source of truth for the current implementation.
-
-The repository remains the source of truth for the current code.
-
+The repository remains the source of truth for current implementation.
 ---
 
-# Phase 4 — Architecture
-
+# Phase 5 — Architecture
+Invoke `architect` only for `NON-TRIVIAL` tasks.
 Pass to `architect`:
 
 - original task ID;
@@ -375,10 +614,14 @@ then:
 
 `STOP`
 
+SMALL tasks do not invoke architect by default.
+
+TRIVIAL tasks do not invoke architect.
 Do not invoke `developer`.
 
 ---
-# Phase 5 — Plan Persistence
+# Phase 6 — Plan Persistence
+This phase applies only to `NON-TRIVIAL` tasks.
 
 When `architect` returns:
 
@@ -399,6 +642,8 @@ The plan-writer must persist the approved plan at:
 The plan-writer must not introduce new architectural decisions.
 
 Implementation cannot begin until `plan.md` exists successfully.
+Implementation must not begin for NON-TRIVIAL work until plan persistence
+succeeds.
 
 If plan persistence fails:
 
@@ -406,56 +651,138 @@ If plan persistence fails:
 
 Do not invoke `developer`.
 
-# Phase 6 — Implementation
+# Phase 7 — Implementation
 
-Pass to `developer`:
+Invoke `developer` according to the selected workflow route.
+
+## TRIVIAL Input
+
+Pass:
 
 - original task ID;
-- `specs/CARSHOP-{number}/spec.md`;
-- `specs/CARSHOP-{number}/plan.md`;
-- architect plan;
-- relevant historical knowledge when it materially affects implementation.
+- task-reader requirements;
+- classification `TRIVIAL`.
 
-The developer must implement the approved plan.
+A specification and architectural plan are not required.
 
-The developer must not reinterpret product requirements.
+The developer must keep the implementation strictly within the trivial
+scope.
 
-The developer must not silently change the specification.
-
-The developer must preserve unrelated existing changes.
-
-The developer must not commit or push.
-
-If implementation reveals a decision that cannot safely be made from the
-approved specification and architecture:
+If meaningful behavioral or architectural complexity is discovered:
 
 `STOP`
 
-Return the issue to the coordinator for classification.
+Return control to the coordinator for reclassification.
+
+## SMALL Input
+
+Pass:
+
+- original task ID;
+- task-reader requirements;
+- `specs/CARSHOP-{number}/spec.md`;
+- classification `SMALL`.
+
+An architectural plan is not required by default.
+
+The developer may make localized implementation decisions only when they:
+
+- comply with the specification;
+- follow existing repository patterns;
+- do not alter architecture;
+- do not introduce persistence, security, integration or contract changes.
+
+If one of those conditions cannot be maintained:
+
+`STOP`
+
+Return control to the coordinator and reclassify as `NON-TRIVIAL`.
+
+## NON-TRIVIAL Input
+
+Pass:
+
+- original task ID;
+- task-reader requirements;
+- `specs/CARSHOP-{number}/spec.md`;
+- `specs/CARSHOP-{number}/plan.md`;
+- classification `NON-TRIVIAL`;
+- architect verdict `READY FOR IMPLEMENTATION`;
+- relevant historical knowledge when it materially affects implementation.
+
+The developer must follow the approved versioned plan.
+
+## Common Implementation Rules
+
+The developer must:
+
+- preserve unrelated existing changes;
+- not reinterpret product requirements;
+- not silently change the specification;
+- not commit;
+- not push.
+
+If a mandatory input for the selected route is unavailable:
+
+`STOP`
+
+Return:
+
+`BLOCKED`
 
 ---
 
-# Phase 7 — Testing
+# Phase 8 — Testing
 
-After implementation, invoke `tester`.
+Testing behavior depends on workflow classification.
 
-The tester receives:
+## TRIVIAL
+
+Do not invoke `tester` by default.
+
+The developer may perform focused validation proportional to the change.
+
+If systematic behavioral testing becomes necessary:
+
+`STOP`
+
+Return to the coordinator and reclassify the task as `SMALL`.
+
+## SMALL
+
+Invoke `tester`.
+
+Pass:
 
 - original task ID;
 - versioned specification;
-- architect plan;
 - developer implementation summary;
 - current diff.
 
-The tester must map verification to the specification's acceptance criteria.
+## NON-TRIVIAL
 
-When the specification contains IDs such as:
+Invoke `tester`.
+
+Pass:
+
+- original task ID;
+- versioned specification;
+- architecture plan;
+- developer implementation summary;
+- current diff.
+
+## Tester Responsibilities
+
+For SMALL and NON-TRIVIAL tasks, the tester must map validation to the
+specification's acceptance criteria.
+
+When IDs such as these exist:
 
 - `FR-*`
 - `NFR-*`
 - `AC-*`
 
-the tester must use them for traceability where applicable.
+use them for traceability.
 
 Example:
 
@@ -464,173 +791,216 @@ AC-001 → PASS
 AC-002 → PASS
 AC-003 → NOT VERIFIED
 ```
-
-The tester may create or update tests under `test/`.
-
-The tester must not fix production code.
-
-If a production defect is discovered, report it back to the coordinator.
-
-Never modify the specification merely to make a test pass.
-
 ---
 
-# Phase 8 — Review
+# Phase 9 — Review
 
-After testing, invoke `reviewer`.
+Invoke `reviewer` for all workflow classifications.
 
-The reviewer receives:
+## TRIVIAL
+
+Pass:
+
+- original task ID;
+- task-reader requirements;
+- implementation;
+- current diff.
+
+Review only:
+
+- correctness of the requested change;
+- accidental unrelated changes;
+- obvious regressions;
+- sensitive-information exposure.
+
+Do not perform unnecessary broad architectural analysis.
+
+## SMALL
+
+Pass:
 
 - original task ID;
 - versioned specification;
-- architect plan;
 - implementation;
 - tester results;
 - current diff.
 
-The reviewer must independently inspect the diff and relevant surrounding code.
+Review:
 
-Do not rely only on the developer summary.
-
-The reviewer must evaluate:
-
-- correctness;
 - specification compliance;
-- architecture;
-- security;
-- persistence;
-- API contracts;
-- Swagger synchronization when applicable;
-- test coverage;
+- correctness;
 - regressions;
+- test coverage;
 - scope creep;
-- accidental disclosure of sensitive information.
+- security implications when applicable.
 
-When a versioned specification exists, also verify:
+## NON-TRIVIAL
 
-- implemented requirements;
-- acceptance criteria;
-- unrequested behavior;
-- divergence between implementation and specification.
+Pass:
 
-Use:
+- original task ID;
+- versioned specification;
+- architecture plan;
+- implementation;
+- tester results;
+- current diff.
 
-`SPEC VIOLATION`
-
-when implementation contradicts an explicit requirement or acceptance criterion.
-
-Use:
-
-`SCOPE CREEP`
-
-when implementation introduces significant behavior not justified by the
-specification or approved plan.
-
-Any secret, credential or sensitive production information accidentally
-included in `specs/` or another versioned file is a:
-
-`BLOCKER`
+Perform the complete independent review, including architecture,
+persistence, contracts and security.
 
 ---
 
-# Phase 9 — Quality Gate
+# Phase 10 — Completion and Quality Gates
 
-After `reviewer` completes, evaluate the quality gate.
+Apply the gate corresponding to the selected workflow route.
 
-The quality gate passes only when:
+## TRIVIAL Completion Gate
+
+TRIVIAL work passes when:
+
+- the requested change is implemented;
+- reviewer completed the focused review;
+- no `BLOCKER` remains open;
+- no `HIGH` remains open;
+- no sensitive-information exposure remains unresolved.
+
+A tester result and versioned specification are not required.
+
+## SMALL Quality Gate
+
+SMALL work passes when:
 
 - implementation is complete;
 - required validation was executed;
-- acceptance criteria are satisfied;
-- no `BLOCKER` finding remains open;
-- no `HIGH` finding remains open;
+- specification acceptance criteria are satisfied;
+- reviewer completed independent review;
+- no `BLOCKER` remains open;
+- no `HIGH` remains open;
 - no unresolved specification violation prevents acceptance;
-- no sensitive information exposure remains unresolved.
+- no sensitive-information exposure remains unresolved.
 
-If reviewer reports:
+## NON-TRIVIAL Quality Gate
 
-`BLOCKER`
+NON-TRIVIAL work passes when:
 
-or
+- implementation is complete;
+- approved architecture plan was followed;
+- required validation was executed;
+- specification acceptance criteria are satisfied;
+- reviewer completed full independent review;
+- no `BLOCKER` remains open;
+- no `HIGH` remains open;
+- no unresolved specification violation prevents acceptance;
+- no sensitive-information exposure remains unresolved.
 
-`HIGH`
+## Failure
 
-the task is not complete.
+If the applicable gate fails:
 
 Do not invoke `task-manager` for completion.
 
-Send only the focused findings back to `developer`.
-
-Then run:
+For TRIVIAL:
 
 ```text
 developer
     ↓
-tester
-    ↓
 reviewer
     ↓
-quality gate
+completion gate
 ```
-
-again.
-
-Do not restart architecture unless the finding exposes an architectural problem.
-
-If the finding exposes a requirement/specification problem:
-
-`STOP`
-
-Return the issue to the coordinator instead of silently modifying the spec.
 
 ---
 
-# Phase 10 — Task Completion
+# Phase 11 — Task Completion
 
-Only after the quality gate passes may `task-manager` be invoked.
+Only after the applicable completion or quality gate passes may
+`task-manager` be invoked.
 
-When the work originated from a `CARSHOP-{number}` task, pass to
-`task-manager`:
+## TRIVIAL
+
+Pass:
+
+- task ID;
+- original task-reader requirements;
+- classification;
+- developer implementation summary;
+- reviewer verdict;
+- completion gate result.
+
+## SMALL
+
+Pass:
 
 - task ID;
 - original task-reader requirements;
 - versioned specification;
+- classification;
 - developer implementation summary;
 - tester validation results;
-- reviewer findings/verdict;
+- reviewer verdict;
+- quality gate result.
+
+## NON-TRIVIAL
+
+Pass:
+
+- task ID;
+- original task-reader requirements;
+- versioned specification;
+- architecture plan;
+- classification;
+- developer implementation summary;
+- tester validation results;
+- reviewer verdict;
 - quality gate result.
 
 The task-manager may update the Notion task to `Done` and record a concise
 technical completion summary.
 
-The task-manager must never fabricate implementation, testing or review results.
+The task-manager must never fabricate implementation, testing or review
+evidence.
 
-The task-manager must never change:
+The task-manager must never change product requirements or planning
+properties unless explicitly requested by the user.
 
-- product requirements;
-- Description;
-- Definition of Done;
-- Priority;
-- Sprint;
-- Epic;
-- other planning properties;
-
-unless the user explicitly requests that planning change.
-
-Explicit user requests do not authorize fabrication of workflow evidence.
-
-If the quality gate does not pass:
+If the applicable gate does not pass:
 
 `DO NOT invoke task-manager for completion.`
 
 ---
 
-# Phase 11 — Knowledge Evaluation
+# Phase 12 — Knowledge Evaluation
+
+Automatic knowledge evaluation depends on workflow classification.
+
+## TRIVIAL
+
+Do not invoke `knowledge-manager`.
+
+TRIVIAL changes are not expected to produce reusable engineering knowledge.
+
+## SMALL
+
+Do not invoke `knowledge-manager` by default.
+
+A SMALL task may invoke `knowledge-manager` only when the coordinator
+identifies a clearly reusable:
+
+- engineering pattern;
+- meaningful technical learning;
+- non-obvious troubleshooting discovery;
+- technical decision that will materially affect future work.
+
+Do not invoke knowledge-manager merely to obtain:
+
+`NO KNOWLEDGE TO RECORD`
+
+## NON-TRIVIAL
 
 After:
 
 1. the quality gate passes; and
-2. `task-manager` successfully completes its work;
+2. `task-manager` successfully completes;
 
 invoke `knowledge-manager`.
 
@@ -639,14 +1009,15 @@ Pass:
 - task ID;
 - versioned specification;
 - architect decisions;
+- architecture plan;
 - developer implementation summary;
 - tester results;
 - reviewer verdict.
 
-The knowledge-manager must first evaluate whether reusable engineering
-knowledge was produced.
+The knowledge-manager must determine whether reusable engineering knowledge
+was produced.
 
-It must not create a note simply because a task was completed.
+It must not create a note merely because a task was completed.
 
 Knowledge worthy of persistence includes:
 
@@ -1253,3 +1624,95 @@ This variable must already be present in the Claude Code process environment.
 If it is missing, the Obsidian agent must return `BLOCKED`.
 
 It must not source `.env` or inspect unrelated environment values.
+
+# Workflow Timing
+
+The coordinator must record the start and end time of every workflow stage.
+
+For each invoked agent or gate, record:
+
+- stage name;
+- start timestamp;
+- end timestamp;
+- elapsed time;
+- final status.
+
+Do not expose hidden chain-of-thought or internal reasoning.
+
+Only report operational timing and stage outcome.
+
+Example stages:
+
+- task-reader
+- complexity classification
+- spec-writer
+- knowledge-reader
+- architect
+- plan-writer
+- developer
+- tester
+- reviewer
+- quality gate
+- task-manager
+- knowledge-manager
+
+Skipped conditional stages must be reported as:
+
+`SKIPPED`
+
+At the end of the workflow, always print a timing summary.
+
+Example:
+
+| Stage | Status | Duration |
+| --- | --- | ---: |
+| task-reader | PASS | 12s |
+| spec-writer | PASS | 21s |
+| knowledge-reader | SKIPPED | — |
+| architect | PASS | 48s |
+| plan-writer | PASS | 7s |
+| developer | PASS | 4m 32s |
+| tester | PASS | 1m 14s |
+| reviewer | PASS | 54s |
+| quality gate | PASS | 2s |
+| task-manager | PASS | 8s |
+| knowledge-manager | SKIPPED | — |
+
+Then report:
+
+Total workflow time: 7m 18s
+
+Slowest stage:
+developer — 4m 32s
+
+Workflow classification:
+SMALL
+
+Agents invoked:
+6
+
+Agents skipped:
+4
+
+## Timing Accuracy
+
+Use real timestamps observed during execution.
+
+Do not estimate durations from memory.
+
+If exact timing cannot be determined for a stage, report:
+
+`UNKNOWN`
+
+Never fabricate timing data.
+
+## Workflow Performance Signal
+
+At the end of the workflow, identify any stage that consumed more than 50%
+of the total workflow time.
+
+Report it as:
+
+`PERFORMANCE HOTSPOT`
+
+This is informational only and must not change implementation behavior.

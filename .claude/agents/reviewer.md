@@ -77,3 +77,33 @@ SCOPE CREEP
 
 when the implementation introduces significant behavior not
 justified by the spec or the approved plan.
+
+## Review Depth
+
+Review depth must be proportional to workflow classification.
+
+### TRIVIAL
+
+Focus on:
+
+- correctness of the requested small change;
+- accidental unrelated changes;
+- obvious regressions;
+- secret exposure.
+
+Do not perform unnecessary broad architectural review.
+
+### SMALL
+
+Review:
+
+- specification compliance;
+- correctness;
+- tests;
+- regressions;
+- scope creep;
+- security implications where applicable.
+
+### NON-TRIVIAL
+
+Perform the full independent review defined by this agent.
