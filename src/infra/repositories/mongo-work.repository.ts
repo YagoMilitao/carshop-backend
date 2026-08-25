@@ -179,4 +179,15 @@ async findByIdIncludingDeleted(
 
     return this.findById(workId);
   }
+
+  async removeImage(workId: string, imageId: string): Promise<void> {
+    await WorkModel.updateOne(
+      { id: workId },
+      {
+        $pull: {
+          images: { id: imageId },
+        },
+      },
+    );
+  }
 }

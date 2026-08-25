@@ -144,4 +144,105 @@ describe('MongoWorkRepository', () => {
       workId,
     });
   });
+
+  it('ao adicionar uma imagem de capa, remove a capa das demais antes de inserir a nova (AC-008, FR-007)', async () => {
+    const workId = 'work-1';
+    const newImage = {
+      id: 'image-2',
+      url: 'https://cdn.example.com/image-2.png',
+      publicId: 'carshop/works/work-1/image-2',
+      alt: 'Nova capa',
+      isCover: true,
+      order: 1,
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    workModel.WorkModel.updateOne.mockResolvedValue({ acknowledged: true });
+    workModel.WorkModel.findOne.mockReturnValue({
+      lean: async () => ({
+        id: workId,
+        slug: 'work-slug',
+        title: 'Work title',
+        description: 'Work description',
+        category: 'bancos',
+        tags: [],
+        images: [newImage],
+        status: 'draft',
+        deletedAt: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    await repository.addImage(workId, newImage);
+
+    expect(workModel.WorkModel.updateOne).toHaveBeenNthCalledWith(
+      1,
+      { id: workId },
+      { $set: { 'images.$[].isCover': false } },
+    );
+    expect(workModel.WorkModel.updateOne).toHaveBeenNthCalledWith(
+      2,
+      { id: workId, deletedAt: null },
+      { $push: { images: newImage } },
+    );
+  });
+
+  it('ao adicionar uma imagem que não é capa, não altera as capas existentes', async () => {
+    const workId = 'work-1';
+    const newImage = {
+      id: 'image-3',
+      url: 'https://cdn.example.com/image-3.png',
+      publicId: 'carshop/works/work-1/image-3',
+      alt: 'Imagem extra',
+      isCover: false,
+      order: 2,
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    workModel.WorkModel.updateOne.mockResolvedValue({ acknowledged: true });
+    workModel.WorkModel.findOne.mockReturnValue({
+      lean: async () => ({
+        id: workId,
+        slug: 'work-slug',
+        title: 'Work title',
+        description: 'Work description',
+        category: 'bancos',
+        tags: [],
+        images: [newImage],
+        status: 'draft',
+        deletedAt: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+      }),
+    });
+
+    await repository.addImage(workId, newImage);
+
+    expect(workModel.WorkModel.updateOne).toHaveBeenCalledTimes(1);
+    expect(workModel.WorkModel.updateOne).toHaveBeenCalledWith(
+      { id: workId, deletedAt: null },
+      { $push: { images: newImage } },
+    );
+  });
+
+  it('deve remover a imagem do work via $pull, escopado por workId e imageId', async () => {
+    const workId = 'work-1';
+    const imageId = 'image-1';
+
+    workModel.WorkModel.updateOne.mockResolvedValue({ acknowledged: true });
+
+    await repository.removeImage(workId, imageId);
+
+    expect(workModel.WorkModel.updateOne).toHaveBeenCalledWith(
+      { id: workId },
+      {
+        $pull: {
+          images: { id: imageId },
+        },
+      },
+    );
+  });
 });
