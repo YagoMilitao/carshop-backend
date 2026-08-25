@@ -17,7 +17,7 @@ if (typeof moduleMockerPrototype.clearMocksOnScope !== 'function') {
       if (
         value != null &&
         (typeof value === 'object' || typeof value === 'function') &&
-        '_isMockFunction' in (value as object) &&
+        '_isMockFunction' in value &&
         this.isMockFunction(value) &&
         typeof (value as { mockClear?: unknown }).mockClear === 'function'
       ) {

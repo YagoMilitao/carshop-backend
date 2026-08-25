@@ -19,6 +19,7 @@ describe('DeleteWorkImageUseCase', () => {
       addImage: jest.fn(),
       removeImage: jest.fn(),
       hardDeleteData: jest.fn(),
+      listDeletedBefore: jest.fn(),
       ...overrides,
     }) as jest.Mocked<WorkRepositoryPort>;
 

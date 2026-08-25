@@ -81,24 +81,22 @@ export class MongoWorkRepository implements WorkRepositoryPort {
 
     return toWork(created);
   }
- /**
-  * Busca work ativo.
-  */
+  /**
+   * Busca work ativo.
+   */
   async findById(id: string): Promise<Work | undefined> {
     const work = await WorkModel.findOne({ id, deletedAt: null }).lean();
     return work ? toWork(work) : undefined;
   }
 
   /**
- * Busca work independentemente do soft delete.
- */
-async findByIdIncludingDeleted(
-  id: string,
-): Promise<Work | undefined> {
-  const work = await WorkModel.findOne({ id }).lean();
+   * Busca work independentemente do soft delete.
+   */
+  async findByIdIncludingDeleted(id: string): Promise<Work | undefined> {
+    const work = await WorkModel.findOne({ id }).lean();
 
-  return work ? toWork(work) : undefined;
-}
+    return work ? toWork(work) : undefined;
+  }
 
   async findBySlug(slug: string): Promise<Work | undefined> {
     const work = await WorkModel.findOne({
@@ -148,10 +146,7 @@ async findByIdIncludingDeleted(
     return result.deletedCount > 0;
   }
 
-  async addImage(
-    workId: string,
-    image: WorkImage,
-  ): Promise<Work | undefined> {
+  async addImage(workId: string, image: WorkImage): Promise<Work | undefined> {
     /**
      * Se a nova imagem for capa, removemos a capa das outras.
      * Motivo:
@@ -189,5 +184,18 @@ async findByIdIncludingDeleted(
         },
       },
     );
+  }
+
+  /**
+   * Lista works removidos logicamente há mais tempo que `cutoffDate`.
+   */
+  async listDeletedBefore(cutoffDate: Date): Promise<Work[]> {
+    const works = await WorkModel.find({
+      deletedAt: { $ne: null, $lte: cutoffDate },
+    })
+      .sort({ deletedAt: 1 })
+      .lean();
+
+    return works.map(toWork);
   }
 }

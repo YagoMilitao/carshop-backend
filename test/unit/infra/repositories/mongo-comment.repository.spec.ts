@@ -12,15 +12,7 @@ jest.mock('../../../../src/data/models/comment.model', () => ({
 
 const commentModel = jest.requireMock(
   '../../../../src/data/models/comment.model',
-) as {
-  CommentModel: {
-    create: jest.Mock;
-    find: jest.Mock;
-    findOne: jest.Mock;
-    findOneAndUpdate: jest.Mock;
-    deleteOne: jest.Mock;
-  };
-};
+);
 
 describe('MongoCommentRepository', () => {
   const repository = new MongoCommentRepository();

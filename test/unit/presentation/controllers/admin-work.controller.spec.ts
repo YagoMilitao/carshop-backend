@@ -57,7 +57,10 @@ describe('AdminWorkController', () => {
   it('forwards use case errors (e.g. 404/502) to next', async () => {
     const hardDeleteUseCase = createHardDeleteUseCaseMock();
     hardDeleteUseCase.execute.mockRejectedValue(
-      new HttpError(502, 'Falha ao remover arquivos do armazenamento externo. Tente novamente.'),
+      new HttpError(
+        502,
+        'Falha ao remover arquivos do armazenamento externo. Tente novamente.',
+      ),
     );
     const controller = new AdminWorkController(hardDeleteUseCase);
 

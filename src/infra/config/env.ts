@@ -13,6 +13,7 @@ export type Environment = {
   jwtRefreshExpiresIn: string;
   adminEmail: string;
   adminPassword: string;
+  workHardDeleteAfterDays: number;
 };
 
 /**
@@ -43,6 +44,23 @@ function getPort(): number {
   }
 
   return port;
+}
+
+/**
+ * Converte e valida o período de retenção (em dias) usado pela rotina
+ * de expurgo definitivo de works removidos logicamente.
+ */
+function getWorkHardDeleteAfterDaysEnv(): number {
+  const rawDays = process.env.WORK_HARD_DELETE_AFTER_DAYS ?? '90';
+  const days = Number(rawDays);
+
+  if (!Number.isInteger(days) || days <= 0) {
+    throw new Error(
+      'A variável "WORK_HARD_DELETE_AFTER_DAYS" precisa ser um número inteiro positivo.',
+    );
+  }
+
+  return days;
 }
 
 /**
@@ -93,4 +111,5 @@ export const env: Environment = {
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   adminEmail: getRequiredEnv('ADMIN_EMAIL'),
   adminPassword: getRequiredEnv('ADMIN_PASSWORD'),
+  workHardDeleteAfterDays: getWorkHardDeleteAfterDaysEnv(),
 };

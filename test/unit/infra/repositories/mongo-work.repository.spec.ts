@@ -20,25 +20,11 @@ jest.mock('../../../../src/data/models/comment.model', () => ({
   },
 }));
 
-const workModel = jest.requireMock(
-  '../../../../src/data/models/work.model',
-) as {
-  WorkModel: {
-    create: jest.Mock;
-    findOne: jest.Mock;
-    find: jest.Mock;
-    updateOne: jest.Mock;
-    deleteOne: jest.Mock;
-  };
-};
+const workModel = jest.requireMock('../../../../src/data/models/work.model');
 
 const commentModel = jest.requireMock(
   '../../../../src/data/models/comment.model',
-) as {
-  CommentModel: {
-    deleteMany: jest.Mock;
-  };
-};
+);
 
 describe('MongoWorkRepository', () => {
   const repository = new MongoWorkRepository();
@@ -244,5 +230,64 @@ describe('MongoWorkRepository', () => {
         },
       },
     );
+  });
+
+  describe('listDeletedBefore', () => {
+    it('consulta works soft-deletados com deletedAt não nulo e <= cutoffDate, ordenados por deletedAt asc, mapeados via toWork (FR-001, NFR-005)', async () => {
+      const cutoffDate = new Date('2024-01-01T00:00:00.000Z');
+      const sortMock = jest.fn();
+      const leanMock = jest.fn();
+
+      const workDocuments = [
+        {
+          id: 'work-1',
+          slug: 'work-antigo',
+          title: 'Work antigo',
+          description: 'Descrição',
+          category: 'bancos',
+          tags: [],
+          images: [],
+          status: 'draft',
+          deletedAt: new Date('2023-12-01T00:00:00.000Z'),
+          createdAt: new Date('2023-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2023-01-01T00:00:00.000Z'),
+        },
+      ];
+
+      leanMock.mockResolvedValue(workDocuments);
+      sortMock.mockReturnValue({ lean: leanMock });
+      workModel.WorkModel.find.mockReturnValue({ sort: sortMock });
+
+      const works = await repository.listDeletedBefore(cutoffDate);
+
+      expect(workModel.WorkModel.find).toHaveBeenCalledWith({
+        deletedAt: { $ne: null, $lte: cutoffDate },
+      });
+      expect(sortMock).toHaveBeenCalledWith({ deletedAt: 1 });
+      expect(leanMock).toHaveBeenCalled();
+      expect(works).toHaveLength(1);
+      expect(works[0]).toMatchObject({
+        id: 'work-1',
+        slug: 'work-antigo',
+        deletedAt: '2023-12-01T00:00:00.000Z',
+      });
+    });
+
+    it('retorna lista vazia quando nenhum work satisfaz o critério (AC-007)', async () => {
+      const cutoffDate = new Date('2024-01-01T00:00:00.000Z');
+
+      workModel.WorkModel.find.mockReturnValue({
+        sort: () => ({
+          lean: () => Promise.resolve([]),
+        }),
+      });
+
+      const works = await repository.listDeletedBefore(cutoffDate);
+
+      expect(workModel.WorkModel.find).toHaveBeenCalledWith({
+        deletedAt: { $ne: null, $lte: cutoffDate },
+      });
+      expect(works).toEqual([]);
+    });
   });
 });

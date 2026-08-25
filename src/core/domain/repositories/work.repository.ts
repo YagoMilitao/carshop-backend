@@ -57,4 +57,13 @@ export interface WorkRepositoryPort {
    * pois o repository não deve conhecer Cloudinary.
    */
   hardDeleteData(id: string): Promise<boolean>;
+
+  /**
+   * Lista works removidos logicamente há mais tempo que `cutoffDate`.
+   *
+   * Critério estritamente restrito a `deletedAt` não nulo e menor ou
+   * igual a `cutoffDate`, para nunca incluir works ativos ou ainda
+   * dentro da janela de retenção.
+   */
+  listDeletedBefore(cutoffDate: Date): Promise<Work[]>;
 }
