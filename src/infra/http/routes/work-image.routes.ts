@@ -37,6 +37,11 @@ function normalizeUploadError(
     return;
   }
 
+  if (error instanceof HttpError) {
+    next(error);
+    return;
+  }
+
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
       next(new HttpError(413, 'A imagem ultrapassa o limite de 5 MB.'));

@@ -155,6 +155,18 @@ describe('buildWorkImageRouter', () => {
     expect(forwardedError.statusCode).toBe(415);
   });
 
+  it('passes through an existing HttpError (e.g. 401 from authMiddleware) without rewriting it to 415', () => {
+    const normalizeUploadError = getNormalizeUploadError();
+    const next = jest.fn();
+    const authError = new HttpError(401, 'Token inválido ou ausente.');
+
+    normalizeUploadError(authError, {}, {}, next);
+
+    expect(next).toHaveBeenCalledWith(authError);
+    const forwardedError = next.mock.calls[0][0] as HttpError;
+    expect(forwardedError.statusCode).toBe(401);
+  });
+
   it('calls next() with no error when there is no upload error', () => {
     const normalizeUploadError = getNormalizeUploadError();
     const next = jest.fn();
