@@ -159,6 +159,13 @@ Before marking a task as Done, confirm evidence of:
 - no open BLOCKER;
 - no open HIGH.
 
+## Testing — Coverage Exception Evidence
+
+- When a `>= 80%` new/changed-code unit-test coverage exception (per
+  `.claude/rules/testing.md`) was accepted for the task, confirm the
+  percentage obtained, the uncovered parts, the exception reason, and the
+  residual risk are available as recorded evidence before marking Done.
+
 If there's a BLOCKER or HIGH:
 
 do not update to Done.
@@ -178,6 +185,8 @@ Files:
 Validation:
 - commands actually run
 - relevant results
+- (optional) unit-test coverage on new/changed code: percentage; exception
+  reason and residual risk if an exception was accepted
 
 Review:
 - reviewer outcome

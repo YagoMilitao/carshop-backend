@@ -86,6 +86,10 @@ If `plan.md` already exists:
 Never silently keep an old decision that contradicts the most
 recent plan approved by the architect.
 
+Coverage-strategy content (the architect's `>= 80%` coverage-target and
+exception rationale) must not be silently dropped when updating an
+existing `plan.md`.
+
 # Public Repository Safety
 
 `plan.md` will be versioned and must be treated as public.
@@ -165,6 +169,11 @@ For each relevant decision:
 ## Swagger Impact
 
 ## Testing Strategy
+
+(Must preserve, verbatim, the architect's coverage-target/exception
+rationale — the `>= 80%` new/changed-code unit-test coverage target and
+any justified-exception reasoning per `.claude/rules/testing.md` — rather
+than summarizing it away.)
 
 ## Risks
 
