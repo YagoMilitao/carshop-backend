@@ -8,6 +8,67 @@ const ATLAS_IP_NOT_ALLOWED_HINTS = [
   'add your current ip address',
 ];
 
+/**
+ * Indica se `current` já foi visitado e deve ser ignorado.
+ *
+ * Motivo:
+ * evitar loop infinito quando a cadeia de `cause`/`reason` de um erro
+ * contém uma referência cíclica.
+ */
+function shouldSkipVisited(current: unknown, visited: Set<unknown>): boolean {
+  if (typeof current === 'object' || typeof current === 'function') {
+    return visited.has(current);
+  }
+
+  return false;
+}
+
+/**
+ * Extrai a mensagem textual de `current`, quando houver.
+ */
+function extractMessage(current: unknown): string | undefined {
+  if (current instanceof Error) {
+    return current.message;
+  }
+
+  if (typeof current === 'object' && current !== null) {
+    const candidate = current as Record<string, unknown>;
+
+    if (typeof candidate.message === 'string') {
+      return candidate.message;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Extrai os próximos candidatos a percorrer (cause antes de reason).
+ */
+function extractNextCandidates(current: unknown): unknown[] {
+  if (current instanceof Error) {
+    const maybeCause = (current as Error & { cause?: unknown }).cause;
+    return maybeCause ? [maybeCause] : [];
+  }
+
+  if (typeof current === 'object' && current !== null) {
+    const candidate = current as Record<string, unknown>;
+    const candidates: unknown[] = [];
+
+    if ('cause' in candidate) {
+      candidates.push(candidate.cause);
+    }
+
+    if ('reason' in candidate) {
+      candidates.push(candidate.reason);
+    }
+
+    return candidates;
+  }
+
+  return [];
+}
+
 function normalizeErrorMessage(error: unknown): string {
   const messages: string[] = [];
   const queue: unknown[] = [error];
@@ -20,10 +81,11 @@ function normalizeErrorMessage(error: unknown): string {
       continue;
     }
 
+    if (shouldSkipVisited(current, visited)) {
+      continue;
+    }
+
     if (typeof current === 'object' || typeof current === 'function') {
-      if (visited.has(current)) {
-        continue;
-      }
       visited.add(current);
     }
 
@@ -32,30 +94,12 @@ function normalizeErrorMessage(error: unknown): string {
       continue;
     }
 
-    if (current instanceof Error) {
-      messages.push(current.message);
-      const maybeCause = (current as Error & { cause?: unknown }).cause;
-      if (maybeCause) {
-        queue.push(maybeCause);
-      }
-      continue;
+    const message = extractMessage(current);
+    if (message !== undefined) {
+      messages.push(message);
     }
 
-    if (typeof current === 'object') {
-      const candidate = current as Record<string, unknown>;
-
-      if (typeof candidate.message === 'string') {
-        messages.push(candidate.message);
-      }
-
-      if ('cause' in candidate) {
-        queue.push(candidate.cause);
-      }
-
-      if ('reason' in candidate) {
-        queue.push(candidate.reason);
-      }
-    }
+    queue.push(...extractNextCandidates(current));
   }
 
   return messages.join(' ').toLowerCase();

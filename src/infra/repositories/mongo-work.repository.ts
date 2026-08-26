@@ -1,8 +1,7 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import type {
   CreateWorkInput,
   WorkRepositoryPort,
-  WorkStatus,
 } from '../../core/domain/repositories/work.repository';
 import type {
   Work,
@@ -10,6 +9,7 @@ import type {
 } from '../../core/domain/application/Work/work.types';
 import { WorkModel } from '../../data/models/work.model';
 import { CommentModel } from '../../data/models/comment.model';
+import { HttpError } from '../../core/domain/application/ApplicationError/http-error';
 
 type WorkPersistenceDocument = {
   id: string;
@@ -64,6 +64,24 @@ function toWork(document: WorkPersistenceDocument): Work {
  * persistir e consultar trabalhos.
  */
 export class MongoWorkRepository implements WorkRepositoryPort {
+  /**
+   * Garante que um identificador recebido pelo repositório é uma string
+   * simples antes de ser usado na construção de um filtro do Mongo.
+   *
+   * Motivo:
+   * o adaptador de persistência não deve confiar implicitamente na
+   * validação feita por chamadores upstream; um valor com formato de
+   * operador (ex.: `{ $ne: null }`) nunca pode alcançar um filtro do
+   * MongoDB.
+   */
+  private assertStringIdentifier(value: unknown, fieldName: string): string {
+    if (typeof value !== 'string') {
+      throw new HttpError(400, `${fieldName} deve ser uma string válida.`);
+    }
+
+    return value;
+  }
+
   async create(input: CreateWorkInput): Promise<Work> {
     const created = await WorkModel.create({
       id: randomUUID(),
@@ -85,7 +103,11 @@ export class MongoWorkRepository implements WorkRepositoryPort {
    * Busca work ativo.
    */
   async findById(id: string): Promise<Work | undefined> {
-    const work = await WorkModel.findOne({ id, deletedAt: null }).lean();
+    const validatedId = this.assertStringIdentifier(id, 'id');
+    const work = await WorkModel.findOne({
+      id: validatedId,
+      deletedAt: null,
+    }).lean();
     return work ? toWork(work) : undefined;
   }
 
@@ -93,14 +115,16 @@ export class MongoWorkRepository implements WorkRepositoryPort {
    * Busca work independentemente do soft delete.
    */
   async findByIdIncludingDeleted(id: string): Promise<Work | undefined> {
-    const work = await WorkModel.findOne({ id }).lean();
+    const validatedId = this.assertStringIdentifier(id, 'id');
+    const work = await WorkModel.findOne({ id: validatedId }).lean();
 
     return work ? toWork(work) : undefined;
   }
 
   async findBySlug(slug: string): Promise<Work | undefined> {
+    const validatedSlug = this.assertStringIdentifier(slug, 'slug');
     const work = await WorkModel.findOne({
-      slug,
+      slug: validatedSlug,
       deletedAt: null,
     }).lean();
 
@@ -129,24 +153,29 @@ export class MongoWorkRepository implements WorkRepositoryPort {
   }
 
   async softDelete(id: string): Promise<void> {
+    const validatedId = this.assertStringIdentifier(id, 'id');
     await WorkModel.updateOne(
-      { id, deletedAt: null },
+      { id: validatedId, deletedAt: null },
       { deletedAt: new Date() },
     );
   }
 
   async hardDelete(id: string): Promise<void> {
-    await WorkModel.deleteOne({ id });
-    await CommentModel.deleteMany({ workId: id });
+    const validatedId = this.assertStringIdentifier(id, 'id');
+    await WorkModel.deleteOne({ id: validatedId });
+    await CommentModel.deleteMany({ workId: validatedId });
   }
 
   async hardDeleteData(id: string): Promise<boolean> {
-    const result = await WorkModel.deleteOne({ id });
+    const validatedId = this.assertStringIdentifier(id, 'id');
+    const result = await WorkModel.deleteOne({ id: validatedId });
 
     return result.deletedCount > 0;
   }
 
   async addImage(workId: string, image: WorkImage): Promise<Work | undefined> {
+    const validatedWorkId = this.assertStringIdentifier(workId, 'workId');
+
     /**
      * Se a nova imagem for capa, removemos a capa das outras.
      * Motivo:
@@ -154,7 +183,7 @@ export class MongoWorkRepository implements WorkRepositoryPort {
      */
     if (image.isCover) {
       await WorkModel.updateOne(
-        { id: workId },
+        { id: validatedWorkId },
         {
           $set: {
             'images.$[].isCover': false,
@@ -164,7 +193,7 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     }
 
     await WorkModel.updateOne(
-      { id: workId, deletedAt: null },
+      { id: validatedWorkId, deletedAt: null },
       {
         $push: {
           images: image,
@@ -172,15 +201,17 @@ export class MongoWorkRepository implements WorkRepositoryPort {
       },
     );
 
-    return this.findById(workId);
+    return this.findById(validatedWorkId);
   }
 
   async removeImage(workId: string, imageId: string): Promise<void> {
+    const validatedWorkId = this.assertStringIdentifier(workId, 'workId');
+    const validatedImageId = this.assertStringIdentifier(imageId, 'imageId');
     await WorkModel.updateOne(
-      { id: workId },
+      { id: validatedWorkId },
       {
         $pull: {
-          images: { id: imageId },
+          images: { id: validatedImageId },
         },
       },
     );

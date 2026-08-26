@@ -15,7 +15,7 @@ export function mergeOpenApiPaths(
   for (const pathGroup of pathGroups) {
     for (const [path, operations] of Object.entries(pathGroup)) {
       mergedPaths[path] = {
-        ...(mergedPaths[path] ?? {}),
+        ...mergedPaths[path],
         ...operations,
       };
     }
