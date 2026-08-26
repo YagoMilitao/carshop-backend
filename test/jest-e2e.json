@@ -4,6 +4,8 @@
   "testEnvironment": "node",
   "watchman": false,
   "testRegex": "e2e/.*\\.e2e-spec\\.ts$",
+  "globalSetup": "<rootDir>/test/e2e/setup/mongo-memory-server.global-setup.ts",
+  "globalTeardown": "<rootDir>/test/e2e/setup/mongo-memory-server.global-teardown.ts",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },

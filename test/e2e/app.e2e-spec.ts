@@ -1,5 +1,9 @@
 import request from 'supertest';
 import { createApp } from '../../src/infra/server';
+import {
+  connectDatabase,
+  disconnectDatabase,
+} from '../../src/infra/database/mongoose';
 
 interface AuthResponseBody {
   accessToken: string;
@@ -20,6 +24,20 @@ function extractCookie(setCookie: string[], cookieName: string) {
 
 describe('Auth flow (e2e)', () => {
   let app: ReturnType<typeof createApp>;
+
+  beforeAll(async () => {
+    if (!process.env.MONGO_URI) {
+      throw new Error(
+        'MONGO_URI não foi definida. O globalSetup do Jest deveria tê-la configurado antes dos testes.',
+      );
+    }
+
+    await connectDatabase(process.env.MONGO_URI);
+  });
+
+  afterAll(async () => {
+    await disconnectDatabase();
+  });
 
   beforeEach(() => {
     process.env.JWT_SECRET = 'e2e-secret';
