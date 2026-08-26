@@ -46,7 +46,23 @@ section rather than restating a different threshold or scope.
 - For **modified (pre-existing) files**: cross-reference the line ranges
   changed by `git diff` for that file against the file's `DA:<line>,<hits>`
   records in `coverage/lcov.info`, to approximate coverage of just the
-  changed lines rather than the whole-file percentage.
+  changed lines rather than the whole-file percentage. Three details matter
+  for this cross-reference to be meaningful:
+  - **Base revision**: diff against the task branch's base, not an
+    unqualified `git diff` (which is ambiguous between working tree, `HEAD`,
+    and the index). Use `git diff <base-branch> -- <file>` (e.g.
+    `git diff master -- <file>`), or the merge-base between the current
+    branch and its origin when the branch wasn't created directly from an
+    up-to-date base branch. Comparing against that base directly (not `HEAD`
+    alone) ensures in-progress uncommitted/staged task changes are included.
+  - **Line numbering side**: use the new-file (`+`) side line numbers from
+    the diff hunks when looking up `DA:<line>,<hits>` records, since lcov
+    data is keyed to the current working-tree file content, not the
+    pre-change file.
+  - **Unrelated changes**: if the worktree contains pre-existing,
+    out-of-scope edits unrelated to the current task, the lines they touch
+    must be excluded from this calculation — only lines attributable to the
+    task's own diff count as "new/changed code" for this measurement.
 - This method is an approximation, not a precision diff-coverage tool. There
   is no diff-coverage engine wired into this repository. The imprecision
   inherent in this approximation is itself a legitimate — but not
