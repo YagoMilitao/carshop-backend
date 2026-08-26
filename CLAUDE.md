@@ -108,9 +108,10 @@ the full placeholder definitions, the type taxonomy, the examples, and
 the exception list are defined in `.claude/rules/branching.md`. The coordinator validates the
 current branch name against that convention at two checkpoints: before
 invoking `developer` (Phase 7 entry) and before invoking `task-manager`
-(Phase 11 entry). On mismatch, the coordinator reports the expected
-pattern and blocks the corresponding invocation, and must never
-auto-rename, auto-recreate, or auto-push a branch to fix it. After
+(Phase 11 entry). On a mismatch that is not a documented exception, the
+coordinator reports the expected pattern and blocks the corresponding
+invocation, and must never auto-rename, auto-recreate, or auto-push a
+branch to fix it. After
 classifying a task, the coordinator should also suggest a `<tipo>` for
 the branch based on the task's nature (see "Suggested Type (Non-Binding)"
 in `.claude/rules/branching.md`) — this is informational only and never
@@ -676,8 +677,10 @@ Do not invoke `developer`.
 Invoke `developer` according to the selected workflow route.
 
 Before invoking `developer`, the coordinator must have already checked
-the current branch name against `.claude/rules/branching.md` and, on
-mismatch, obtained explicit user authorization to proceed.
+the current branch name against `.claude/rules/branching.md` and, on a
+mismatch that is not a documented exception (see the Exceptions list in
+`.claude/rules/branching.md`), obtained explicit user authorization to
+proceed.
 
 ## TRIVIAL Input
 
@@ -942,8 +945,9 @@ Only after the applicable completion or quality gate passes may
 
 The coordinator must re-check the current branch name against
 `.claude/rules/branching.md` and must not invoke `task-manager` if the
-branch is out of pattern and the mismatch has not been authorized by the
-user.
+branch is out of pattern, is not a documented exception (see the
+Exceptions list in `.claude/rules/branching.md`), and the mismatch has
+not been authorized by the user.
 
 ## TRIVIAL
 
