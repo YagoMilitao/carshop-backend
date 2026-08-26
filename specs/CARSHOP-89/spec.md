@@ -276,6 +276,42 @@ time. This question is resolved and is not blocking.)
   functions within the same file, or move logic into a separate module?
   This is an implementation decision for `architect`.
 
+## Post-Implementation Addendum — New Code Coverage Gate
+
+After merge/push, a live SonarCloud analysis reported the "Coverage on
+New Code" gate (60% threshold, per `docs/sonar-quality-gate.md`) at 53.6%
+overall, with two files below target:
+
+- `src/infra/database/mongoose.ts` — 36.7% new-code coverage. Caused by
+  the FR-004 extract-function refactor (`shouldSkipVisited`,
+  `extractMessage`, `extractNextCandidates`): the pre-existing tests only
+  exercised the single-Error/no-cause path. **Resolved**: added targeted
+  unit tests in `test/unit/infra/database/mongoose.spec.ts` covering an
+  Error cause chain, a plain-object-shaped error with `message`/`cause`/
+  `reason`, a node without a message, and a cyclic cause reference.
+  Coverage on this file is now 96.61% statements / 90.47% branches.
+- `src/main/test-portfolio-model.ts` — 0% new-code coverage. **Not
+  fixed, accepted as justified**: this file is a standalone manual script
+  (executes `void run()` at import time, connecting to a real MongoDB
+  instance and logging to the console; invoked only via the
+  `test:portfolio:model` npm script, never imported by application code
+  or by any test). It had zero test coverage before this task as well —
+  this task only swapped its `crypto` import specifier
+  (`node:crypto`, FR-007), a one-line, behavior-neutral change. Making it
+  unit-testable would require a testability refactor (extracting `run`
+  and injecting its Mongo/model dependencies), which is a design change
+  outside this task's approved scope (fixing the 7 named SonarQube
+  findings without introducing new abstractions). The requester
+  explicitly decided, when this gap was reported back per this spec's Out
+  of Scope policy, to accept this file's 0% coverage as justified rather
+  than fold a testability refactor into CARSHOP-89.
+
+This is a new finding discovered via a live SonarQube re-run after
+implementation, not one of the seven findings originally in scope. Per
+this document's Out of Scope section, it was reported back to the
+coordinator/requester rather than fixed silently; the two decisions above
+reflect the requester's explicit direction.
+
 ## Traceability
 
 FR-001 → AC-002, AC-003
