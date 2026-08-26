@@ -86,7 +86,10 @@ Deliver to the coordinator:
 - files/layers that must change and the responsibility of each;
 - affected HTTP contract and data model;
 - risks, compatibility, and security;
-- test and validation strategy;
+- test and validation strategy: for NON-TRIVIAL plans, this must explicitly
+  address how the `>= 80%` new/changed-code unit-test coverage target
+  defined in `.claude/rules/testing.md` is expected to be met, or state a
+  justified-exception rationale per that rule file's exception criteria;
 - blocking questions, or explicitly state that none exist.
 
 The plan must be specific enough for the `developer` agent to implement without rediscovering the architecture, but must not contain large blocks of code.

@@ -901,6 +901,9 @@ SMALL work passes when:
 - required validation was executed;
 - specification acceptance criteria are satisfied;
 - reviewer completed independent review;
+- the `>= 80%` new/changed-code unit-test coverage target defined in
+  `.claude/rules/testing.md` is met, or a documented justified exception is
+  recorded (percentage obtained, uncovered parts, reason, residual risk);
 - no `BLOCKER` remains open;
 - no `HIGH` remains open;
 - no unresolved specification violation prevents acceptance;
@@ -915,6 +918,9 @@ NON-TRIVIAL work passes when:
 - required validation was executed;
 - specification acceptance criteria are satisfied;
 - reviewer completed full independent review;
+- the `>= 80%` new/changed-code unit-test coverage target defined in
+  `.claude/rules/testing.md` is met, or a documented justified exception is
+  recorded (percentage obtained, uncovered parts, reason, residual risk);
 - no `BLOCKER` remains open;
 - no `HIGH` remains open;
 - no unresolved specification violation prevents acceptance;
@@ -1593,6 +1599,26 @@ They do not hit a real database.
 
 `mongodb-memory-server` is a devDependency but is not wired into the current
 unit test suite.
+
+## Unit-Test Coverage Policy
+
+New or changed production code introduced by a task is expected to carry
+`>= 80%` unit-test coverage.
+
+This expectation is evaluated against the new/changed code produced by
+that task ("new code" / "change coverage"), not the repository's
+historical or global coverage number.
+
+The exact target, measurement method (including how added vs. modified
+files are approximated using `coverage/lcov.info`), and the justified
+exception criteria are defined in `.claude/rules/testing.md`. That rule
+file is the single normative source for the threshold and its
+measurement; do not restate a different number here.
+
+E2E/integration tests do not automatically substitute for unit tests when
+the behavior in question is reasonably unit-testable. E2E coverage and
+unit coverage are tracked separately; passing E2E tests alone does not
+satisfy the unit-coverage expectation above.
 
 ---
 

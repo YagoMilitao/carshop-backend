@@ -78,6 +78,19 @@ Return `BLOCKED`.
 - Reuse project patterns and helpers. Do not add speculative dependencies or refactors.
 - Do not read secrets, do not modify `.env`, do not commit/push, and do not run destructive commands.
 
+## Testability
+
+- Consider testability while implementing: prefer constructor-injected
+  dependencies, small focused functions, and pure business logic separated
+  from framework/SDK details, consistent with existing project patterns.
+- Do not introduce new production code that is deliberately hard to
+  unit-test unless a specific architectural justification for that
+  trade-off is recorded in your delivered summary to the coordinator.
+- See `.claude/rules/testing.md` for the project's unit-test coverage
+  target and measurement method; the developer is not required to compute
+  coverage itself, but should not implement in a way that makes the
+  `tester`'s job of meeting that target unreasonably difficult.
+
 ## Validation and delivery
 
 - Run the most directly related test and `npm run build` when changing TypeScript.
