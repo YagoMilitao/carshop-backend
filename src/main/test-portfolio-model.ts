@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import { env } from '../infra/config/env';
 import { PortfolioWorkModel } from '../data/models/portfolio-work';

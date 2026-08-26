@@ -71,4 +71,45 @@ describe('mongoose database connector', () => {
 
     expect(mongooseMock.disconnect).toHaveBeenCalledTimes(1);
   });
+
+  it('walks an Error cause chain, concatenating each message', async () => {
+    const rootCause = new Error('causa raiz');
+    const mainError = new Error('erro principal') as Error & {
+      cause?: unknown;
+    };
+    mainError.cause = rootCause;
+    mongooseMock.connect.mockRejectedValueOnce(mainError);
+
+    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(mainError);
+  });
+
+  it('extracts message/cause/reason from a plain object shaped like an error', async () => {
+    const shapedError = {
+      message: 'falha customizada',
+      cause: 'causa string',
+      reason: 'motivo string',
+    };
+    mongooseMock.connect.mockRejectedValueOnce(shapedError);
+
+    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(shapedError);
+  });
+
+  it('skips a candidate without a message and without a reason key', async () => {
+    const noMessageNode = { cause: 'causa sem mensagem' };
+    const mainError = new Error('primeiro') as Error & { cause?: unknown };
+    mainError.cause = noMessageNode;
+    mongooseMock.connect.mockRejectedValueOnce(mainError);
+
+    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(mainError);
+  });
+
+  it('does not loop forever when the cause chain is cyclic', async () => {
+    const cyclicError = new Error('erro cíclico') as Error & {
+      cause?: unknown;
+    };
+    cyclicError.cause = cyclicError;
+    mongooseMock.connect.mockRejectedValueOnce(cyclicError);
+
+    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(cyclicError);
+  });
 });
