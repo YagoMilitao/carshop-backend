@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sanitizeFilter } from 'mongoose';
 import type {
   CreateWorkInput,
   WorkRepositoryPort,
@@ -10,6 +11,9 @@ import type {
 import { WorkModel } from '../../data/models/work.model';
 import { CommentModel } from '../../data/models/comment.model';
 import { HttpError } from '../../core/domain/application/ApplicationError/http-error';
+
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MAX_SLUG_LENGTH = 120;
 
 type WorkPersistenceDocument = {
   id: string;
@@ -82,6 +86,28 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     return value;
   }
 
+  /**
+   * Canonicaliza e valida o slug com uma allowlist antes de usá-lo em uma
+   * consulta. Isso impede que sintaxe de operadores MongoDB faça parte do
+   * valor consultado, mesmo que a validação das camadas externas seja
+   * contornada.
+   */
+  private sanitizeSlugIdentifier(value: unknown): string {
+    const slug = this.assertStringIdentifier(value, 'slug')
+      .trim()
+      .toLowerCase();
+
+    if (
+      slug.length === 0 ||
+      slug.length > MAX_SLUG_LENGTH ||
+      !SLUG_PATTERN.test(slug)
+    ) {
+      throw new HttpError(400, 'slug deve possuir um formato válido.');
+    }
+
+    return slug;
+  }
+
   async create(input: CreateWorkInput): Promise<Work> {
     const created = await WorkModel.create({
       id: randomUUID(),
@@ -122,11 +148,12 @@ export class MongoWorkRepository implements WorkRepositoryPort {
   }
 
   async findBySlug(slug: string): Promise<Work | undefined> {
-    const validatedSlug = this.assertStringIdentifier(slug, 'slug');
-    const work = await WorkModel.findOne({
-      slug: validatedSlug,
+    const sanitizedSlug = this.sanitizeSlugIdentifier(slug);
+    const filter = sanitizeFilter({
+      slug: sanitizedSlug,
       deletedAt: null,
-    }).lean();
+    });
+    const work = await WorkModel.findOne(filter).lean();
 
     return work ? toWork(work) : undefined;
   }

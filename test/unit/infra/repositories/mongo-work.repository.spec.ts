@@ -272,13 +272,13 @@ describe('MongoWorkRepository', () => {
       expect(work).toBeUndefined();
     });
 
-    it('findBySlug consulta o WorkModel com o slug validado e deletedAt: null', async () => {
-      const slug = 'work-slug';
+    it('findBySlug consulta o WorkModel com o slug sanitizado e deletedAt: null', async () => {
+      const slug = '  Work-Slug  ';
 
       workModel.WorkModel.findOne.mockReturnValue({
         lean: async () => ({
           id: 'work-1',
-          slug,
+          slug: 'work-slug',
           title: 'Work title',
           description: 'Work description',
           category: 'bancos',
@@ -294,10 +294,10 @@ describe('MongoWorkRepository', () => {
       const work = await repository.findBySlug(slug);
 
       expect(workModel.WorkModel.findOne).toHaveBeenCalledWith({
-        slug,
+        slug: 'work-slug',
         deletedAt: null,
       });
-      expect(work?.slug).toBe(slug);
+      expect(work?.slug).toBe('work-slug');
     });
 
     it('findByIdIncludingDeleted consulta o WorkModel apenas pelo id, sem filtrar deletedAt', async () => {
@@ -426,6 +426,18 @@ describe('MongoWorkRepository', () => {
 
     it('findBySlug rejeita slug não-string sem consultar o WorkModel', async () => {
       await expect(repository.findBySlug(unsafeIdentifier)).rejects.toThrow(
+        HttpError,
+      );
+      expect(workModel.WorkModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('findBySlug rejeita sintaxe de operador em string sem consultar o WorkModel', async () => {
+      await expect(repository.findBySlug('$where')).rejects.toThrow(HttpError);
+      expect(workModel.WorkModel.findOne).not.toHaveBeenCalled();
+    });
+
+    it('findBySlug rejeita slug acima do limite sem consultar o WorkModel', async () => {
+      await expect(repository.findBySlug('a'.repeat(121))).rejects.toThrow(
         HttpError,
       );
       expect(workModel.WorkModel.findOne).not.toHaveBeenCalled();
