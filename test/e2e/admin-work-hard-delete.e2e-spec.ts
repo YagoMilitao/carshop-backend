@@ -17,7 +17,7 @@ interface WorkResponseBody {
   slug: string;
   title: string;
   status: 'draft' | 'published';
-  images: Array<{ id: string }>;
+  images: Array<{ id: string; publicId: string }>;
 }
 
 async function loginAsAdmin(
@@ -75,6 +75,7 @@ const FAKE_JPEG_BUFFER = Buffer.from([
  */
 describe('Admin work hard-delete (e2e)', () => {
   let app: ReturnType<typeof createApp>;
+  let imageStorage: FakeImageStorageAdapter;
 
   beforeAll(async () => {
     if (!process.env.MONGO_URI) {
@@ -96,7 +97,8 @@ describe('Admin work hard-delete (e2e)', () => {
     process.env.ADMIN_PASSWORD = '123456';
     process.env.JWT_EXPIRES_IN = '15m';
     process.env.JWT_REFRESH_EXPIRES_IN = '7d';
-    app = createApp({ imageStorage: new FakeImageStorageAdapter() });
+    imageStorage = new FakeImageStorageAdapter();
+    app = createApp({ imageStorage });
   });
 
   it('rejects DELETE /admin/works/:workId without authentication with 401 (FR-007/AC-004)', async () => {
@@ -144,7 +146,7 @@ describe('Admin work hard-delete (e2e)', () => {
       .expect(404);
   });
 
-  it('deletes a work that has an associated image, removing the image metadata (image-cascade branch, FR-010/AC-005)', async () => {
+  it('deletes a work and its associated image from external storage (image-cascade branch, FR-010/AC-005)', async () => {
     const accessToken = await loginAsAdmin(app);
     const slug = `hard-delete-with-image-${Date.now()}`;
     const workId = await createWork(app, accessToken, slug);
@@ -164,13 +166,20 @@ describe('Admin work hard-delete (e2e)', () => {
       .expect(200);
     const worksWithImage = withImageResponse.body as WorkResponseBody[];
     const workWithImage = worksWithImage.find((work) => work.id === workId);
+    const uploadedImagePublicId = workWithImage?.images[0]?.publicId;
 
     expect(workWithImage?.images.length).toBeGreaterThan(0);
+    expect(uploadedImagePublicId).toEqual(expect.any(String));
+
+    const deleteImageSpy = jest.spyOn(imageStorage, 'delete');
 
     await request(app)
       .delete(`/admin/works/${workId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
+
+    expect(deleteImageSpy).toHaveBeenCalledTimes(1);
+    expect(deleteImageSpy).toHaveBeenCalledWith(uploadedImagePublicId);
 
     const afterDeleteResponse = await request(app).get('/works').expect(200);
     const worksAfterDelete = afterDeleteResponse.body as WorkResponseBody[];

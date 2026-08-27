@@ -169,9 +169,7 @@ describe('Comment creation and admin moderation flow (e2e)', () => {
       afterApprovalResponse.body as CommentResponseBody[];
 
     expect(
-      commentsAfterApproval.some(
-        (comment) => comment.id === createdComment.id,
-      ),
+      commentsAfterApproval.some((comment) => comment.id === createdComment.id),
     ).toBe(true);
   });
 
@@ -218,14 +216,26 @@ describe('Comment creation and admin moderation flow (e2e)', () => {
       .expect(201);
     const createdComment = createResponse.body as CommentResponseBody;
 
-    const updateResponse = await request(app)
+    await request(app)
       .patch(`/admin/comments/${createdComment.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ content: 'Conteúdo atualizado pelo administrador.' })
       .expect(200);
-    const updatedComment = updateResponse.body as CommentResponseBody;
 
-    expect(updatedComment.content).toBe(
+    await request(app)
+      .patch(`/admin/comments/${createdComment.id}/approve`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    const readResponse = await request(app)
+      .get(`/works/${workId}/comments`)
+      .expect(200);
+    const persistedComment = (readResponse.body as CommentResponseBody[]).find(
+      (comment) => comment.id === createdComment.id,
+    );
+
+    expect(persistedComment).toBeDefined();
+    expect(persistedComment?.content).toBe(
       'Conteúdo atualizado pelo administrador.',
     );
   });
