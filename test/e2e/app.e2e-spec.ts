@@ -4,6 +4,7 @@ import {
   connectDatabase,
   disconnectDatabase,
 } from '../../src/infra/database/mongoose';
+import { AuthSessionModel } from '../../src/data/models/auth-session.model';
 
 interface AuthResponseBody {
   accessToken: string;
@@ -130,11 +131,19 @@ describe('Auth flow (e2e)', () => {
   // pre-existing bug discovered while writing this test, out of this task's
   // scope — tracked as a dedicated follow-up task. Once fixed, this test
   // should be tightened back to assert the JSON error body.
-  it('rejects login with an incorrect password and issues no session cookies (FR-A03/AC-A03)', async () => {
+  it('rejects login with an incorrect password without persisting a session or issuing cookies (FR-A03/AC-A03)', async () => {
+    const sessionCountBefore = await AuthSessionModel.countDocuments({
+      email: 'admin@carshop.com',
+    });
+
     const loginResponse = await request(app)
       .post('/auth/login')
       .send({ email: 'admin@carshop.com', password: 'wrong-password' })
       .expect(401);
+
+    const sessionCountAfter = await AuthSessionModel.countDocuments({
+      email: 'admin@carshop.com',
+    });
 
     const rawSetCookie = loginResponse.headers['set-cookie'];
     const setCookie = Array.isArray(rawSetCookie)
@@ -145,6 +154,7 @@ describe('Auth flow (e2e)', () => {
 
     expect(extractCookie(setCookie, 'refresh_token')).toBeUndefined();
     expect(extractCookie(setCookie, 'csrf_token')).toBeUndefined();
+    expect(sessionCountAfter).toBe(sessionCountBefore);
   });
 });
 
