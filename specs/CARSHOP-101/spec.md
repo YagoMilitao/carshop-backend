@@ -24,6 +24,19 @@ was exercised against its success and main error scenarios, and an explicit
 verdict on whether current E2E automation is sufficient or has gaps that
 justify a dedicated follow-up task.
 
+This task was previously executed and completed once already (see
+`specs/CARSHOP-101/validation-report.md`), and is now being re-executed from
+scratch at explicit user request, with unchanged underlying requirements.
+Two dedicated follow-up tasks were already created from that prior run's
+findings: CARSHOP-102 (the `GET /works?includeDrafts=true` authorization
+gap) and CARSHOP-103 (E2E automation for the coverage gaps identified in the
+prior run). If this re-run reproduces the same findings, the resulting
+report must reference the existing CARSHOP-102/CARSHOP-103 tasks instead of
+recommending the creation of new, duplicate follow-up tasks for the same
+gaps. A new follow-up task should only be recommended if this re-run
+surfaces a genuinely new finding not already covered by CARSHOP-102 or
+CARSHOP-103.
+
 ## Objective
 
 Produce a documented, evidence-based validation of every active backend
@@ -81,8 +94,12 @@ FR-011: The task must issue exactly one explicit final verdict: either
 
 FR-012: If the verdict is "E2E COVERAGE GAP", the result must list the
 specific flows/endpoints lacking automated E2E coverage and explicitly
-recommend creating a dedicated follow-up E2E automation task. This task's
-own scope must not be expanded to implement that automation.
+recommend creating a dedicated follow-up E2E automation task, unless that
+gap was already identified in the prior CARSHOP-101 run and already has a
+corresponding follow-up task (CARSHOP-102 and/or CARSHOP-103), in which
+case the result must reference the existing task instead of recommending a
+duplicate. This task's own scope must not be expanded to implement that
+automation.
 
 ## Non-Functional Requirements
 
@@ -146,8 +163,11 @@ AC-009: When the final report is read, it contains exactly one of the two
 allowed verdict strings: "E2E COVERAGE SUFFICIENT" or "E2E COVERAGE GAP".
 
 AC-010: When the verdict is "E2E COVERAGE GAP", the report lists the
-specific uncovered flows/endpoints and recommends opening a dedicated
-follow-up E2E task, without this task implementing that automation itself.
+specific uncovered flows/endpoints and, for each one, either recommends
+opening a dedicated follow-up E2E task or, when that gap was already
+identified in the prior CARSHOP-101 run, references the existing
+CARSHOP-102/CARSHOP-103 follow-up task instead of recommending a duplicate;
+this task does not implement that automation itself.
 
 AC-011: After this task's validation activity, `npm test`, `npm run build`,
 and `npm run lint` either pass, or any failure is explicitly documented as

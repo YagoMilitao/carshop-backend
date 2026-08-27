@@ -317,7 +317,9 @@ constraints only.
   `test/e2e/works.e2e-spec.ts`.
 - Adding E2E coverage for `GET /`, `GET /docs`, or `GET /docs.json` —
   these are informational/static endpoints not listed in this task's
-  Definition of Done.
+  original Definition of Done. (Note: `GET /` and `GET /docs.json`
+  specifically were later brought into scope by Addendum A below, based
+  on a 2026-08-27 residual-gap finding; `GET /docs` remains out of scope.)
 - Provisioning or managing a real Cloudinary sandbox account outside of
   the test code itself (e.g. creating the account, configuring its
   dashboard) — if the architect selects a real-sandbox strategy, account
@@ -394,3 +396,271 @@ None.
 Additional whole-suite criteria not tied to a single FR:
 - AC-015 (E2E suite passes)
 - AC-016 (build and unit suite pass)
+
+## Addendum A — Residual E2E Gaps (from CARSHOP-101 re-execution, 2026-08-27)
+
+### Status
+
+Ready
+
+### Source
+
+Notion Task:
+CARSHOP-103 (test-only addition to the same scope lineage)
+
+Originating finding:
+CARSHOP-101 re-execution dated 2026-08-27, performed after CARSHOP-103 was
+already marked Done, identified 5 residual E2E gaps not covered by the
+original CARSHOP-103 implementation described above.
+
+### Context
+
+This addendum does not reopen or contradict the specification above. All
+E2E coverage delivered by the original CARSHOP-103 implementation
+(`work-crud.e2e-spec.ts`, `admin-work-hard-delete.e2e-spec.ts`,
+`comment-moderation-flow.e2e-spec.ts`, `work-image-upload.e2e-spec.ts`,
+plus the pre-existing `app.e2e-spec.ts`/`works.e2e-spec.ts`) remains valid
+and must be preserved as-is.
+
+The 2026-08-27 re-execution of CARSHOP-101 found that 5 specific behaviors
+still have no permanent, automated E2E coverage:
+
+1. `GET /` (health check).
+2. `GET /docs.json` (OpenAPI JSON document).
+3. Login failure (wrong password) — only the success path is currently
+   covered by `test/e2e/app.e2e-spec.ts`.
+4. `DELETE /admin/comments/:commentId` (admin comment hard-delete) — the
+   route exists (`src/infra/http/routes/admin-comment.routes.ts:42`,
+   `router.use(authMiddleware)` applied to the whole router) and is backed
+   by `DeleteCommentUseCase`, but `comment-moderation-flow.e2e-spec.ts`
+   only exercises `PATCH .../approve` and `PATCH .../:commentId`, never
+   `DELETE`.
+5. Standalone image-delete success path — `DELETE
+   /admin/works/:workId/images/:imageId` is a real, already-existing
+   standalone route (`src/infra/http/routes/work-image.routes.ts:103`,
+   distinct from the admin work hard-delete cascade), and
+   `work-image-upload.e2e-spec.ts` already covers its no-auth (401) and
+   not-found (404) guard cases, but never exercises the success branch
+   (delete an image that actually exists on a work, and confirm the work
+   itself is preserved while the specific image is removed).
+
+Item 5 was verified directly against the current route inventory
+(`src/infra/http/routes/work-image.routes.ts`) and the existing spec
+(`test/e2e/work-image-upload.e2e-spec.ts`): the endpoint is real and
+already partially tested (guard cases only). No new endpoint or backend
+contract change is required to close this gap — only an additional test
+case for the already-existing success branch.
+
+This addendum closes all 5 gaps with additive, test-only E2E coverage. No
+backend contract change is introduced or required by this addendum.
+
+### Objective
+
+Add permanent, automated E2E coverage under `test/e2e/` for the 5 residual
+gaps listed above, reusing the existing project harness
+(`mongodb-memory-server`, `createApp()`, `connectDatabase`/
+`disconnectDatabase`) and conventions established by the original
+CARSHOP-103 implementation, without modifying any existing passing test
+scenario and without any backend contract change.
+
+### Functional Requirements
+
+- **FR-A01**: A permanent E2E spec must verify that `GET /` returns `200`
+  with the currently-implemented response body (plain-text `"Hello
+  World!"`, per `src/infra/config/routes.ts`), confirming the health-check
+  endpoint is reachable and returns its documented shape.
+- **FR-A02**: A permanent E2E spec must verify that `GET /docs.json`
+  returns `200` with a JSON body that is valid JSON and contains, at
+  minimum, the top-level OpenAPI keys `openapi` and `paths`, confirming
+  the assembled OpenAPI document is served correctly. The spec must
+  explicitly enable Swagger for its own run (e.g. by setting
+  `ENABLE_SWAGGER=true` before calling `createApp()`) rather than relying
+  on an ambient `NODE_ENV` default, so the test result does not depend on
+  how the test runner's environment happens to be configured.
+- **FR-A03**: A permanent E2E spec must verify that `POST /auth/login`
+  with a valid email and an incorrect password is rejected with the
+  correct error status/body (per the current `AuthService`/
+  `auth.controller.ts` contract) and that no `refresh_token` or
+  `csrf_token` cookie is set and no session is created as a result of the
+  failed attempt.
+- **FR-A04**: A permanent E2E spec must verify that `DELETE
+  /admin/comments/:commentId` performed by an authenticated caller on an
+  existing comment succeeds and that the comment is no longer returned by
+  subsequent reads (e.g. it no longer appears in the approved public
+  listing after having been approved, or is otherwise confirmed absent
+  per the currently-implemented contract).
+- **FR-A05**: A permanent E2E spec must verify that `DELETE
+  /admin/comments/:commentId` without authentication is rejected (`401`
+  per the existing `authMiddleware` contract already validated for the
+  sibling `PATCH` routes on the same router).
+- **FR-A06**: A permanent E2E spec must verify the success path of `DELETE
+  /admin/works/:workId/images/:imageId`: deleting an image that actually
+  exists on a work returns the currently-implemented success status
+  (`200`, per `WorkImageController.delete`) and, on a subsequent read, the
+  work itself still exists while the deleted image is no longer present in
+  its image list. This must use the existing `FakeImageStorageAdapter`
+  test double (no real Cloudinary network call), consistent with
+  NFR-001/NFR-002 above.
+
+### Non-Functional Requirements
+
+- **NFR-A01 (Security)**: No production Cloudinary credentials, no real
+  `.env` values, and no other real secret or credential may be used,
+  logged, committed, or otherwise exposed by any new test file or by this
+  addendum, per `.claude/rules/security.md` and
+  `.claude/rules/spec-security.md`. This is the same constraint as
+  NFR-001 above, restated for this addendum's scope.
+- **NFR-A02 (No contract change)**: This addendum must not require any
+  change to `src/**` production code, HTTP status codes, response bodies,
+  headers, or cookie names. If implementing any of FR-A01–FR-A06 is found
+  to require such a change, implementation must stop and the affected item
+  must be raised as an open question rather than silently expanding scope.
+- **NFR-A03 (Reliability)**: The new specs must be deterministic and must
+  not depend on external network conditions, consistent with NFR-003
+  above.
+- **NFR-A04 (Maintainability)**: The new specs must follow the same
+  conventions already established by the original CARSHOP-103 E2E specs
+  (mirrored `beforeAll`/`beforeEach`/env-var pattern, uniquely-suffixed
+  identifiers, meaningful assertions, no coverage-gaming), consistent with
+  NFR-004 above.
+
+### Acceptance Criteria
+
+- **AC-A01**: `GET /` is covered by at least one E2E test asserting `200`
+  and the current response body shape, and it passes (FR-A01).
+- **AC-A02**: `GET /docs.json` is covered by at least one E2E test
+  asserting `200`, a valid JSON body, and the presence of the `openapi`
+  and `paths` top-level keys, with Swagger explicitly enabled for the
+  test's own app instance, and it passes (FR-A02).
+- **AC-A03**: A wrong-password login attempt is covered by at least one
+  E2E test asserting the correct rejection status/body and the absence of
+  any issued session cookie, and it passes (FR-A03).
+
+  **Known Deviation (2026-08-27):** the delivered test asserts only the
+  rejection status (`401`) and the absence of session cookies. It does
+  **not** assert the response body shape. While implementing this AC, a
+  pre-existing bug was found: `errorHandlerMiddleware`
+  (`src/infra/presentation/middleware/error-handler.middleware.ts`) is
+  declared with 3 parameters instead of the 4 Express requires to be
+  recognized as error-handling middleware, so it is never invoked — every
+  `HttpError`, including this one, currently falls through to Express's
+  default HTML error page (leaking a stack trace and server file paths)
+  instead of the intended `{ message, details }` JSON body. Fixing that
+  middleware is out of this task's scope (test-only, no backend contract
+  changes). The fix is tracked separately as **CARSHOP-104**. Once
+  CARSHOP-104 lands, this test should be tightened back to also assert the
+  JSON error body, and this deviation note should be removed.
+- **AC-A04**: `DELETE /admin/comments/:commentId` success and no-auth
+  scenarios are each covered by at least one E2E test and pass
+  (FR-A04–FR-A05).
+- **AC-A05**: The standalone success path of `DELETE
+  /admin/works/:workId/images/:imageId` is covered by at least one E2E
+  test that creates a work, uploads an image via the existing
+  `FakeImageStorageAdapter`, deletes that specific image, and confirms the
+  work still exists with the image removed, and it passes (FR-A06).
+- **AC-A06**: All new E2E spec files (or additions to existing ones) are
+  located under `test/e2e/`, follow the `*.e2e-spec.ts` naming convention
+  (for new files) or extend an existing convention-compliant file, and are
+  picked up by `npx jest --config ./test/jest-e2e.json`.
+- **AC-A07**: `npx jest --config ./test/jest-e2e.json` passes, including
+  all pre-existing specs (`app.e2e-spec.ts`, `works.e2e-spec.ts`,
+  `work-crud.e2e-spec.ts`, `admin-work-hard-delete.e2e-spec.ts`,
+  `comment-moderation-flow.e2e-spec.ts`, `work-image-upload.e2e-spec.ts`)
+  unchanged in their existing passing behavior, plus the new coverage
+  added by this addendum.
+- **AC-A08**: `npm run build` and `npm test` (unit suite) both pass
+  unchanged, since this addendum is not expected to introduce any
+  `src/**` production code change (NFR-A02).
+- **AC-A09**: No secret, credential, real `.env` value, or production
+  Cloudinary credential appears in any new or modified test file produced
+  by this addendum (NFR-A01).
+
+### Constraints
+
+- New/modified tests must be added under `test/e2e/` only, reusing the
+  existing `mongodb-memory-server` harness and `createApp()` composition
+  root — no parallel test harness may be introduced.
+- All 5 pre-existing, still-passing E2E specs listed in AC-A07 must not be
+  weakened, removed, or have their existing assertions altered by this
+  addendum.
+- This addendum is test-only. If closing any of the 5 items is found to
+  genuinely require a backend contract or `src/**` production code change
+  (beyond what NFR-A02 permits), implementation must stop for that item
+  and the coordinator must be informed via an open question rather than
+  silently expanding scope or inventing a nonexistent endpoint.
+- No production Cloudinary credentials or other real secrets may be used,
+  referenced by value, or exposed anywhere in the new tests or this
+  addendum.
+
+### Dependencies
+
+- The original CARSHOP-103 specification and implementation described
+  above, including the existing `FakeImageStorageAdapter`
+  (`test/e2e/support/fake-image-storage.adapter.ts`) and the
+  `createApp({ imageStorage })` overrides seam
+  (`src/infra/server.ts`).
+- `src/infra/config/routes.ts` (health check and route registration),
+  `src/infra/swagger.ts` (`GET /docs.json` gating via `ENABLE_SWAGGER`/
+  `NODE_ENV`), `src/infra/http/routes/admin-comment.routes.ts`
+  (`DELETE /:commentId`), `src/infra/http/routes/work-image.routes.ts`
+  (`DELETE /:workId/images/:imageId`).
+
+### Out of Scope
+
+- Adding E2E coverage for `GET /docs` (the Swagger UI HTML page itself) —
+  only `GET /docs.json` was identified as a residual gap.
+- Any behavior change to the health-check response, the OpenAPI document
+  assembly, the login failure contract, the comment-delete contract, or
+  the image-delete contract. This addendum verifies existing behavior; it
+  does not change it.
+- Re-testing scenarios already covered by the original CARSHOP-103
+  implementation (e.g. image-delete no-auth/not-found guards, comment
+  approve/update flows) — those remain valid and are not duplicated here.
+
+### Risks
+
+- `GET /docs.json` coverage depends on Swagger being enabled for the
+  test's app instance; if `ENABLE_SWAGGER` is not explicitly set by the
+  new test, the result could vary with the ambient `NODE_ENV`. FR-A02
+  requires the test to set `ENABLE_SWAGGER=true` explicitly to avoid this
+  risk.
+- None of the 5 items are currently expected to require a backend
+  contract change; if the developer discovers otherwise during
+  implementation, per NFR-A02 that item must be flagged as an open
+  question rather than resolved by expanding scope.
+
+### Open Questions
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+- Exact response-body assertion for FR-A03 (wrong-password login) should
+  be confirmed against the current `AuthService`/`auth.controller.ts`
+  error-mapping behavior during implementation, since this specification
+  does not prescribe a specific error message string (only that rejection
+  occurs with the correct status and no session/cookies are issued).
+- Exact response-body assertion for FR-A04 (comment delete success) should
+  be confirmed against `AdminCommentController`'s actual delete response
+  shape during implementation; this specification only requires that the
+  comment becomes unavailable afterward, not a specific response body.
+
+### Traceability
+
+- FR-A01 → AC-A01
+- FR-A02 → AC-A02
+- FR-A03 → AC-A03
+- FR-A04 → AC-A04
+- FR-A05 → AC-A04
+- FR-A06 → AC-A05
+- NFR-A01 → AC-A09
+- NFR-A02 → AC-A08
+- NFR-A03 → AC-A07
+- NFR-A04 → AC-A06, AC-A07
+
+Additional whole-suite criteria not tied to a single FR:
+- AC-A06 (file location/naming convention)
+- AC-A07 (full E2E suite passes, including pre-existing specs unchanged)
+- AC-A08 (build and unit suite pass, unchanged)
