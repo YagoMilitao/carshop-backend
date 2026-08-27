@@ -122,15 +122,10 @@ describe('Auth flow (e2e)', () => {
   // must be rejected with the correct status and must not issue any
   // refresh_token/csrf_token cookie or session.
   //
-  // NOTE: the response body is not asserted here. `errorHandlerMiddleware`
-  // (src/infra/presentation/middleware/error-handler.middleware.ts) is
-  // declared with 3 parameters instead of the 4 Express requires to
-  // recognize an error-handling middleware, so it is never invoked and
-  // Express's default HTML error page (with a full server stack trace) is
-  // returned instead of the intended `{ message, details }` JSON. This is a
-  // pre-existing bug discovered while writing this test, out of this task's
-  // scope — tracked as a dedicated follow-up task. Once fixed, this test
-  // should be tightened back to assert the JSON error body.
+  // CARSHOP-104 — FR-002/AC-001/AC-005: `errorHandlerMiddleware` now has the
+  // arity Express requires to be recognized as an error handler, so this
+  // request receives the intended JSON `{ message, details }` error body
+  // instead of Express's default HTML error page.
   it('rejects login with an incorrect password without persisting a session or issuing cookies (FR-A03/AC-A03)', async () => {
     const sessionCountBefore = await AuthSessionModel.countDocuments({
       email: 'admin@carshop.com',
@@ -139,7 +134,12 @@ describe('Auth flow (e2e)', () => {
     const loginResponse = await request(app)
       .post('/auth/login')
       .send({ email: 'admin@carshop.com', password: 'wrong-password' })
-      .expect(401);
+      .expect(401)
+      .expect('Content-Type', /json/);
+
+    expect(loginResponse.body).toHaveProperty('message');
+    expect(typeof loginResponse.body.message).toBe('string');
+    expect(loginResponse.text).not.toMatch(/<html/i);
 
     const sessionCountAfter = await AuthSessionModel.countDocuments({
       email: 'admin@carshop.com',
