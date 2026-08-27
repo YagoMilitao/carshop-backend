@@ -7,6 +7,9 @@ const mockRouterInstance = {
 const mockRouterFactory = jest.fn(() => mockRouterInstance);
 
 const mockBuildAuthMiddleware = jest.fn(() => 'auth-middleware');
+const mockBuildRequireAuthForDraftsMiddleware = jest.fn(
+  () => 'require-auth-for-drafts-middleware',
+);
 
 jest.mock('express', () => ({
   Router: mockRouterFactory,
@@ -22,6 +25,18 @@ jest.mock(
           b: unknown,
         ) => unknown
       )(sessionStore, tokenService),
+  }),
+);
+
+jest.mock(
+  '../../../../../src/infra/presentation/middleware/require-auth-for-drafts.middleware',
+  () => ({
+    buildRequireAuthForDraftsMiddleware: (authMiddleware: unknown) =>
+      (
+        mockBuildRequireAuthForDraftsMiddleware as unknown as (
+          a: unknown,
+        ) => unknown
+      )(authMiddleware),
   }),
 );
 
@@ -52,8 +67,15 @@ describe('buildWorkRouter', () => {
       sessionStore,
       tokenService,
     );
+    expect(mockBuildRequireAuthForDraftsMiddleware).toHaveBeenCalledWith(
+      'auth-middleware',
+    );
 
-    expect(mockGet).toHaveBeenCalledWith('/', expect.any(Function));
+    expect(mockGet).toHaveBeenCalledWith(
+      '/',
+      'require-auth-for-drafts-middleware',
+      expect.any(Function),
+    );
     expect(mockPost).toHaveBeenCalledWith(
       '/',
       'auth-middleware',

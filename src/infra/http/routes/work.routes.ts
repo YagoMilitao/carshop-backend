@@ -10,6 +10,7 @@ import type { CommentRepositoryPort } from '../../../core/domain/repositories/co
 import type { SessionStorePort } from '../../../core/domain/repositories/session-store.repository';
 import type { TokenServicePort } from '../../../core/domain/application/Auth/token-service.port';
 import { buildAuthMiddleware } from '../../presentation/middleware/auth.middleware';
+import { buildRequireAuthForDraftsMiddleware } from '../../presentation/middleware/require-auth-for-drafts.middleware';
 
 export function buildWorkRouter(
   workRepository: WorkRepositoryPort,
@@ -42,11 +43,13 @@ export function buildWorkRouter(
   );
 
   const authMiddleware = buildAuthMiddleware(sessionStore, tokenService);
+  const requireAuthForDraftsMiddleware =
+    buildRequireAuthForDraftsMiddleware(authMiddleware);
 
   /**
-   * Público: lista works publicados.
+   * Público: lista works publicados. Quando includeDrafts=true, exige autenticação.
    */
-  router.get('/', workController.list);
+  router.get('/', requireAuthForDraftsMiddleware, workController.list);
 
   /**
    * Privado: criação de work.
