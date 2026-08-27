@@ -1,3 +1,5 @@
+import { errorResponse } from './swagger.helpers';
+
 export const worksTags = [{ name: 'Works' }] as const;
 
 export const worksSchemas = {
@@ -26,6 +28,23 @@ export const worksPaths = {
     get: {
       tags: ['Works'],
       summary: 'Lista trabalhos publicados do portfólio',
+      description:
+        'Por padrão retorna apenas trabalhos publicados, sem exigir autenticação. Quando includeDrafts=true é informado, exige um access token Bearer válido vinculado a uma sessão ativa e passa a incluir também os trabalhos em rascunho.',
+      /**
+       * Alternativa dupla: sem autenticação (comportamento padrão) ou
+       * com bearerAuth (necessário quando includeDrafts=true).
+       */
+      security: [{}, { bearerAuth: [] }],
+      parameters: [
+        {
+          in: 'query',
+          name: 'includeDrafts',
+          required: false,
+          schema: { type: 'boolean', default: false },
+          description:
+            'Quando true, inclui trabalhos em rascunho na resposta. Requer autenticação de administrador; caso contrário a resposta é 401.',
+        },
+      ],
       responses: {
         '200': {
           description: 'Lista de trabalhos publicados',
@@ -38,6 +57,9 @@ export const worksPaths = {
             },
           },
         },
+        '401': errorResponse(
+          'Access token ausente, inválido ou sessão expirada ao solicitar includeDrafts=true.',
+        ),
       },
     },
   },
