@@ -116,4 +116,118 @@ describe('Auth flow (e2e)', () => {
       .set('Authorization', `Bearer ${refreshBody.accessToken}`)
       .expect(401);
   });
+
+  // CARSHOP-103 Addendum A — FR-A03/AC-A03: a wrong-password login attempt
+  // must be rejected with the correct status and must not issue any
+  // refresh_token/csrf_token cookie or session.
+  //
+  // NOTE: the response body is not asserted here. `errorHandlerMiddleware`
+  // (src/infra/presentation/middleware/error-handler.middleware.ts) is
+  // declared with 3 parameters instead of the 4 Express requires to
+  // recognize an error-handling middleware, so it is never invoked and
+  // Express's default HTML error page (with a full server stack trace) is
+  // returned instead of the intended `{ message, details }` JSON. This is a
+  // pre-existing bug discovered while writing this test, out of this task's
+  // scope — tracked as a dedicated follow-up task. Once fixed, this test
+  // should be tightened back to assert the JSON error body.
+  it('rejects login with an incorrect password and issues no session cookies (FR-A03/AC-A03)', async () => {
+    const loginResponse = await request(app)
+      .post('/auth/login')
+      .send({ email: 'admin@carshop.com', password: 'wrong-password' })
+      .expect(401);
+
+    const rawSetCookie = loginResponse.headers['set-cookie'];
+    const setCookie = Array.isArray(rawSetCookie)
+      ? rawSetCookie
+      : rawSetCookie
+        ? [rawSetCookie]
+        : [];
+
+    expect(extractCookie(setCookie, 'refresh_token')).toBeUndefined();
+    expect(extractCookie(setCookie, 'csrf_token')).toBeUndefined();
+  });
+});
+
+/**
+ * CARSHOP-103 Addendum A — FR-A01/AC-A01: the plain-text health-check
+ * endpoint at `GET /` must remain reachable and return its documented
+ * shape.
+ */
+describe('Health check (e2e)', () => {
+  let app: ReturnType<typeof createApp>;
+
+  beforeAll(async () => {
+    if (!process.env.MONGO_URI) {
+      throw new Error(
+        'MONGO_URI não foi definida. O globalSetup do Jest deveria tê-la configurado antes dos testes.',
+      );
+    }
+
+    await connectDatabase(process.env.MONGO_URI);
+  });
+
+  afterAll(async () => {
+    await disconnectDatabase();
+  });
+
+  beforeEach(() => {
+    process.env.JWT_SECRET = 'e2e-secret';
+    process.env.ADMIN_EMAIL = 'admin@carshop.com';
+    process.env.ADMIN_PASSWORD = '123456';
+    process.env.JWT_EXPIRES_IN = '15m';
+    process.env.JWT_REFRESH_EXPIRES_IN = '7d';
+    app = createApp();
+  });
+
+  it('returns 200 with the plain-text "Hello World!" body (FR-A01/AC-A01)', async () => {
+    const response = await request(app).get('/').expect(200);
+
+    expect(response.text).toBe('Hello World!');
+  });
+});
+
+/**
+ * CARSHOP-103 Addendum A — FR-A02/AC-A02: the assembled OpenAPI document
+ * must be served at `GET /docs.json` when Swagger is explicitly enabled
+ * for the app instance, independent of the ambient NODE_ENV default.
+ */
+describe('OpenAPI document (e2e)', () => {
+  let app: ReturnType<typeof createApp>;
+
+  beforeAll(async () => {
+    if (!process.env.MONGO_URI) {
+      throw new Error(
+        'MONGO_URI não foi definida. O globalSetup do Jest deveria tê-la configurado antes dos testes.',
+      );
+    }
+
+    await connectDatabase(process.env.MONGO_URI);
+  });
+
+  afterAll(async () => {
+    await disconnectDatabase();
+  });
+
+  beforeEach(() => {
+    process.env.JWT_SECRET = 'e2e-secret';
+    process.env.ADMIN_EMAIL = 'admin@carshop.com';
+    process.env.ADMIN_PASSWORD = '123456';
+    process.env.JWT_EXPIRES_IN = '15m';
+    process.env.JWT_REFRESH_EXPIRES_IN = '7d';
+    process.env.ENABLE_SWAGGER = 'true';
+    app = createApp();
+  });
+
+  afterEach(() => {
+    delete process.env.ENABLE_SWAGGER;
+  });
+
+  it('returns 200 with a valid OpenAPI JSON document (FR-A02/AC-A02)', async () => {
+    const response = await request(app).get('/docs.json').expect(200);
+
+    expect(response.type).toBe('application/json');
+    expect(typeof response.body).toBe('object');
+    expect(response.body).toHaveProperty('openapi');
+    expect(response.body).toHaveProperty('paths');
+  });
 });

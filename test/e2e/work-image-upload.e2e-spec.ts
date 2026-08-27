@@ -183,4 +183,59 @@ describe('Work image upload and delete (e2e)', () => {
 
     expect(deleteSpy).not.toHaveBeenCalled();
   });
+
+  // CARSHOP-103 Addendum A — FR-A06/AC-A05: standalone success path of
+  // DELETE /admin/works/:workId/images/:imageId, distinct from the admin
+  // work hard-delete cascade already covered elsewhere.
+  it('deletes an existing image and preserves the work while removing only that image (FR-A06/AC-A05)', async () => {
+    const accessToken = await loginAsAdmin(app);
+    const workId = await createWork(
+      app,
+      accessToken,
+      `image-delete-success-${Date.now()}`,
+    );
+
+    await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', FAKE_JPEG_BUFFER, {
+        filename: 'work-photo.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(201);
+
+    const beforeDeleteResponse = await request(app)
+      .get('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const worksBeforeDelete = beforeDeleteResponse.body as WorkResponseBody[];
+    const workBeforeDelete = worksBeforeDelete.find(
+      (candidate) => candidate.id === workId,
+    );
+    const uploadedImageId = workBeforeDelete?.images[0]?.id;
+
+    expect(workBeforeDelete?.images.length).toBe(1);
+    expect(uploadedImageId).toEqual(expect.any(String));
+
+    const deleteSpy = jest.spyOn(imageStorage, 'delete');
+
+    await request(app)
+      .delete(`/admin/works/${workId}/images/${uploadedImageId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(deleteSpy).toHaveBeenCalledTimes(1);
+
+    const afterDeleteResponse = await request(app)
+      .get('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const worksAfterDelete = afterDeleteResponse.body as WorkResponseBody[];
+    const workAfterDelete = worksAfterDelete.find(
+      (candidate) => candidate.id === workId,
+    );
+
+    expect(workAfterDelete).toBeDefined();
+    expect(workAfterDelete?.images.length).toBe(0);
+  });
 });
