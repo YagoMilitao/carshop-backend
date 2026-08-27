@@ -1,6 +1,7 @@
 import express, { type Express } from 'express';
 
 import { AuthService } from '../core/domain/application/Auth/auth.service';
+import type { ImageStoragePort } from '../core/domain/application/Storage/image-storage.port';
 import { EnvAdminCredentialsProvider } from './config/env-admin-credentials.provider';
 import {
   registerBaseMiddlewares,
@@ -16,6 +17,20 @@ import { CloudinaryStorageService } from './gateway/cloudinary/cloudinary-storag
 import { registerSwagger } from './swagger';
 
 /**
+ * Overrides opcionais para a composição da aplicação.
+ *
+ * Motivo:
+ * permitir que testes automatizados (ex.: E2E) substituam
+ * adaptadores de infraestrutura que exigem credenciais reais
+ * ou realizam chamadas de rede, sem alterar o comportamento
+ * padrão de produção (`src/main/index.ts` chama `createApp()`
+ * sem argumentos).
+ */
+export interface CreateAppOverrides {
+  imageStorage?: ImageStoragePort;
+}
+
+/**
  * Cria e configura a aplicação Express.
  *
  * Motivo:
@@ -23,7 +38,7 @@ import { registerSwagger } from './swagger';
  * Aqui conectamos implementações concretas da infraestrutura
  * aos serviços e rotas da aplicação.
  */
-export function createApp(): Express {
+export function createApp(overrides: CreateAppOverrides = {}): Express {
   const app = express();
 
   /**
@@ -44,7 +59,7 @@ export function createApp(): Express {
    */
   const tokenService = new JsonWebTokenService();
   const credentialsProvider = new EnvAdminCredentialsProvider();
-  const imageStorage = new CloudinaryStorageService();
+  const imageStorage = overrides.imageStorage ?? new CloudinaryStorageService();
 
   /**
    * Serviço de autenticação da aplicação.

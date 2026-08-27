@@ -146,4 +146,33 @@ describe('createApp', () => {
     expect(swaggerOrder).toBeLessThan(routesOrder);
     expect(routesOrder).toBeLessThan(terminalOrder);
   });
+
+  it('constructs CloudinaryStorageService when no overrides are supplied', () => {
+    const createApp = loadCreateApp();
+
+    createApp();
+
+    expect(mockCloudinaryStorageService).toHaveBeenCalledTimes(1);
+    expect(mockRegisterRoutes).toHaveBeenCalledWith(
+      mockApp,
+      expect.objectContaining({ imageStorage: mockImageStorage }),
+    );
+  });
+
+  it('uses the supplied imageStorage override instead of constructing CloudinaryStorageService', () => {
+    const createApp = loadCreateApp();
+    const overrideImageStorage = { name: 'fake-image-storage' };
+
+    createApp({ imageStorage: overrideImageStorage as never });
+
+    expect(mockCloudinaryStorageService).not.toHaveBeenCalled();
+    expect(mockRegisterRoutes).toHaveBeenCalledWith(mockApp, {
+      authService: mockAuthService,
+      sessionStore: mockSessionStore,
+      tokenService: mockTokenService,
+      workRepository: mockWorkRepository,
+      commentRepository: mockCommentRepository,
+      imageStorage: overrideImageStorage,
+    });
+  });
 });
