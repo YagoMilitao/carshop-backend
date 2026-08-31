@@ -76,6 +76,9 @@ export const authPaths = {
         ),
         '400': errorResponse('Body inválido'),
         '401': errorResponse('Credenciais inválidas'),
+        '429': errorResponse(
+          'Muitas tentativas de login. Tente novamente mais tarde.',
+        ),
       },
     },
   },

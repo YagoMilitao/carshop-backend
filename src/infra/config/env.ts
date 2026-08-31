@@ -14,6 +14,7 @@ export type Environment = {
   adminEmail: string;
   adminPassword: string;
   workHardDeleteAfterDays: number;
+  trustProxyHops: number;
 };
 
 /**
@@ -61,6 +62,33 @@ function getWorkHardDeleteAfterDaysEnv(): number {
   }
 
   return days;
+}
+
+/**
+ * Converte e valida o número de "hops" de proxy confiáveis à frente da
+ * aplicação, usado para configurar o `trust proxy` do Express.
+ *
+ * Motivo:
+ * o valor precisa refletir a topologia real de deploy para que a
+ * resolução do IP do cliente usada pelo rate limiting não seja
+ * trivialmente falsificável via `X-Forwarded-For` forjado, nem agrupe
+ * clientes distintos atrás do mesmo proxy em um único bucket.
+ *
+ * Padrão: 1 (assume um único proxy reverso à frente da aplicação, na
+ * ausência de manifesto de infraestrutura no repositório confirmando a
+ * topologia real).
+ */
+function getTrustProxyHopsEnv(): number {
+  const rawHops = process.env.TRUST_PROXY_HOPS ?? '1';
+  const hops = Number(rawHops);
+
+  if (!Number.isInteger(hops) || hops < 0) {
+    throw new Error(
+      'A variável "TRUST_PROXY_HOPS" precisa ser um número inteiro maior ou igual a zero.',
+    );
+  }
+
+  return hops;
 }
 
 /**
@@ -112,4 +140,5 @@ export const env: Environment = {
   adminEmail: getRequiredEnv('ADMIN_EMAIL'),
   adminPassword: getRequiredEnv('ADMIN_PASSWORD'),
   workHardDeleteAfterDays: getWorkHardDeleteAfterDaysEnv(),
+  trustProxyHops: getTrustProxyHopsEnv(),
 };
