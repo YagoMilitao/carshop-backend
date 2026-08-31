@@ -1,4 +1,29 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
+
+const originalEnv = process.env;
+
+beforeAll(() => {
+  process.env = {
+    ...originalEnv,
+    MONGO_URI: 'mongodb://unit-test',
+    JWT_SECRET: 'unit-test-secret',
+    ADMIN_EMAIL: 'admin@example.com',
+    ADMIN_PASSWORD: 'unit-test-password',
+    NODE_ENV: 'test',
+  };
+});
+
+afterAll(() => {
+  process.env = originalEnv;
+});
 
 const mockApp = { name: 'express-app', set: jest.fn() };
 const mockSessionStore = { name: 'session-store' };

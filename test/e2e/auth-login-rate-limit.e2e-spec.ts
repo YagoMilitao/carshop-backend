@@ -92,7 +92,13 @@ function extractCookie(setCookie: string[], cookieName: string) {
 
 function getSetCookieArray(headers: Record<string, unknown>): string[] {
   const rawSetCookie = headers['set-cookie'];
-  return Array.isArray(rawSetCookie) ? rawSetCookie : rawSetCookie ? [rawSetCookie as string] : [];
+  if (Array.isArray(rawSetCookie)) {
+    return rawSetCookie as string[];
+  }
+  if (typeof rawSetCookie === 'string') {
+    return [rawSetCookie];
+  }
+  return [];
 }
 
 describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108)', () => {
@@ -134,8 +140,8 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
 
     // Distinct IPs so the two scenarios don't share the same rate-limit
     // bucket (key = IP + hashed email) and interfere with each other.
-    const NONEXISTENT_IP = '10.0.0.1';
-    const REAL_EMAIL_IP = '10.0.0.2';
+    const NONEXISTENT_IP = '192.0.2.1';
+    const REAL_EMAIL_IP = '192.0.2.2';
 
     // Both scenarios: identical 401 shape for the first 5 (within-limit)
     // attempts — neither reveals account existence.
@@ -158,8 +164,10 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
       lastNonexistentBody = nonexistentResponse.body as ErrorResponseBody;
       lastRealEmailBody = realEmailResponse.body as ErrorResponseBody;
 
-      expect(Object.keys(lastNonexistentBody).sort()).toEqual(
-        Object.keys(lastRealEmailBody).sort(),
+      expect(
+        Object.keys(lastNonexistentBody).sort((a, b) => a.localeCompare(b)),
+      ).toEqual(
+        Object.keys(lastRealEmailBody).sort((a, b) => a.localeCompare(b)),
       );
     }
 
@@ -195,7 +203,7 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
       /does-not-exist@carshop\.com/,
     );
     expect(JSON.stringify(blockedRealEmailBody)).not.toMatch(
-      new RegExp(ADMIN_EMAIL.replace('.', '\\.')),
+      new RegExp(ADMIN_EMAIL.replace('.', String.raw`\.`)),
     );
   });
 
