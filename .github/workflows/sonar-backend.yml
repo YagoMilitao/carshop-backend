@@ -30,6 +30,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Dependency audit report (all severities)
+        run: |
+          npm audit --omit=dev --json > audit-report.json || true
+          {
+            echo "## Dependency audit report (all severities)"
+            echo ""
+            echo '```'
+            npm audit --omit=dev || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dependency audit report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-audit-report
+          path: audit-report.json
+          retention-days: 14
+
+      - name: Dependency vulnerability gate (high/critical, production)
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Run unit tests with coverage
         run: npm run test:coverage -- --runInBand
 
