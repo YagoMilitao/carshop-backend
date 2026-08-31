@@ -24,8 +24,8 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1(supports-color@8.1.1)
       express-rate-limit:
-        specifier: ^8.7.0
-        version: 8.7.0(express@5.2.1(supports-color@8.1.1))(supports-color@8.1.1)
+        specifier: ^8.3.2
+        version: 8.5.2(express@5.2.1(supports-color@8.1.1))
       helmet:
         specifier: ^8.1.0
         version: 8.2.0
@@ -4470,13 +4470,10 @@ snapshots:
       jest-mock: 30.4.1
       jest-util: 30.4.1
 
-  express-rate-limit@8.7.0(express@5.2.1(supports-color@8.1.1))(supports-color@8.1.1):
+  express-rate-limit@8.5.2(express@5.2.1(supports-color@8.1.1)):
     dependencies:
-      debug: 4.4.3(supports-color@8.1.1)
       express: 5.2.1(supports-color@8.1.1)
-      ip-address: 10.7.0
-    transitivePeerDependencies:
-      - supports-color
+      ip-address: 10.2.0
 
   express@5.2.1(supports-color@8.1.1):
     dependencies:
