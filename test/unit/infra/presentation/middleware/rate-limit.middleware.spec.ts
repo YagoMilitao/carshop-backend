@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
+import type { Request } from 'express';
 import {
   buildLoginRateLimitKey,
   globalRateLimitMiddleware,
+  loginRateLimitKeyGenerator,
   loginRateLimitMiddleware,
 } from '../../../../../src/infra/presentation/middleware/rate-limit.middleware';
 
@@ -70,5 +72,57 @@ describe('buildLoginRateLimitKey (CARSHOP-108, FR-006/NFR-002, AC-004)', () => {
     expect(key).not.toContain(email);
     expect(key).not.toContain(normalizedEmail);
     expect(key).toContain(expectedHash);
+  });
+});
+
+describe('loginRateLimitKeyGenerator (CARSHOP-111, correção ERR_ERL_KEY_GEN_IPV6)', () => {
+  const buildRequest = (ip: string, email?: unknown): Request =>
+    ({
+      ip,
+      body: { email },
+    }) as unknown as Request;
+
+  it('não lança a validação estática do express-rate-limit (ERR_ERL_KEY_GEN_IPV6)', () => {
+    const source = loginRateLimitKeyGenerator.toString();
+
+    expect(source).toContain('ipKeyGenerator');
+  });
+
+  it('preserva a chave para um IP IPv4 (comportamento inalterado)', () => {
+    const request = buildRequest('127.0.0.1', 'admin@example.com');
+
+    expect(loginRateLimitKeyGenerator(request)).toBe(
+      buildLoginRateLimitKey('127.0.0.1', 'admin@example.com'),
+    );
+  });
+
+  it('normaliza IPs IPv6 distintos do mesmo /56 na mesma chave, sem colidir com um /56 diferente', () => {
+    const sameSubnetA = buildRequest(
+      '2001:db8:1234::1',
+      'admin@example.com',
+    );
+    const sameSubnetB = buildRequest(
+      '2001:db8:1234::2',
+      'admin@example.com',
+    );
+    const differentSubnet = buildRequest(
+      '2001:db8:9999::1',
+      'admin@example.com',
+    );
+
+    const keyA = loginRateLimitKeyGenerator(sameSubnetA);
+    const keyB = loginRateLimitKeyGenerator(sameSubnetB);
+    const keyC = loginRateLimitKeyGenerator(differentSubnet);
+
+    expect(keyA).toBe(keyB);
+    expect(keyA).not.toBe(keyC);
+  });
+
+  it('usa string vazia como IP quando request.ip está ausente', () => {
+    const request = { body: { email: 'admin@example.com' } } as Request;
+
+    expect(loginRateLimitKeyGenerator(request)).toBe(
+      buildLoginRateLimitKey('', 'admin@example.com'),
+    );
   });
 });

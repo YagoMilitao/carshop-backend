@@ -81,6 +81,13 @@ const NO_EMAIL_SENTINEL = 'no-email';
  * Constrói a chave de rate limit dedicada ao login, combinando o IP do
  * cliente com um hash SHA-256 do e-mail normalizado (trim + lowercase).
  *
+ * O parâmetro `ip` já deve estar normalizado pelo chamador via
+ * `ipKeyGenerator` do `express-rate-limit` (ver `loginRateLimitMiddleware`
+ * abaixo). Isso evita colapsar endereços IPv6 distintos e permite que a
+ * validação estática do `express-rate-limit` (ERR_ERL_KEY_GEN_IPV6)
+ * reconheça o uso de `ipKeyGenerator` diretamente no `keyGenerator`
+ * configurado, sem normalizar o IP duas vezes.
+ *
  * Motivo:
  * - nunca armazenar e-mail ou senha em texto puro no estado do limiter
  *   (FR-006/NFR-002);
@@ -96,7 +103,7 @@ export function buildLoginRateLimitKey(ip: string, rawEmail: unknown): string {
     ? createHash('sha256').update(normalizedEmail).digest('hex')
     : NO_EMAIL_SENTINEL;
 
-  return `${ipKeyGenerator(ip)}:${emailHash}`;
+  return `${ip}:${emailHash}`;
 }
 
 /**
@@ -114,7 +121,23 @@ export function buildLoginRateLimitKey(ip: string, rawEmail: unknown): string {
  *   preservando o comportamento do limitador global (FR-003);
  * - mensagem genérica e estática, que não varia conforme o e-mail
  *   submetido, evitando enumeração de contas (FR-005/NFR-001).
+ *
+ * O `keyGenerator` (`loginRateLimitKeyGenerator`) chama `ipKeyGenerator`
+ * diretamente sobre `request.ip` antes de repassar o valor para
+ * `buildLoginRateLimitKey`. Isso é necessário porque a validação estática
+ * do `express-rate-limit` (ERR_ERL_KEY_GEN_IPV6) inspeciona apenas o
+ * código-fonte da própria função `keyGenerator` passada em
+ * `rateLimit(...)`, não o de funções auxiliares chamadas por ela — por
+ * isso o uso de `ipKeyGenerator` precisa ser textualmente visível nessa
+ * função, e não apenas dentro de `buildLoginRateLimitKey`.
  */
+export function loginRateLimitKeyGenerator(request: Request): string {
+  return buildLoginRateLimitKey(
+    ipKeyGenerator(request.ip ?? ''),
+    (request.body as { email?: unknown })?.email,
+  );
+}
+
 export const loginRateLimitMiddleware: RateLimitRequestHandler =
   createRateLimiter({
     windowMs: 5 * 60 * 1000,
@@ -125,9 +148,5 @@ export const loginRateLimitMiddleware: RateLimitRequestHandler =
     message: {
       message: 'Muitas tentativas de login. Tente novamente mais tarde.',
     },
-    keyGenerator: (request: Request) =>
-      buildLoginRateLimitKey(
-        request.ip ?? '',
-        (request.body as { email?: unknown })?.email,
-      ),
+    keyGenerator: loginRateLimitKeyGenerator,
   });

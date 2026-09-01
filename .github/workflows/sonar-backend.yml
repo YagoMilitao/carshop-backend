@@ -56,6 +56,13 @@ jobs:
 
       - name: Run E2E tests
         run: npm run test:e2e
+        env:
+          JWT_SECRET: e2e-secret
+          ADMIN_EMAIL: admin@carshop.com
+          ADMIN_PASSWORD: e2e-password
+          CLOUDINARY_CLOUD_NAME: e2e-test-cloud
+          CLOUDINARY_API_KEY: e2e-test-key
+          CLOUDINARY_API_SECRET: e2e-test-secret
 
       - name: SonarCloud scan
         uses: SonarSource/sonarqube-scan-action@v7.1.0
