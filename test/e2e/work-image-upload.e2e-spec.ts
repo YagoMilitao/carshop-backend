@@ -18,6 +18,10 @@ interface WorkResponseBody {
   images: Array<{ id: string }>;
 }
 
+// The dedicated login rate limiter (CARSHOP-108) allows 5 attempts per 5
+// minutes per IP+email. This file's loginAsAdmin() calls share that bucket,
+// so keep the total successful+failed login calls in this file at or below
+// 5 — one more will start failing with an unrelated 429.
 async function loginAsAdmin(
   app: ReturnType<typeof createApp>,
 ): Promise<string> {

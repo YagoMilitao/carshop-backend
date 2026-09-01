@@ -5,6 +5,7 @@ import type { SessionStorePort } from '../../../core/domain/repositories/session
 import { AuthController } from '../../../presentation/controllers/auth.controller';
 import { buildAuthMiddleware } from '../../presentation/middleware/auth.middleware';
 import { csrfProtectionMiddleware } from '../../presentation/middleware/csrf-protection.middleware';
+import { loginRateLimitMiddleware } from '../../presentation/middleware/rate-limit.middleware';
 
 /**
  * Define as rotas de autenticação e conecta cada rota
@@ -32,8 +33,11 @@ export function buildAuthRouter(
    *
    * Não exige auth prévia nem CSRF,
    * porque ainda não existe sessão autenticada.
+   *
+   * Aplica um rate limit dedicado, mais restritivo que o global,
+   * para mitigar tentativas automatizadas de força bruta (CARSHOP-108).
    */
-  router.post('/login', controller.login);
+  router.post('/login', loginRateLimitMiddleware, controller.login);
 
   /**
    * Refresh do access token.

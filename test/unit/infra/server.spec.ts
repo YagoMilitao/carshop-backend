@@ -1,6 +1,31 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 
-const mockApp = { name: 'express-app' };
+const originalEnv = process.env;
+
+beforeAll(() => {
+  process.env = {
+    ...originalEnv,
+    MONGO_URI: 'mongodb://unit-test',
+    JWT_SECRET: 'unit-test-secret',
+    ADMIN_EMAIL: 'admin@example.com',
+    ADMIN_PASSWORD: 'unit-test-password',
+    NODE_ENV: 'test',
+  };
+});
+
+afterAll(() => {
+  process.env = originalEnv;
+});
+
+const mockApp = { name: 'express-app', set: jest.fn() };
 const mockSessionStore = { name: 'session-store' };
 const mockWorkRepository = { name: 'work-repository' };
 const mockCommentRepository = { name: 'comment-repository' };
@@ -129,6 +154,22 @@ describe('createApp', () => {
       imageStorage: mockImageStorage,
     });
     expect(mockRegisterTerminalMiddlewares).toHaveBeenCalledWith(mockApp);
+  });
+
+  it('configures trust proxy before the base middlewares run', () => {
+    const createApp = loadCreateApp();
+    const { env } =
+      require('../../../src/infra/config/env') as typeof import('../../../src/infra/config/env');
+
+    createApp();
+
+    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', env.trustProxyHops);
+
+    const trustProxyOrder = mockApp.set.mock.invocationCallOrder[0];
+    const baseMiddlewaresOrder =
+      mockRegisterBaseMiddlewares.mock.invocationCallOrder[0];
+
+    expect(trustProxyOrder).toBeLessThan(baseMiddlewaresOrder);
   });
 
   it('registers terminal middlewares after Swagger and routes', () => {

@@ -2,6 +2,7 @@ import express, { type Express } from 'express';
 
 import { AuthService } from '../core/domain/application/Auth/auth.service';
 import type { ImageStoragePort } from '../core/domain/application/Storage/image-storage.port';
+import { env } from './config/env';
 import { EnvAdminCredentialsProvider } from './config/env-admin-credentials.provider';
 import {
   registerBaseMiddlewares,
@@ -40,6 +41,19 @@ export interface CreateAppOverrides {
  */
 export function createApp(overrides: CreateAppOverrides = {}): Express {
   const app = express();
+
+  /**
+   * Configura explicitamente o número de "hops" de proxy confiáveis
+   * à frente da aplicação (CARSHOP-108).
+   *
+   * Motivo:
+   * a resolução correta e segura do IP do cliente (usada pelo rate
+   * limiting) depende de `trust proxy` ser configurado explicitamente,
+   * em vez de depender do valor implícito padrão do Express. Precisa
+   * rodar antes dos middlewares de rate limit para beneficiar também o
+   * limitador global.
+   */
+  app.set('trust proxy', env.trustProxyHops);
 
   /**
    * Middlewares globais:

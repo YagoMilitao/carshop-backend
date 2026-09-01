@@ -131,6 +131,13 @@ Resposta:
 - Proteção CSRF por double-submit cookie em `refresh` e `logout`.
 - Sessões armazenadas no servidor com revogação explícita no logout.
 - Middleware JWT valida assinatura, tipo do token e status da sessão antes de liberar acesso.
+- `POST /auth/login` possui um rate limit dedicado (mais restritivo que o
+  limite global da aplicação), retornando `429` ao exceder o limite de
+  tentativas na janela configurada.
+- `trust proxy` do Express é configurado explicitamente via a variável
+  `TRUST_PROXY_HOPS`. O padrão seguro é `0` (nenhum proxy confiável); deploys
+  atrás de proxies reversos devem definir explicitamente a quantidade de
+  hops conforme a topologia validada.
 
 ## Testes
 

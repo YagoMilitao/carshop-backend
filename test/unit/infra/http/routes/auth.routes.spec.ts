@@ -8,6 +8,7 @@ const mockRouterFactory = jest.fn(() => mockRouterInstance);
 
 const mockBuildAuthMiddleware = jest.fn(() => 'auth-middleware');
 const mockCsrfProtectionMiddleware = 'csrf-middleware';
+const mockLoginRateLimitMiddleware = 'login-rate-limit-middleware';
 const mockController = {
   login: 'login-handler',
   refresh: 'refresh-handler',
@@ -37,6 +38,13 @@ jest.mock(
   '../../../../../src/infra/presentation/middleware/csrf-protection.middleware',
   () => ({
     csrfProtectionMiddleware: mockCsrfProtectionMiddleware,
+  }),
+);
+
+jest.mock(
+  '../../../../../src/infra/presentation/middleware/rate-limit.middleware',
+  () => ({
+    loginRateLimitMiddleware: mockLoginRateLimitMiddleware,
   }),
 );
 
@@ -72,7 +80,12 @@ describe('buildAuthRouter', () => {
       sessionStore,
       tokenService,
     );
-    expect(mockPost).toHaveBeenNthCalledWith(1, '/login', 'login-handler');
+    expect(mockPost).toHaveBeenNthCalledWith(
+      1,
+      '/login',
+      mockLoginRateLimitMiddleware,
+      'login-handler',
+    );
     expect(mockPost).toHaveBeenNthCalledWith(
       2,
       '/refresh',
