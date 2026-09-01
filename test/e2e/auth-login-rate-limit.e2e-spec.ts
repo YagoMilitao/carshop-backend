@@ -156,6 +156,7 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
     // each other, nor with other `it` blocks in this file.
     const NONEXISTENT_EMAIL = 'login-limit-scenario1-nonexistent@carshop.com';
     const REAL_SCENARIO_EMAIL = 'login-limit-scenario1-real@carshop.com';
+    process.env.ADMIN_EMAIL = REAL_SCENARIO_EMAIL;
 
     // Both scenarios: identical 401 shape for the first 5 (within-limit)
     // attempts — neither reveals account existence.

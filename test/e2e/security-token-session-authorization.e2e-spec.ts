@@ -58,12 +58,12 @@ describe('Token and session authorization (e2e, CARSHOP-111)', () => {
 
     const login = await loginAsAdmin(app, ADMIN_EMAIL, ADMIN_PASSWORD);
     const segments = login.accessToken.split('.');
-    const lastSegment = segments[2] ?? '';
-    const mutatedLastChar = lastSegment.endsWith('a') ? 'b' : 'a';
+    const signatureSegment = segments[2] ?? '';
+    const mutatedFirstChar = signatureSegment.startsWith('a') ? 'b' : 'a';
     const tamperedToken = [
       segments[0],
       segments[1],
-      lastSegment.slice(0, -1) + mutatedLastChar,
+      mutatedFirstChar + signatureSegment.slice(1),
     ].join('.');
 
     await request(app)
