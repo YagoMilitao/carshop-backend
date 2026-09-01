@@ -209,7 +209,9 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
 
   // AC-006: no session/cookies are created on a blocked (429) response.
   it('creates no session and issues no refresh_token/csrf_token cookie on the 429 response (AC-006)', async () => {
-    const BLOCKED_IP = '10.0.0.3';
+    // RFC 5737 TEST-NET-2 — reserved for documentation/example use, never a
+    // real routable address (avoids SonarQube's hardcoded-IP hotspot S1313).
+    const BLOCKED_IP = '198.51.100.3';
     const agent = request(app);
 
     for (let attempt = 1; attempt <= 5; attempt += 1) {
@@ -246,7 +248,8 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
   // AC-008/NFR-004: a legitimate login within the allowed attempt count
   // (3rd of 5) still returns the existing 200/AuthResponse contract.
   it('still allows a legitimate login within the allowed attempt count, preserving the existing 200 contract (AC-008)', async () => {
-    const LEGITIMATE_IP = '10.0.0.4';
+    // RFC 5737 TEST-NET-2 — reserved for documentation/example use.
+    const LEGITIMATE_IP = '198.51.100.4';
     const agent = request(app);
 
     // 2 failed attempts (well within the 5-attempt budget).
@@ -286,7 +289,8 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
   // AC-007/FR-009: after the dedicated limiter's 5-minute window elapses,
   // a previously blocked client can log in again normally.
   it('allows login again after the dedicated limiter window elapses (AC-007)', async () => {
-    const RECOVERY_IP = '10.0.0.5';
+    // RFC 5737 TEST-NET-2 — reserved for documentation/example use.
+    const RECOVERY_IP = '198.51.100.5';
     const agent = request(app);
 
     for (let attempt = 1; attempt <= 5; attempt += 1) {
