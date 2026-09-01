@@ -74,12 +74,11 @@ function getWorkHardDeleteAfterDaysEnv(): number {
  * trivialmente falsificável via `X-Forwarded-For` forjado, nem agrupe
  * clientes distintos atrás do mesmo proxy em um único bucket.
  *
- * Padrão: 1 (assume um único proxy reverso à frente da aplicação, na
- * ausência de manifesto de infraestrutura no repositório confirmando a
- * topologia real).
+ * Padrão: 0 (não confia em proxies). Deploys atrás de proxies reversos
+ * devem configurar explicitamente o valor conforme a topologia validada.
  */
 function getTrustProxyHopsEnv(): number {
-  const rawHops = process.env.TRUST_PROXY_HOPS ?? '1';
+  const rawHops = process.env.TRUST_PROXY_HOPS ?? '0';
   const hops = Number(rawHops);
 
   if (!Number.isInteger(hops) || hops < 0) {

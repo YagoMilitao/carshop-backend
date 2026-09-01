@@ -80,14 +80,14 @@ describe('env — TRUST_PROXY_HOPS (CARSHOP-108, FR-007, AC-005)', () => {
     process.env = originalEnv;
   });
 
-  it('usa o padrão de 1 hop quando a variável não está definida', () => {
+  it('usa o padrão seguro de 0 hops quando a variável não está definida', () => {
     let loadedEnv: { trustProxyHops: number } | undefined;
 
     jest.isolateModules(() => {
       loadedEnv = require('../../../../src/infra/config/env').env;
     });
 
-    expect(loadedEnv?.trustProxyHops).toBe(1);
+    expect(loadedEnv?.trustProxyHops).toBe(0);
   });
 
   it('usa o valor configurado quando é um inteiro válido (>= 0)', () => {

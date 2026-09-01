@@ -135,8 +135,9 @@ Resposta:
   limite global da aplicação), retornando `429` ao exceder o limite de
   tentativas na janela configurada.
 - `trust proxy` do Express é configurado explicitamente via a variável
-  `TRUST_PROXY_HOPS`, garantindo resolução confiável do IP do cliente por
-  trás de proxies reversos.
+  `TRUST_PROXY_HOPS`. O padrão seguro é `0` (nenhum proxy confiável); deploys
+  atrás de proxies reversos devem definir explicitamente a quantidade de
+  hops conforme a topologia validada.
 
 ## Testes
 
