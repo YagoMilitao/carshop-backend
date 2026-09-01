@@ -134,14 +134,29 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
   // AC-002/AC-003: exceeding the dedicated limit returns 429 with a generic,
   // account-existence-agnostic body, identical for a real vs a nonexistent
   // email, and both identical to each other before the limit as well.
+  //
+  // IP-isolation note (CARSHOP-108 test fix, see PR history): the dedicated
+  // limiter's rate-limit key is `IP + hash(submitted email)`
+  // (`buildLoginRateLimitKey`, src/infra/presentation/middleware/rate-limit.middleware.ts).
+  // With `TRUST_PROXY_HOPS` at its secure default of `0`, Express ignores
+  // `X-Forwarded-For` entirely, so every request in this process resolves
+  // to the same real socket IP regardless of that header. Isolating
+  // scenarios via distinct `X-Forwarded-For` values (as this file
+  // previously did) therefore no longer produces distinct rate-limit
+  // buckets and causes cross-scenario collisions. Scenarios are isolated
+  // here via distinct submitted email addresses instead (the other half of
+  // the key), which remains effective regardless of `TRUST_PROXY_HOPS` and
+  // does not require changing any `src/` trust-proxy behavior.
   it('returns 429 with a static generic message after exceeding the dedicated login limit, identical regardless of whether the email exists (AC-002/AC-003)', async () => {
     const nonexistentEmailAgent = request(app);
     const realEmailWrongPasswordAgent = request(app);
 
-    // Distinct IPs so the two scenarios don't share the same rate-limit
-    // bucket (key = IP + hashed email) and interfere with each other.
-    const NONEXISTENT_IP = '192.0.2.1';
-    const REAL_EMAIL_IP = '192.0.2.2';
+    // Distinct, scenario-unique emails so the two scenarios don't share the
+    // same rate-limit bucket (key = IP + hashed email) and interfere with
+    // each other, nor with other `it` blocks in this file.
+    const NONEXISTENT_EMAIL = 'login-limit-scenario1-nonexistent@carshop.com';
+    const REAL_SCENARIO_EMAIL = 'login-limit-scenario1-real@carshop.com';
+    process.env.ADMIN_EMAIL = REAL_SCENARIO_EMAIL;
 
     // Both scenarios: identical 401 shape for the first 5 (within-limit)
     // attempts — neither reveals account existence.
@@ -151,14 +166,12 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       const nonexistentResponse = await nonexistentEmailAgent
         .post('/auth/login')
-        .set('X-Forwarded-For', NONEXISTENT_IP)
-        .send({ email: 'does-not-exist@carshop.com', password: 'whatever' })
+        .send({ email: NONEXISTENT_EMAIL, password: 'whatever' })
         .expect(401);
 
       const realEmailResponse = await realEmailWrongPasswordAgent
         .post('/auth/login')
-        .set('X-Forwarded-For', REAL_EMAIL_IP)
-        .send({ email: ADMIN_EMAIL, password: 'wrong-password' })
+        .send({ email: REAL_SCENARIO_EMAIL, password: 'wrong-password' })
         .expect(401);
 
       lastNonexistentBody = nonexistentResponse.body as ErrorResponseBody;
@@ -177,14 +190,12 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
     // 6th attempt for each: now blocked by the dedicated limiter (5/5min).
     const blockedNonexistentResponse = await nonexistentEmailAgent
       .post('/auth/login')
-      .set('X-Forwarded-For', NONEXISTENT_IP)
-      .send({ email: 'does-not-exist@carshop.com', password: 'whatever' })
+      .send({ email: NONEXISTENT_EMAIL, password: 'whatever' })
       .expect(429);
 
     const blockedRealEmailResponse = await realEmailWrongPasswordAgent
       .post('/auth/login')
-      .set('X-Forwarded-For', REAL_EMAIL_IP)
-      .send({ email: ADMIN_EMAIL, password: 'wrong-password' })
+      .send({ email: REAL_SCENARIO_EMAIL, password: 'wrong-password' })
       .expect(429);
 
     const blockedNonexistentBody =
@@ -200,40 +211,39 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
 
     // Body never contains the submitted email.
     expect(JSON.stringify(blockedNonexistentBody)).not.toMatch(
-      /does-not-exist@carshop\.com/,
+      new RegExp(NONEXISTENT_EMAIL.replace('.', String.raw`\.`)),
     );
     expect(JSON.stringify(blockedRealEmailBody)).not.toMatch(
-      new RegExp(ADMIN_EMAIL.replace('.', String.raw`\.`)),
+      new RegExp(REAL_SCENARIO_EMAIL.replace('.', String.raw`\.`)),
     );
   });
 
   // AC-006: no session/cookies are created on a blocked (429) response.
   it('creates no session and issues no refresh_token/csrf_token cookie on the 429 response (AC-006)', async () => {
-    // RFC 5737 TEST-NET-2 — reserved for documentation/example use, never a
-    // real routable address (avoids SonarQube's hardcoded-IP hotspot S1313).
-    const BLOCKED_IP = '198.51.100.3';
+    // Scenario-unique submitted email so this test's rate-limit bucket
+    // (key = IP + hashed email) never collides with other `it` blocks in
+    // this file — see the IP-isolation note on the first scenario above.
+    const BLOCKED_SCENARIO_EMAIL = 'login-limit-scenario2@carshop.com';
     const agent = request(app);
 
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       await agent
         .post('/auth/login')
-        .set('X-Forwarded-For', BLOCKED_IP)
-        .send({ email: ADMIN_EMAIL, password: 'wrong-password' })
+        .send({ email: BLOCKED_SCENARIO_EMAIL, password: 'wrong-password' })
         .expect(401);
     }
 
     const sessionCountBefore = await AuthSessionModel.countDocuments({
-      email: ADMIN_EMAIL,
+      email: BLOCKED_SCENARIO_EMAIL,
     });
 
     const blockedResponse = await agent
       .post('/auth/login')
-      .set('X-Forwarded-For', BLOCKED_IP)
-      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
+      .send({ email: BLOCKED_SCENARIO_EMAIL, password: ADMIN_PASSWORD })
       .expect(429);
 
     const sessionCountAfter = await AuthSessionModel.countDocuments({
-      email: ADMIN_EMAIL,
+      email: BLOCKED_SCENARIO_EMAIL,
     });
 
     const setCookie = getSetCookieArray(
@@ -248,28 +258,32 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
   // AC-008/NFR-004: a legitimate login within the allowed attempt count
   // (3rd of 5) still returns the existing 200/AuthResponse contract.
   it('still allows a legitimate login within the allowed attempt count, preserving the existing 200 contract (AC-008)', async () => {
-    // RFC 5737 TEST-NET-2 — reserved for documentation/example use.
-    const LEGITIMATE_IP = '198.51.100.4';
+    // Scenario-unique admin email, isolating this scenario's rate-limit
+    // bucket (key = IP + hashed email) from other `it` blocks in this file
+    // — see the IP-isolation note on the first scenario above. The admin
+    // credentials provider reads `process.env.ADMIN_EMAIL` live on each
+    // login call, so a legitimate login still succeeds against this
+    // scenario-specific value.
+    const LEGITIMATE_EMAIL = 'login-limit-scenario3@carshop.com';
+    process.env.ADMIN_EMAIL = LEGITIMATE_EMAIL;
+    app = createApp();
     const agent = request(app);
 
     // 2 failed attempts (well within the 5-attempt budget).
     await agent
       .post('/auth/login')
-      .set('X-Forwarded-For', LEGITIMATE_IP)
-      .send({ email: ADMIN_EMAIL, password: 'wrong-1' })
+      .send({ email: LEGITIMATE_EMAIL, password: 'wrong-1' })
       .expect(401);
 
     await agent
       .post('/auth/login')
-      .set('X-Forwarded-For', LEGITIMATE_IP)
-      .send({ email: ADMIN_EMAIL, password: 'wrong-2' })
+      .send({ email: LEGITIMATE_EMAIL, password: 'wrong-2' })
       .expect(401);
 
     // 3rd attempt: correct credentials, still within the 5-attempt window.
     const loginResponse = await agent
       .post('/auth/login')
-      .set('X-Forwarded-For', LEGITIMATE_IP)
-      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
+      .send({ email: LEGITIMATE_EMAIL, password: ADMIN_PASSWORD })
       .expect(200);
 
     const loginBody = loginResponse.body as AuthResponseBody;
@@ -289,22 +303,27 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
   // AC-007/FR-009: after the dedicated limiter's 5-minute window elapses,
   // a previously blocked client can log in again normally.
   it('allows login again after the dedicated limiter window elapses (AC-007)', async () => {
-    // RFC 5737 TEST-NET-2 — reserved for documentation/example use.
-    const RECOVERY_IP = '198.51.100.5';
+    // Scenario-unique admin email, isolating this scenario's rate-limit
+    // bucket (key = IP + hashed email) from other `it` blocks in this file
+    // — see the IP-isolation note on the first scenario above. The admin
+    // credentials provider reads `process.env.ADMIN_EMAIL` live on each
+    // login call, so a legitimate login still succeeds against this
+    // scenario-specific value.
+    const RECOVERY_EMAIL = 'login-limit-scenario4@carshop.com';
+    process.env.ADMIN_EMAIL = RECOVERY_EMAIL;
+    app = createApp();
     const agent = request(app);
 
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       await agent
         .post('/auth/login')
-        .set('X-Forwarded-For', RECOVERY_IP)
-        .send({ email: ADMIN_EMAIL, password: 'wrong-password' })
+        .send({ email: RECOVERY_EMAIL, password: 'wrong-password' })
         .expect(401);
     }
 
     await agent
       .post('/auth/login')
-      .set('X-Forwarded-For', RECOVERY_IP)
-      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
+      .send({ email: RECOVERY_EMAIL, password: ADMIN_PASSWORD })
       .expect(429);
 
     // Capture the target epoch (in real time) before installing fake
@@ -319,8 +338,7 @@ describe('POST /auth/login dedicated brute-force rate limiting (e2e, CARSHOP-108
 
     const recoveredResponse = await agent
       .post('/auth/login')
-      .set('X-Forwarded-For', RECOVERY_IP)
-      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
+      .send({ email: RECOVERY_EMAIL, password: ADMIN_PASSWORD })
       .expect(200);
 
     const recoveredBody = recoveredResponse.body as AuthResponseBody;
