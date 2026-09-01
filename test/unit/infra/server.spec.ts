@@ -158,14 +158,12 @@ describe('createApp', () => {
 
   it('configures trust proxy before the base middlewares run', () => {
     const createApp = loadCreateApp();
-    const { env } = require('../../../src/infra/config/env') as typeof import('../../../src/infra/config/env');
+    const { env } =
+      require('../../../src/infra/config/env') as typeof import('../../../src/infra/config/env');
 
     createApp();
 
-    expect(mockApp.set).toHaveBeenCalledWith(
-      'trust proxy',
-      env.trustProxyHops,
-    );
+    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', env.trustProxyHops);
 
     const trustProxyOrder = mockApp.set.mock.invocationCallOrder[0];
     const baseMiddlewaresOrder =
