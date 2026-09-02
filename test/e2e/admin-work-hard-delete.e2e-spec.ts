@@ -5,6 +5,7 @@ import {
   disconnectDatabase,
 } from '../../src/infra/database/mongoose';
 import { FakeImageStorageAdapter } from './support/fake-image-storage.adapter';
+import { VALID_JPEG_BUFFER } from './support/valid-image-fixtures';
 
 interface AuthResponseBody {
   accessToken: string;
@@ -58,18 +59,6 @@ async function createWork(
 
   return work.id;
 }
-
-/**
- * Minimal but structurally complete JPEG buffer for multipart upload
- * testing (SOI + EOI trailer). CARSHOP-109's content-validation
- * middleware inspects real bytes, not only the declared Content-Type, so
- * the buffer must satisfy `detectImageMimeType` in addition to declaring
- * `image/jpeg`.
- */
-const FAKE_JPEG_BUFFER = Buffer.from([
-  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-  0xff, 0xd9,
-]);
 
 /**
  * CARSHOP-103 — FR-006 (partial)/FR-007–FR-010 / AC-003, AC-004, AC-005:
@@ -157,7 +146,7 @@ describe('Admin work hard-delete (e2e)', () => {
     await request(app)
       .post(`/admin/works/${workId}/images`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .attach('file', FAKE_JPEG_BUFFER, {
+      .attach('file', VALID_JPEG_BUFFER, {
         filename: 'work-photo.jpg',
         contentType: 'image/jpeg',
       })

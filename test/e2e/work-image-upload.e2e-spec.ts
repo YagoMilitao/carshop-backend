@@ -5,6 +5,11 @@ import {
   disconnectDatabase,
 } from '../../src/infra/database/mongoose';
 import { FakeImageStorageAdapter } from './support/fake-image-storage.adapter';
+import {
+  VALID_JPEG_BUFFER,
+  VALID_PNG_BUFFER,
+  VALID_WEBP_BUFFER,
+} from './support/valid-image-fixtures';
 
 interface AuthResponseBody {
   accessToken: string;
@@ -74,27 +79,6 @@ async function createWork(
 
   return work.id;
 }
-
-// CARSHOP-109 — structurally complete fixtures: content-validation
-// middleware now inspects real bytes (SOI+EOI for JPEG, signature+IEND for
-// PNG, RIFF/WEBP/fourCC+size for WebP), not only the declared Content-Type.
-const FAKE_JPEG_BUFFER = Buffer.from([
-  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-  0xff, 0xd9,
-]);
-
-const FAKE_PNG_BUFFER = Buffer.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00,
-  0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
-]);
-
-const FAKE_WEBP_BUFFER = Buffer.from([
-  0x52, 0x49, 0x46, 0x46, // RIFF
-  0x0c, 0x00, 0x00, 0x00, // size = 12 (LE)
-  0x57, 0x45, 0x42, 0x50, // WEBP
-  0x56, 0x50, 0x38, 0x20, // "VP8 "
-  0x00, 0x00, 0x00, 0x00, // filler payload
-]);
 
 // Structurally valid PNG signature but missing the IEND footer.
 const TRUNCATED_PNG_BUFFER = Buffer.from([
@@ -190,7 +174,7 @@ describe('Work image upload and delete (e2e)', () => {
     await request(app)
       .post(`/admin/works/${workId}/images`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .attach('file', FAKE_JPEG_BUFFER, {
+      .attach('file', VALID_JPEG_BUFFER, {
         filename: 'work-photo.jpg',
         contentType: 'image/jpeg',
       })
@@ -220,7 +204,7 @@ describe('Work image upload and delete (e2e)', () => {
     await request(app)
       .post(`/admin/works/${workId}/images`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .attach('file', FAKE_PNG_BUFFER, {
+      .attach('file', VALID_PNG_BUFFER, {
         filename: 'work-photo.png',
         contentType: 'image/png',
       })
@@ -243,7 +227,7 @@ describe('Work image upload and delete (e2e)', () => {
     await request(app)
       .post(`/admin/works/${workId}/images`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .attach('file', FAKE_WEBP_BUFFER, {
+      .attach('file', VALID_WEBP_BUFFER, {
         filename: 'work-photo.webp',
         contentType: 'image/webp',
       })
@@ -313,7 +297,7 @@ describe('Work image upload and delete (e2e)', () => {
     await request(app)
       .post(`/admin/works/${workId}/images`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .attach('file', FAKE_JPEG_BUFFER, {
+      .attach('file', VALID_JPEG_BUFFER, {
         filename: 'mislabeled-photo.png',
         contentType: 'image/png',
       })
@@ -358,7 +342,7 @@ describe('Work image upload and delete (e2e)', () => {
     await request(app)
       .post(`/admin/works/${workId}/images`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .attach('file', FAKE_JPEG_BUFFER, {
+      .attach('file', VALID_JPEG_BUFFER, {
         filename: 'work-photo.jpg',
         contentType: 'image/jpeg',
       })
