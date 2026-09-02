@@ -65,7 +65,7 @@ jobs:
           CLOUDINARY_API_SECRET: e2e-test-secret
 
       - name: SonarCloud scan
-        uses: SonarSource/sonarqube-scan-action@v7.1.0
+        uses: SonarSource/sonarqube-scan-action@v8.2.1
         with:
           scannerVersion: 8.0.1.6346
           args: >
