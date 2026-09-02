@@ -17,6 +17,7 @@ import { UploadWorkImageUseCase } from '../../../usecase/upload-work-image.use-c
 import { DeleteWorkImageUseCase } from '../../../usecase/delete-work-image.use-case';
 import { WorkImageController } from '../../../presentation/controllers/work-image.controller';
 import { uploadMiddleware } from '@/infra/middleware/upload.middleware';
+import { imageContentValidationMiddleware } from '@/infra/middleware/image-content-validation.middleware';
 
 /**
  * Traduz erros do Multer para o contrato HTTP já documentado no Swagger.
@@ -96,6 +97,7 @@ export function buildWorkImageRouter(
     '/:workId/images',
     authMiddleware,
     uploadMiddleware.single('file'),
+    imageContentValidationMiddleware,
     normalizeUploadError,
     controller.upload,
   );

@@ -75,7 +75,8 @@ export const adminWorksPaths = {
         '- tamanho máximo: 5 MB;',
         '- o campo do arquivo deve se chamar `file`;',
         '- `alt` é usado para acessibilidade e SEO;',
-        '- `isCover=true` define a imagem como capa e remove a marcação de capa das demais imagens.',
+        '- `isCover=true` define a imagem como capa e remove a marcação de capa das demais imagens;',
+        '- o conteúdo binário real do arquivo é inspecionado (não apenas o Content-Type declarado); um arquivo cujo conteúdo detectado não seja um JPEG, PNG ou WebP válido, ou que divirja do tipo declarado, é rejeitado com a mesma resposta 415 usada para tipo de arquivo não suportado.',
       ].join('\n'),
 
       /**

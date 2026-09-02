@@ -60,12 +60,15 @@ async function createWork(
 }
 
 /**
- * Minimal valid-enough JPEG-like buffer for multipart upload testing.
- * Multer's fileFilter validates the declared MIME type, not the byte
- * content, so this fake buffer is sufficient for the success path.
+ * Minimal but structurally complete JPEG buffer for multipart upload
+ * testing (SOI + EOI trailer). CARSHOP-109's content-validation
+ * middleware inspects real bytes, not only the declared Content-Type, so
+ * the buffer must satisfy `detectImageMimeType` in addition to declaring
+ * `image/jpeg`.
  */
 const FAKE_JPEG_BUFFER = Buffer.from([
   0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+  0xff, 0xd9,
 ]);
 
 /**

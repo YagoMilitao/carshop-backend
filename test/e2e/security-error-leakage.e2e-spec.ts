@@ -177,8 +177,12 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
       .expect(201);
     const work = workResponse.body as WorkResponseBody;
 
+    // CARSHOP-109: content-validation middleware now inspects real bytes
+    // (SOI + EOI), so this fixture must be structurally complete to reach
+    // the storage-failure code path this test exercises.
     const FAKE_JPEG_BUFFER = Buffer.from([
       0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+      0xff, 0xd9,
     ]);
 
     const response = await request(app)
