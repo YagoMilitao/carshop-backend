@@ -22,6 +22,11 @@ CORS_ORIGIN=http://localhost:3001
 ENABLE_SWAGGER=true
 ```
 
+> Os valores acima são fictícios, apenas para desenvolvimento local. Em
+> `NODE_ENV=production`, o startup da aplicação valida a força dessas
+> configurações — veja "Segurança" abaixo — e rejeita, por exemplo,
+> `ADMIN_PASSWORD=123456`.
+
 ## Instalação
 
 ```bash
@@ -138,6 +143,21 @@ Resposta:
   `TRUST_PROXY_HOPS`. O padrão seguro é `0` (nenhum proxy confiável); deploys
   atrás de proxies reversos devem definir explicitamente a quantidade de
   hops conforme a topologia validada.
+- Em `NODE_ENV=production`, o startup valida configurações sensíveis e
+  falha imediatamente (sem subir o servidor HTTP) quando alguma delas é
+  fraca ou inválida:
+  - `JWT_SECRET` precisa ter no mínimo 32 caracteres.
+  - `ADMIN_PASSWORD` precisa ter no mínimo 12 caracteres, com letra
+    maiúscula, letra minúscula, dígito e símbolo, e não pode ser um valor
+    fraco/padrão conhecido (ex.: `123456`, `password`, `admin`,
+    `changeme`).
+  - `CORS_ORIGIN` é obrigatória e cada origem precisa ser uma URL
+    `https://` absoluta e explícita (sem curinga `*`, sem `http://`).
+  - Em todos os ambientes, `JWT_EXPIRES_IN` (máx. 1h) e
+    `JWT_REFRESH_EXPIRES_IN` (máx. 30d) precisam ser durações válidas
+    dentro desses limites.
+  - As mensagens de erro de validação referenciam apenas o nome da
+    variável, nunca o valor configurado.
 
 ## Testes
 

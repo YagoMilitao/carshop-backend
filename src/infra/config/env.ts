@@ -18,6 +18,200 @@ export type Environment = {
 };
 
 /**
+ * Tamanho mínimo aceito para "JWT_SECRET" em produção (CARSHOP-110).
+ *
+ * Motivo:
+ * 32 caracteres equivalem, aproximadamente, a 256 bits de entropia quando
+ * gerados a partir de um conjunto de caracteres suficientemente aleatório —
+ * um mínimo alinhado a boas práticas (OWASP) para segredos de assinatura
+ * HMAC de JWT.
+ */
+const JWT_SECRET_MIN_LENGTH = 32;
+
+/**
+ * Tamanho mínimo aceito para "ADMIN_PASSWORD" em produção (CARSHOP-110).
+ */
+const ADMIN_PASSWORD_MIN_LENGTH = 12;
+
+/**
+ * Lista de valores fracos/padrão conhecidos, rejeitados para
+ * "ADMIN_PASSWORD" em produção (CARSHOP-110).
+ *
+ * Comparação feita em minúsculas e após remover espaços nas extremidades.
+ */
+const ADMIN_PASSWORD_DENYLIST: ReadonlySet<string> = new Set([
+  '123456',
+  '12345678',
+  'password',
+  'admin',
+  'admin123',
+  'changeme',
+  'senha123',
+  'qwerty',
+  'letmein',
+  'password123!',
+]);
+
+/**
+ * Duração máxima aceita para o token de acesso (JWT_EXPIRES_IN): 1 hora.
+ */
+const ACCESS_TOKEN_MAX_DURATION_MS = 60 * 60 * 1000;
+
+/**
+ * Duração máxima aceita para o refresh token (JWT_REFRESH_EXPIRES_IN): 30 dias.
+ */
+const REFRESH_TOKEN_MAX_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Garante que "JWT_SECRET" tenha tamanho mínimo suficiente em produção.
+ *
+ * Motivo:
+ * um segredo curto compromete a segurança da assinatura dos tokens JWT.
+ * Fora de produção, não bloqueia para preservar fluxos de desenvolvimento/teste.
+ */
+function assertJwtSecretStrength(
+  nodeEnv: Environment['nodeEnv'],
+  jwtSecret: string,
+): void {
+  if (nodeEnv !== 'production') {
+    return;
+  }
+
+  if (jwtSecret.length < JWT_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `A variável "JWT_SECRET" precisa ter pelo menos ${JWT_SECRET_MIN_LENGTH} caracteres em produção.`,
+    );
+  }
+}
+
+/**
+ * Garante que "ADMIN_PASSWORD" atenda à política mínima de senha e não
+ * esteja na lista de valores fracos/padrão conhecidos, em produção.
+ *
+ * Motivo:
+ * protege a única conta administrativa privilegiada do sistema. A mensagem
+ * de erro é genérica de propósito, para não revelar qual sub-regra falhou.
+ */
+function assertAdminPasswordPolicy(
+  nodeEnv: Environment['nodeEnv'],
+  adminPassword: string,
+): void {
+  if (nodeEnv !== 'production') {
+    return;
+  }
+
+  const normalized = adminPassword.trim().toLowerCase();
+
+  const hasMinLength = adminPassword.length >= ADMIN_PASSWORD_MIN_LENGTH;
+  const hasUppercase = /[A-Z]/.test(adminPassword);
+  const hasLowercase = /[a-z]/.test(adminPassword);
+  const hasDigit = /\d/.test(adminPassword);
+  const hasSymbol = /[^A-Za-z0-9]/.test(adminPassword);
+  const isDenylisted = ADMIN_PASSWORD_DENYLIST.has(normalized);
+
+  const meetsPolicy =
+    hasMinLength && hasUppercase && hasLowercase && hasDigit && hasSymbol;
+
+  if (!meetsPolicy || isDenylisted) {
+    throw new Error(
+      'A variável "ADMIN_PASSWORD" não atende à política mínima de senha exigida em produção.',
+    );
+  }
+}
+
+/**
+ * Converte uma string de duração para milissegundos.
+ *
+ * Formatos aceitos:
+ * - inteiro puro (interpretado como segundos), ex.: "60";
+ * - "<número><unidade>", unidade em ms|s|m|h|d (case-insensitive),
+ *   ex.: "15m", "7d", "5s", "1h".
+ */
+function parseDurationToMs(name: string, raw: string): number {
+  const trimmed = raw.trim();
+  const match = /^(\d+)(ms|s|m|h|d)?$/i.exec(trimmed);
+
+  if (!match) {
+    throw new Error(`A variável "${name}" precisa ser uma duração válida.`);
+  }
+
+  const amount = Number(match[1]);
+  const unit = (match[2] ?? 's').toLowerCase();
+
+  const unitToMs: Record<string, number> = {
+    ms: 1,
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  };
+
+  return amount * unitToMs[unit];
+}
+
+/**
+ * Garante que uma duração seja válida e não exceda o teto configurado.
+ *
+ * Motivo:
+ * limita o raio de impacto de um token vazado, e evita erros de configuração
+ * (typos) em qualquer ambiente, não apenas em produção.
+ */
+function assertBoundedDuration(name: string, raw: string, maxMs: number): void {
+  const durationMs = parseDurationToMs(name, raw);
+
+  if (durationMs <= 0 || durationMs > maxMs) {
+    throw new Error(`A variável "${name}" precisa ser uma duração válida.`);
+  }
+}
+
+/**
+ * Garante que, em produção, "CORS_ORIGIN" contenha ao menos uma origem
+ * HTTPS absoluta e explícita, sem curinga.
+ *
+ * Motivo:
+ * protege a precondição do CSRF double-submit e evita configurações
+ * permissivas/inseguras de CORS em produção.
+ */
+function assertProductionCorsOrigins(
+  nodeEnv: Environment['nodeEnv'],
+  origins: string[],
+): void {
+  if (nodeEnv !== 'production') {
+    return;
+  }
+
+  if (origins.length === 0) {
+    throw new Error(
+      'A variável "CORS_ORIGIN" precisa conter ao menos uma origem HTTPS válida em produção.',
+    );
+  }
+
+  for (const origin of origins) {
+    if (origin.includes('*')) {
+      throw new Error(
+        'A variável "CORS_ORIGIN" precisa conter ao menos uma origem HTTPS válida em produção.',
+      );
+    }
+
+    let parsed: URL;
+
+    try {
+      parsed = new URL(origin);
+    } catch {
+      throw new Error(
+        'A variável "CORS_ORIGIN" precisa conter ao menos uma origem HTTPS válida em produção.',
+      );
+    }
+
+    if (parsed.protocol !== 'https:') {
+      throw new Error(
+        'A variável "CORS_ORIGIN" precisa conter ao menos uma origem HTTPS válida em produção.',
+      );
+    }
+  }
+}
+
+/**
  * Lê uma variável obrigatória do ambiente.
  *
  * Motivo:
@@ -128,16 +322,49 @@ function getCorsOrigins(): string[] {
     .filter((value) => value.length > 0);
 }
 
+const port = getPort();
+const nodeEnv = getNodeEnv();
+
+const corsOrigins = getCorsOrigins();
+assertProductionCorsOrigins(nodeEnv, corsOrigins);
+
+const mongoUri = getRequiredEnv('MONGO_URI');
+
+const jwtSecret = getRequiredEnv('JWT_SECRET');
+assertJwtSecretStrength(nodeEnv, jwtSecret);
+
+const jwtExpiresIn = process.env.JWT_EXPIRES_IN ?? '15m';
+assertBoundedDuration(
+  'JWT_EXPIRES_IN',
+  jwtExpiresIn,
+  ACCESS_TOKEN_MAX_DURATION_MS,
+);
+
+const jwtRefreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN ?? '7d';
+assertBoundedDuration(
+  'JWT_REFRESH_EXPIRES_IN',
+  jwtRefreshExpiresIn,
+  REFRESH_TOKEN_MAX_DURATION_MS,
+);
+
+const adminEmail = getRequiredEnv('ADMIN_EMAIL');
+
+const adminPassword = getRequiredEnv('ADMIN_PASSWORD');
+assertAdminPasswordPolicy(nodeEnv, adminPassword);
+
+const workHardDeleteAfterDays = getWorkHardDeleteAfterDaysEnv();
+const trustProxyHops = getTrustProxyHopsEnv();
+
 export const env: Environment = {
-  port: getPort(),
-  nodeEnv: getNodeEnv(),
-  corsOrigins: getCorsOrigins(),
-  mongoUri: getRequiredEnv('MONGO_URI'),
-  jwtSecret: getRequiredEnv('JWT_SECRET'),
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '15m',
-  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
-  adminEmail: getRequiredEnv('ADMIN_EMAIL'),
-  adminPassword: getRequiredEnv('ADMIN_PASSWORD'),
-  workHardDeleteAfterDays: getWorkHardDeleteAfterDaysEnv(),
-  trustProxyHops: getTrustProxyHopsEnv(),
+  port,
+  nodeEnv,
+  corsOrigins,
+  mongoUri,
+  jwtSecret,
+  jwtExpiresIn,
+  jwtRefreshExpiresIn,
+  adminEmail,
+  adminPassword,
+  workHardDeleteAfterDays,
+  trustProxyHops,
 };
