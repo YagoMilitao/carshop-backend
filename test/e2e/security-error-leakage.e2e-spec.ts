@@ -7,6 +7,7 @@ import {
 import { loginAsAdmin } from './support/security-test.helpers';
 import { FailingImageStorageAdapter } from './support/failing-image-storage.adapter';
 import { MAX_IMAGE_SIZE_BYTES } from '../../src/infra/middleware/upload.middleware';
+import { VALID_JPEG_BUFFER } from './support/valid-image-fixtures';
 
 const ADMIN_EMAIL = 'admin@carshop.com';
 const ADMIN_PASSWORD = '123456';
@@ -32,10 +33,7 @@ interface WorkResponseBody {
   id: string;
 }
 
-function assertNoLeakage(response: {
-  body: unknown;
-  text: string;
-}): void {
+function assertNoLeakage(response: { body: unknown; text: string }): void {
   expect(response.body).not.toHaveProperty('stack');
 
   const serializedBody = JSON.stringify(response.body);
@@ -132,7 +130,8 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
       .set('Authorization', `Bearer ${login.accessToken}`)
       .send({
         slug: `error-leakage-413-${Date.now()}`,
-        title: 'Reforma usada para forçar uma falha de tamanho de upload (CARSHOP-111)',
+        title:
+          'Reforma usada para forçar uma falha de tamanho de upload (CARSHOP-111)',
         description:
           'Trabalho criado apenas para exercitar o caminho de erro 413 do upload de imagem.',
         category: 'bancos',
@@ -142,7 +141,10 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
       .expect(201);
     const work = workResponse.body as WorkResponseBody;
 
-    const oversizedImageBuffer = Buffer.alloc(MAX_IMAGE_SIZE_BYTES + 1024, 0xff);
+    const oversizedImageBuffer = Buffer.alloc(
+      MAX_IMAGE_SIZE_BYTES + 1024,
+      0xff,
+    );
 
     const response = await request(app)
       .post(`/admin/works/${work.id}/images`)
@@ -177,14 +179,10 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
       .expect(201);
     const work = workResponse.body as WorkResponseBody;
 
-    const FAKE_JPEG_BUFFER = Buffer.from([
-      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-    ]);
-
     const response = await request(app)
       .post(`/admin/works/${work.id}/images`)
       .set('Authorization', `Bearer ${login.accessToken}`)
-      .attach('file', FAKE_JPEG_BUFFER, {
+      .attach('file', VALID_JPEG_BUFFER, {
         filename: 'work-photo.jpg',
         contentType: 'image/jpeg',
       })
@@ -206,7 +204,9 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
     // to this file to avoid bucket collisions with other spec files.
     const RATE_LIMIT_IP = '198.51.100.201';
 
-    let lastResponse: { body: unknown; text: string; status: number } | undefined;
+    let lastResponse:
+      | { body: unknown; text: string; status: number }
+      | undefined;
     for (let attempt = 1; attempt <= 101; attempt += 1) {
       lastResponse = await request(app)
         .get('/')

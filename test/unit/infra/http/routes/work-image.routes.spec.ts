@@ -41,6 +41,10 @@ jest.mock('@/infra/middleware/upload.middleware', () => ({
   },
 }));
 
+jest.mock('@/infra/middleware/image-content-validation.middleware', () => ({
+  imageContentValidationMiddleware: 'image-content-validation-handler',
+}));
+
 jest.mock(
   '../../../../../src/presentation/controllers/work-image.controller',
   () => ({
@@ -92,6 +96,7 @@ describe('buildWorkImageRouter', () => {
       '/:workId/images',
       'auth-middleware',
       'upload-middleware-handler',
+      'image-content-validation-handler',
       expect.any(Function),
       'upload-handler',
     );
@@ -116,7 +121,7 @@ describe('buildWorkImageRouter', () => {
     if (!uploadCallArgs) {
       throw new Error('upload route was not registered');
     }
-    return uploadCallArgs[3];
+    return uploadCallArgs[4];
   }
 
   it('maps Multer LIMIT_FILE_SIZE errors to HttpError 413 (AC-007, FR-009)', () => {
