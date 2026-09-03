@@ -401,6 +401,43 @@ describe('env — Duration validation for JWT_EXPIRES_IN / JWT_REFRESH_EXPIRES_I
     expect(error.message).not.toContain('abc');
   });
 
+  it.each([
+    ['JWT_EXPIRES_IN', ' 15m'],
+    ['JWT_EXPIRES_IN', '15m '],
+    ['JWT_REFRESH_EXPIRES_IN', ' 7d '],
+  ])('rejeita %s com espaços nas extremidades', (name, value) => {
+    process.env[name] = value;
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain(name);
+    expect(error.message).not.toContain(value);
+  });
+
+  it.each([
+    ['JWT_EXPIRES_IN', '1ms'],
+    ['JWT_EXPIRES_IN', '999ms'],
+    ['JWT_REFRESH_EXPIRES_IN', '500ms'],
+  ])('rejeita %s inferior a um segundo', (name, value) => {
+    process.env[name] = value;
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain(name);
+    expect(error.message).not.toContain(value);
+  });
+
+  it.each(['1s', '1000ms'])(
+    'aceita JWT_EXPIRES_IN no limite mínimo: %s',
+    (value) => {
+      process.env.JWT_EXPIRES_IN = value;
+
+      const loadedEnv = loadEnvModule();
+
+      expect(loadedEnv.jwtExpiresIn).toBe(value);
+    },
+  );
+
   it('rejeita JWT_EXPIRES_IN acima do teto de 1 hora (AC-007)', () => {
     process.env.JWT_EXPIRES_IN = '2h';
 
@@ -530,6 +567,24 @@ describe('env — CORS_ORIGIN validation in production (FR-005, AC-008, AC-009, 
     expect(error.message).toContain('CORS_ORIGIN');
     expect(error.message).not.toContain(insecureOrigin);
   });
+
+  it.each([
+    'https://app.example.com/',
+    'https://app.example.com/path',
+    'https://app.example.com?query=value',
+    'https://app.example.com#fragment',
+    'https://user:password@app.example.com',
+  ])(
+    'rejeita CORS_ORIGIN que não é uma origem serializada: %s',
+    (invalidOrigin) => {
+      process.env.CORS_ORIGIN = invalidOrigin;
+
+      const error = captureEnvLoadError();
+
+      expect(error.message).toContain('CORS_ORIGIN');
+      expect(error.message).not.toContain(invalidOrigin);
+    },
+  );
 
   it('aceita CORS_ORIGIN com uma origem https:// válida em produção (AC-009)', () => {
     process.env.CORS_ORIGIN = 'https://app.example.com';

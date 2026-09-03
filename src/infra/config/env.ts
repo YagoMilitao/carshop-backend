@@ -63,6 +63,15 @@ const ACCESS_TOKEN_MAX_DURATION_MS = 60 * 60 * 1000;
 const REFRESH_TOKEN_MAX_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
+ * Duração mínima aceita para tokens JWT.
+ *
+ * O `jsonwebtoken` registra `iat` e `exp` em segundos inteiros. Durações
+ * inferiores a um segundo resultariam em um token expirado no instante em
+ * que fosse emitido.
+ */
+const JWT_MIN_DURATION_MS = 1000;
+
+/**
  * Garante que "JWT_SECRET" tenha tamanho mínimo suficiente em produção.
  *
  * Motivo:
@@ -128,8 +137,7 @@ function assertAdminPasswordPolicy(
  *   ex.: "15m", "7d", "5s", "1h".
  */
 function parseDurationToMs(name: string, raw: string): number {
-  const trimmed = raw.trim();
-  const match = /^(\d+)(ms|s|m|h|d)?$/i.exec(trimmed);
+  const match = /^(\d+)(ms|s|m|h|d)?$/i.exec(raw);
 
   if (!match) {
     throw new Error(`A variável "${name}" precisa ser uma duração válida.`);
@@ -159,7 +167,7 @@ function parseDurationToMs(name: string, raw: string): number {
 function assertBoundedDuration(name: string, raw: string, maxMs: number): void {
   const durationMs = parseDurationToMs(name, raw);
 
-  if (durationMs <= 0 || durationMs > maxMs) {
+  if (durationMs < JWT_MIN_DURATION_MS || durationMs > maxMs) {
     throw new Error(`A variável "${name}" precisa ser uma duração válida.`);
   }
 }
@@ -203,7 +211,7 @@ function assertProductionCorsOrigins(
       );
     }
 
-    if (parsed.protocol !== 'https:') {
+    if (parsed.protocol !== 'https:' || origin !== parsed.origin) {
       throw new Error(
         'A variável "CORS_ORIGIN" precisa conter ao menos uma origem HTTPS válida em produção.',
       );
