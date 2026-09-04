@@ -456,28 +456,16 @@ describe('env — Duration validation for JWT_EXPIRES_IN / JWT_REFRESH_EXPIRES_I
     expect(error.message).not.toContain('31d');
   });
 
-  it('aceita JWT_EXPIRES_IN como inteiro puro, interpretado em segundos (AC-006)', () => {
-    process.env.JWT_EXPIRES_IN = '60';
+  it.each([
+    ['como inteiro puro, interpretado em segundos (AC-006)', '60'],
+    ['exatamente no teto de 1 hora (boundary)', '1h'],
+    ['um pouco abaixo do teto de 1 hora', '59m'],
+  ])('aceita JWT_EXPIRES_IN %s', (_scenario, value) => {
+    process.env.JWT_EXPIRES_IN = value;
 
     const loadedEnv = loadEnvModule();
 
-    expect(loadedEnv.jwtExpiresIn).toBe('60');
-  });
-
-  it('aceita JWT_EXPIRES_IN exatamente no teto de 1 hora (boundary)', () => {
-    process.env.JWT_EXPIRES_IN = '1h';
-
-    const loadedEnv = loadEnvModule();
-
-    expect(loadedEnv.jwtExpiresIn).toBe('1h');
-  });
-
-  it('aceita JWT_EXPIRES_IN um pouco abaixo do teto de 1 hora', () => {
-    process.env.JWT_EXPIRES_IN = '59m';
-
-    const loadedEnv = loadEnvModule();
-
-    expect(loadedEnv.jwtExpiresIn).toBe('59m');
+    expect(loadedEnv.jwtExpiresIn).toBe(value);
   });
 
   it('aceita JWT_REFRESH_EXPIRES_IN exatamente no teto de 30 dias (boundary)', () => {
