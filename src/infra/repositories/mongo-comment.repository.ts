@@ -48,7 +48,11 @@ export class MongoCommentRepository implements CommentRepositoryPort {
    * MongoDB.
    */
   private assertStringIdentifier(value: unknown, fieldName: string): string {
-    if (typeof value !== 'string' || value.length === 0) {
+    if (
+      typeof value !== 'string' ||
+      value.trim().length === 0 ||
+      this.isDangerousKey(value)
+    ) {
       throw new HttpError(400, `${fieldName} deve ser uma string válida.`);
     }
 
@@ -97,7 +101,16 @@ export class MongoCommentRepository implements CommentRepositoryPort {
       throw new HttpError(400, 'Dados de atualização inválidos.');
     }
 
-    const keys = Object.keys(input as Record<string, unknown>);
+    const prototype: unknown = Object.getPrototypeOf(input);
+
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new HttpError(400, 'Dados de atualização inválidos.');
+    }
+
+    const record = input as Record<string, unknown>;
+    const keys = Object.keys(record);
+    const hasOwn = (key: string): boolean =>
+      Object.prototype.hasOwnProperty.call(record, key);
 
     if (keys.some((key) => this.isDangerousKey(key))) {
       throw new HttpError(
@@ -106,21 +119,17 @@ export class MongoCommentRepository implements CommentRepositoryPort {
       );
     }
 
-    const record = input as Record<string, unknown>;
     const set: Record<string, string> = {};
 
-    if (record.authorName !== undefined) {
-      set.authorName = this.assertPlainString(
-        record.authorName,
-        'authorName',
-      );
+    if (hasOwn('authorName')) {
+      set.authorName = this.assertPlainString(record.authorName, 'authorName');
     }
 
-    if (record.content !== undefined) {
+    if (hasOwn('content')) {
       set.content = this.assertPlainString(record.content, 'content');
     }
 
-    if (record.status !== undefined) {
+    if (hasOwn('status')) {
       if (record.status !== 'PENDING' && record.status !== 'APPROVED') {
         throw new HttpError(400, 'status deve ser PENDING ou APPROVED.');
       }

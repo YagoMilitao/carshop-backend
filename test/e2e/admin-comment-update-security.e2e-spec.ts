@@ -142,13 +142,16 @@ describe('Admin comment update security (e2e)', () => {
     return { accessToken, workId, comment: created };
   }
 
-  it('rejects a Mongo operator-key payload with 400 and does not mutate the comment (FR-004/AC-002/AC-007)', async () => {
+  it('rejects a Mongo operator key combined with a valid field and does not partially mutate the comment (FR-004/AC-002/AC-007)', async () => {
     const { accessToken, workId, comment } = await setupApprovedComment();
 
     await request(app)
       .patch(`/admin/comments/${comment.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ $where: 'this.content' })
+      .send({
+        $where: 'this.content',
+        content: 'This valid field must not be partially persisted.',
+      })
       .expect(400);
 
     const persisted = await findApprovedComment(app, workId, comment.id);
@@ -195,8 +198,6 @@ describe('Admin comment update security (e2e)', () => {
 
     const persisted = await findApprovedComment(app, workId, comment.id);
 
-    expect(persisted?.content).toBe(
-      'Comentário atualizado legitimamente.',
-    );
+    expect(persisted?.content).toBe('Comentário atualizado legitimamente.');
   });
 });
