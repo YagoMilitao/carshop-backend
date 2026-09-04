@@ -109,8 +109,7 @@ export class MongoCommentRepository implements CommentRepositoryPort {
 
     const record = input as Record<string, unknown>;
     const keys = Object.keys(record);
-    const hasOwn = (key: string): boolean =>
-      Object.prototype.hasOwnProperty.call(record, key);
+    const hasOwn = (key: string): boolean => Object.hasOwn(record, key);
 
     if (keys.some((key) => this.isDangerousKey(key))) {
       throw new HttpError(
