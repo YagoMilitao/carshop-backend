@@ -1,0 +1,39 @@
+name: Codex Pipeline
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  # NOTE: `build-and-test` is the exact required-status-check context that
+  # branch protection on `master` must reference. Do not add a job-level
+  # `name:` override here (it would change what GitHub reports as the
+  # check context). If this job id or the overall workflow structure is
+  # ever renamed, the branch protection configuration on `master` must be
+  # updated in lockstep, or the required check will silently stop being
+  # enforced or block merges unexpectedly.
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run unit tests
+        run: npm test
