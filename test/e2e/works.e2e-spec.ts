@@ -168,10 +168,15 @@ describe('Works listing authorization (e2e)', () => {
 
   // CARSHOP-117 / FR-004 / AC-002: unknown slug returns 404 for any caller.
   it('returns 404 for GET /works/:slug when the slug does not exist (AC-002)', async () => {
-    await request(app)
-      .get(`/works/does-not-exist-${Date.now()}`)
-      .expect(404);
+    await request(app).get(`/works/does-not-exist-${Date.now()}`).expect(404);
   });
+
+  it.each(['not_valid', 'a'.repeat(121)])(
+    'returns 404 for GET /works/:slug when the slug is invalid: %s',
+    async (slug) => {
+      await request(app).get(`/works/${slug}`).expect(404);
+    },
+  );
 
   // CARSHOP-117 / FR-005, NFR-001 / AC-003: a draft work's slug must not
   // leak to an unauthenticated caller through the single-work endpoint.
@@ -192,9 +197,7 @@ describe('Works listing authorization (e2e)', () => {
       })
       .expect(201);
 
-    const response = await request(app)
-      .get(`/works/${draftSlug}`)
-      .expect(404);
+    const response = await request(app).get(`/works/${draftSlug}`).expect(404);
 
     expect(JSON.stringify(response.body)).not.toContain('Draft work title');
   });

@@ -59,12 +59,42 @@ describe('GetWorkBySlugUseCase', () => {
 
     const useCase = new GetWorkBySlugUseCase(workRepository);
 
-    await expect(useCase.execute('does-not-exist')).rejects.toThrow(
-      HttpError,
-    );
+    await expect(useCase.execute('does-not-exist')).rejects.toThrow(HttpError);
     await expect(useCase.execute('does-not-exist')).rejects.toMatchObject({
       statusCode: 404,
     });
+  });
+
+  it.each(['not_valid', 'a'.repeat(121)])(
+    'normaliza como 404 a rejeição do repositório para o slug inválido %s',
+    async (slug) => {
+      const workRepository = buildWorkRepository({
+        findBySlug: jest
+          .fn()
+          .mockRejectedValue(
+            new HttpError(400, 'slug deve possuir um formato válido.'),
+          ),
+      });
+
+      const useCase = new GetWorkBySlugUseCase(workRepository);
+
+      await expect(useCase.execute(slug)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Trabalho não encontrado.',
+      });
+      expect(workRepository.findBySlug).toHaveBeenCalledWith(slug);
+    },
+  );
+
+  it('propaga falhas do repositório que não representam slug inválido', async () => {
+    const repositoryError = new Error('Database unavailable');
+    const workRepository = buildWorkRepository({
+      findBySlug: jest.fn().mockRejectedValue(repositoryError),
+    });
+
+    const useCase = new GetWorkBySlugUseCase(workRepository);
+
+    await expect(useCase.execute('work-slug')).rejects.toBe(repositoryError);
   });
 
   it('lança HttpError 404 quando o trabalho está em rascunho (AC-003)', async () => {
