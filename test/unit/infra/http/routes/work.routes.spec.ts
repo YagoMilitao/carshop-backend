@@ -89,5 +89,6 @@ describe('buildWorkRouter', () => {
       '/:workId/comments',
       expect.any(Function),
     );
+    expect(mockGet).toHaveBeenCalledWith('/:slug', expect.any(Function));
   });
 });

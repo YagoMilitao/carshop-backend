@@ -1,4 +1,4 @@
-import { errorResponse } from './swagger.helpers';
+import { errorResponse, successResponse } from './swagger.helpers';
 
 export const worksTags = [{ name: 'Works' }] as const;
 
@@ -15,9 +15,32 @@ export const worksSchemas = {
         type: 'array',
         items: { type: 'string' },
       },
+      images: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            url: { type: 'string' },
+            publicId: { type: 'string' },
+            alt: { type: 'string' },
+            isCover: { type: 'boolean' },
+            order: { type: 'number' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
       status: {
         type: 'string',
         enum: ['draft', 'published'],
+      },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+      deletedAt: {
+        type: 'string',
+        format: 'date-time',
+        nullable: true,
       },
     },
   },
@@ -59,6 +82,33 @@ export const worksPaths = {
         },
         '401': errorResponse(
           'Access token ausente, inválido ou sessão expirada ao solicitar includeDrafts=true.',
+        ),
+      },
+    },
+  },
+  '/works/{slug}': {
+    get: {
+      tags: ['Works'],
+      summary: 'Busca um trabalho publicado pelo slug',
+      description:
+        'Endpoint público, sem exigência de autenticação. Retorna um único trabalho quando o slug corresponde a um trabalho com status published e não removido (deletedAt nulo); caso contrário responde 404, mesmo para trabalhos em rascunho ou removidos logicamente.',
+      security: [{}],
+      parameters: [
+        {
+          in: 'path',
+          name: 'slug',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Slug identificador do trabalho.',
+        },
+      ],
+      responses: {
+        '200': successResponse(
+          'Trabalho encontrado',
+          '#/components/schemas/WorkResponse',
+        ),
+        '404': errorResponse(
+          'Nenhum trabalho publicado e não removido foi encontrado para o slug informado.',
         ),
       },
     },
