@@ -68,6 +68,44 @@ antes de o servidor HTTP começar a aceitar requisições, com uma mensagem
 que referencia apenas o nome da variável (`MONGO_URI`), nunca o valor
 configurado.
 
+Este projeto persiste dados exclusivamente via Mongoose/MongoDB — não há
+Prisma, nenhum outro ORM, nem comandos de migração de schema em nenhuma
+etapa do build, start ou deploy.
+
+### Verificação de índices e de leitura/escrita
+
+Dois scripts standalone, no mesmo padrão de `purge:expired-works`
+(conectam, executam sua rotina e sempre desconectam, mesmo em caso de
+erro), permitem validar de forma segura e repetível que o banco
+configurado em `MONGO_URI` está pronto para uso antes/durante um deploy:
+
+```bash
+npm run verify:indexes
+npm run verify:read-write
+```
+
+- **`verify:indexes`** garante (`Model.createIndexes()`, modo
+  **apenas aditivo**) que todo índice declarado nos schemas Mongoose
+  (`unique`/`index: true`) exista nas coleções correspondentes, para
+  todos os modelos do repositório, e imprime um relatório somente
+  leitura confirmando a presença de cada índice declarado. Ele nunca
+  chama uma API capaz de remover índices (ao contrário de
+  `syncIndexes()`), portanto rodá-lo repetidamente contra um banco já
+  saudável e já indexado é idempotente e não altera nem remove nenhum
+  índice existente.
+- **`verify:read-write`** executa um ciclo controlado de escrita, leitura
+  de confirmação e remoção contra uma coleção isolada e dedicada
+  (`health_check_pings`, usada apenas por este script), nunca exposta por
+  nenhuma rota da API. A remoção do documento de verificação ocorre em um
+  bloco `finally`, portanto acontece mesmo se a leitura de confirmação
+  falhar, garantindo que nenhum dado residual permaneça no banco após a
+  execução.
+
+Ambos os scripts registram apenas mensagens fixas ou `error.message`
+sanitizado em caso de falha — nunca a `MONGO_URI`, credenciais ou outro
+detalhe sensível de conexão — e marcam `process.exitCode = 1` quando
+falham, permitindo uso em pipelines de deploy automatizados.
+
 ## Instalação
 
 ```bash
