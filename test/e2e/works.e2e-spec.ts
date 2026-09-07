@@ -15,7 +15,13 @@ interface WorkResponseBody {
   id: string;
   slug: string;
   title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  images: unknown[];
   status: 'draft' | 'published';
+  createdAt: string;
+  updatedAt: string;
 }
 
 async function loginAsAdmin(
@@ -122,5 +128,74 @@ describe('Works listing authorization (e2e)', () => {
 
     const works = response.body as WorkResponseBody[];
     expect(works.some((work) => work.slug === draftSlug)).toBe(true);
+  });
+
+  // CARSHOP-117 / FR-001–FR-003, FR-007 / AC-001: GET /works/:slug is
+  // public and returns a single published, non-deleted work by slug.
+  it('returns a single published work for GET /works/:slug with no auth (AC-001)', async () => {
+    const accessToken = await loginAsAdmin(app);
+    const slug = `published-work-${Date.now()}`;
+
+    await request(app)
+      .post('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        slug,
+        title: 'Published work title',
+        description: 'Published work description',
+        category: 'bancos',
+        tags: ['couro'],
+        status: 'published',
+      })
+      .expect(201);
+
+    const response = await request(app).get(`/works/${slug}`).expect(200);
+    const work = response.body as WorkResponseBody;
+
+    expect(work).toMatchObject({
+      slug,
+      title: 'Published work title',
+      description: 'Published work description',
+      category: 'bancos',
+      tags: ['couro'],
+      status: 'published',
+    });
+    expect(work.id).toEqual(expect.any(String));
+    expect(Array.isArray(work.images)).toBe(true);
+    expect(work.createdAt).toEqual(expect.any(String));
+    expect(work.updatedAt).toEqual(expect.any(String));
+  });
+
+  // CARSHOP-117 / FR-004 / AC-002: unknown slug returns 404 for any caller.
+  it('returns 404 for GET /works/:slug when the slug does not exist (AC-002)', async () => {
+    await request(app)
+      .get(`/works/does-not-exist-${Date.now()}`)
+      .expect(404);
+  });
+
+  // CARSHOP-117 / FR-005, NFR-001 / AC-003: a draft work's slug must not
+  // leak to an unauthenticated caller through the single-work endpoint.
+  it('returns 404 for GET /works/:slug when the work is a draft, for an unauthenticated caller (AC-003)', async () => {
+    const accessToken = await loginAsAdmin(app);
+    const draftSlug = `draft-work-by-slug-${Date.now()}`;
+
+    await request(app)
+      .post('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        slug: draftSlug,
+        title: 'Draft work title',
+        description: 'Draft work description',
+        category: 'bancos',
+        tags: ['couro'],
+        status: 'draft',
+      })
+      .expect(201);
+
+    const response = await request(app)
+      .get(`/works/${draftSlug}`)
+      .expect(404);
+
+    expect(JSON.stringify(response.body)).not.toContain('Draft work title');
   });
 });

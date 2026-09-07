@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { HttpError } from '../../../../src/core/domain/application/ApplicationError/http-error';
 import type { CreateWorkUseCase } from '../../../../src/usecase/create-work.use-case';
 import type { ListWorksUseCase } from '../../../../src/usecase/list-works.use-case';
+import type { GetWorkBySlugUseCase } from '../../../../src/usecase/get-work-by-slug.use-case';
 import { WorkController } from '../../../../src/presentation/controllers/work.controller';
 import type { Work } from '../../../../src/core/domain/application/Work/work.types';
 
@@ -20,6 +21,9 @@ function createUseCaseMocks() {
     listWorksUseCase: {
       execute: jest.fn(),
     } as unknown as jest.Mocked<ListWorksUseCase>,
+    getWorkBySlugUseCase: {
+      execute: jest.fn(),
+    } as unknown as jest.Mocked<GetWorkBySlugUseCase>,
   };
 }
 
@@ -40,9 +44,14 @@ const work: Work = {
 describe('WorkController', () => {
   describe('create', () => {
     it('cria um trabalho válido e responde 201', async () => {
-      const { createWorkUseCase, listWorksUseCase } = createUseCaseMocks();
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
       createWorkUseCase.execute.mockResolvedValue(work);
-      const controller = new WorkController(createWorkUseCase, listWorksUseCase);
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
 
       const response = createResponseMock();
       const next = jest.fn();
@@ -73,9 +82,14 @@ describe('WorkController', () => {
     });
 
     it('usa tags vazias e status draft quando ausentes', async () => {
-      const { createWorkUseCase, listWorksUseCase } = createUseCaseMocks();
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
       createWorkUseCase.execute.mockResolvedValue(work);
-      const controller = new WorkController(createWorkUseCase, listWorksUseCase);
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
 
       const response = createResponseMock();
       const next = jest.fn();
@@ -96,8 +110,13 @@ describe('WorkController', () => {
     });
 
     it('encaminha 400 quando o payload é inválido', async () => {
-      const { createWorkUseCase, listWorksUseCase } = createUseCaseMocks();
-      const controller = new WorkController(createWorkUseCase, listWorksUseCase);
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
 
       const response = createResponseMock();
       const next = jest.fn();
@@ -114,9 +133,14 @@ describe('WorkController', () => {
 
   describe('list', () => {
     it('lista trabalhos publicados quando includeDrafts não é "true"', async () => {
-      const { createWorkUseCase, listWorksUseCase } = createUseCaseMocks();
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
       listWorksUseCase.execute.mockResolvedValue([work]);
-      const controller = new WorkController(createWorkUseCase, listWorksUseCase);
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
 
       const response = createResponseMock();
       const next = jest.fn();
@@ -132,9 +156,14 @@ describe('WorkController', () => {
     });
 
     it('lista todos os trabalhos quando includeDrafts=true', async () => {
-      const { createWorkUseCase, listWorksUseCase } = createUseCaseMocks();
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
       listWorksUseCase.execute.mockResolvedValue([work]);
-      const controller = new WorkController(createWorkUseCase, listWorksUseCase);
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
 
       const response = createResponseMock();
       const next = jest.fn();
@@ -148,9 +177,14 @@ describe('WorkController', () => {
     });
 
     it('encaminha erros do caso de uso para o next', async () => {
-      const { createWorkUseCase, listWorksUseCase } = createUseCaseMocks();
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
       listWorksUseCase.execute.mockRejectedValue(new Error('boom'));
-      const controller = new WorkController(createWorkUseCase, listWorksUseCase);
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
 
       const response = createResponseMock();
       const next = jest.fn();
@@ -159,6 +193,75 @@ describe('WorkController', () => {
       await controller.list(request, response, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
+      expect(response.status).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getBySlug', () => {
+    it('responde 200 com o trabalho encontrado para um slug válido', async () => {
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
+      getWorkBySlugUseCase.execute.mockResolvedValue(work);
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = {
+        params: { slug: 'work-slug' },
+      } as unknown as Request;
+
+      await controller.getBySlug(request, response, next);
+
+      expect(getWorkBySlugUseCase.execute).toHaveBeenCalledWith('work-slug');
+      expect(response.status).toHaveBeenCalledWith(200);
+      expect(response.json).toHaveBeenCalledWith(work);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('encaminha 400 quando o parâmetro slug está ausente ou em branco', async () => {
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = { params: { slug: '  ' } } as unknown as Request;
+
+      await controller.getBySlug(request, response, next);
+
+      expect(getWorkBySlugUseCase.execute).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+      expect(response.status).not.toHaveBeenCalled();
+    });
+
+    it('encaminha o erro 404 do caso de uso para o next', async () => {
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
+      const notFoundError = new HttpError(404, 'Trabalho não encontrado.');
+      getWorkBySlugUseCase.execute.mockRejectedValue(notFoundError);
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = {
+        params: { slug: 'does-not-exist' },
+      } as unknown as Request;
+
+      await controller.getBySlug(request, response, next);
+
+      expect(next).toHaveBeenCalledWith(notFoundError);
       expect(response.status).not.toHaveBeenCalled();
     });
   });
