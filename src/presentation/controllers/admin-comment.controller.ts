@@ -2,11 +2,11 @@ import type { NextFunction, Request, Response } from 'express';
 import { ApproveCommentUseCase } from '../../usecase/approve-comment.use-case';
 import { UpdateCommentUseCase } from '../../usecase/update-comment.use-case';
 import { DeleteCommentUseCase } from '../../usecase/delete-comment.use-case';
-import { validateWithSchema } from '@/infra/presentation/helpers/zod-validation.helper';
+import { validateWithSchema } from '../../infra/presentation/helpers/zod-validation.helper';
 import {
   UpdateCommentInput,
   updateCommentSchema,
-} from '@/infra/presentation/validators/update-comment.schema';
+} from '../../infra/presentation/validators/update-comment.schema';
 import { requireStringRouteParam } from '../helpers/route-param.helper';
 
 /**
