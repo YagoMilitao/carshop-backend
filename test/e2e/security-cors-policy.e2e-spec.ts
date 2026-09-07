@@ -57,7 +57,9 @@ describe('CORS policy (e2e, CARSHOP-111)', () => {
     await disconnectDatabase();
   });
 
-  function buildAppWithCorsOrigin(corsOrigin: string): ReturnType<typeof CreateAppType> {
+  function buildAppWithCorsOrigin(
+    corsOrigin: string,
+  ): ReturnType<typeof CreateAppType> {
     process.env.JWT_SECRET = 'e2e-secret';
     process.env.ADMIN_EMAIL = 'admin@carshop.com';
     process.env.ADMIN_PASSWORD = '123456';
@@ -68,7 +70,6 @@ describe('CORS policy (e2e, CARSHOP-111)', () => {
     let freshApp: ReturnType<typeof CreateAppType> | undefined;
 
     jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const freshServerModule = require('../../src/infra/server') as {
         createApp: typeof CreateAppType;
       };

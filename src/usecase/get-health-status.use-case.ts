@@ -18,9 +18,7 @@ export interface HealthStatusResult {
  * estado já mantido pela infraestrutura.
  */
 export class GetHealthStatusUseCase {
-  constructor(
-    private readonly databaseHealthCheck: DatabaseHealthCheckPort,
-  ) {}
+  constructor(private readonly databaseHealthCheck: DatabaseHealthCheckPort) {}
 
   execute(): HealthStatusResult {
     if (this.databaseHealthCheck.isConnected()) {

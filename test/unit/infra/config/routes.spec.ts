@@ -29,21 +29,21 @@ jest.mock('../../../../src/infra/http/routes/work.routes', () => ({
 }));
 jest.mock('../../../../src/infra/http/routes/admin-comment.routes', () => ({
   buildAdminCommentRouter: (...args: unknown[]) =>
-    (
-      mockBuildAdminCommentRouter as unknown as (...a: unknown[]) => unknown
-    )(...args),
+    (mockBuildAdminCommentRouter as unknown as (...a: unknown[]) => unknown)(
+      ...args,
+    ),
 }));
 jest.mock('../../../../src/infra/http/routes/work-image.routes', () => ({
   buildWorkImageRouter: (...args: unknown[]) =>
-    (
-      mockBuildWorkImageRouter as unknown as (...a: unknown[]) => unknown
-    )(...args),
+    (mockBuildWorkImageRouter as unknown as (...a: unknown[]) => unknown)(
+      ...args,
+    ),
 }));
 jest.mock('../../../../src/infra/http/routes/admin-work.routes', () => ({
   buildAdminWorkRouter: (...args: unknown[]) =>
-    (
-      mockBuildAdminWorkRouter as unknown as (...a: unknown[]) => unknown
-    )(...args),
+    (mockBuildAdminWorkRouter as unknown as (...a: unknown[]) => unknown)(
+      ...args,
+    ),
 }));
 
 import { registerRoutes } from '../../../../src/infra/config/routes';

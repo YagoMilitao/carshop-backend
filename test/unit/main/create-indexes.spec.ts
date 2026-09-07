@@ -68,10 +68,7 @@ describe('create-indexes script (FR-003, FR-004, FR-005, NFR-001, NFR-003)', () 
       >
     > = {},
   ): Record<(typeof MODEL_KEYS)[number], ModelMockHandles> {
-    const handles = {} as Record<
-      (typeof MODEL_KEYS)[number],
-      ModelMockHandles
-    >;
+    const handles = {} as Record<(typeof MODEL_KEYS)[number], ModelMockHandles>;
 
     for (const key of MODEL_KEYS) {
       const override = overrides[key] ?? {};
@@ -244,7 +241,9 @@ describe('create-indexes script (FR-003, FR-004, FR-005, NFR-001, NFR-003)', () 
     await waitFor(() => disconnectDatabaseMock.mock.calls.length > 0);
 
     expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('WorkModel | campos: (sem campos) | presente: não'),
+      expect.stringContaining(
+        'WorkModel | campos: (sem campos) | presente: não',
+      ),
     );
   });
 
@@ -283,7 +282,9 @@ describe('create-indexes script (FR-003, FR-004, FR-005, NFR-001, NFR-003)', () 
     await waitFor(() => disconnectDatabaseMock.mock.calls.length > 0);
 
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy).toHaveBeenCalledWith('Erro ao verificar/garantir índices.');
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Erro ao verificar/garantir índices.',
+    );
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('fake-user');
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('fake-pass');
 
@@ -332,7 +333,9 @@ describe('create-indexes script (FR-003, FR-004, FR-005, NFR-001, NFR-003)', () 
 
     await waitFor(() => disconnectDatabaseMock.mock.calls.length > 0);
 
-    expect(errorSpy).toHaveBeenCalledWith('Erro ao verificar/garantir índices.');
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Erro ao verificar/garantir índices.',
+    );
     expect(process.exitCode).toBe(1);
     expect(disconnectDatabaseMock).toHaveBeenCalledTimes(1);
 

@@ -40,8 +40,11 @@ const comment: Comment = {
 describe('AdminCommentController', () => {
   describe('approve', () => {
     it('aprova o comentário e responde 200', async () => {
-      const { approveCommentUseCase, updateCommentUseCase, deleteCommentUseCase } =
-        createUseCaseMocks();
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+      } = createUseCaseMocks();
       approveCommentUseCase.execute.mockResolvedValue(comment);
       const controller = new AdminCommentController(
         approveCommentUseCase,
@@ -64,8 +67,11 @@ describe('AdminCommentController', () => {
     });
 
     it('encaminha erro de commentId inválido para o next', async () => {
-      const { approveCommentUseCase, updateCommentUseCase, deleteCommentUseCase } =
-        createUseCaseMocks();
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+      } = createUseCaseMocks();
       const controller = new AdminCommentController(
         approveCommentUseCase,
         updateCommentUseCase,
@@ -85,8 +91,11 @@ describe('AdminCommentController', () => {
 
   describe('update', () => {
     it('valida o body e atualiza o comentário, respondendo 200', async () => {
-      const { approveCommentUseCase, updateCommentUseCase, deleteCommentUseCase } =
-        createUseCaseMocks();
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+      } = createUseCaseMocks();
       updateCommentUseCase.execute.mockResolvedValue(comment);
       const controller = new AdminCommentController(
         approveCommentUseCase,
@@ -112,8 +121,11 @@ describe('AdminCommentController', () => {
     });
 
     it('encaminha 400 quando o body é inválido', async () => {
-      const { approveCommentUseCase, updateCommentUseCase, deleteCommentUseCase } =
-        createUseCaseMocks();
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+      } = createUseCaseMocks();
       const controller = new AdminCommentController(
         approveCommentUseCase,
         updateCommentUseCase,
@@ -136,8 +148,11 @@ describe('AdminCommentController', () => {
 
   describe('delete', () => {
     it('remove o comentário e responde 200', async () => {
-      const { approveCommentUseCase, updateCommentUseCase, deleteCommentUseCase } =
-        createUseCaseMocks();
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+      } = createUseCaseMocks();
       deleteCommentUseCase.execute.mockResolvedValue({ success: true });
       const controller = new AdminCommentController(
         approveCommentUseCase,
@@ -160,8 +175,11 @@ describe('AdminCommentController', () => {
     });
 
     it('encaminha erros do caso de uso para o next', async () => {
-      const { approveCommentUseCase, updateCommentUseCase, deleteCommentUseCase } =
-        createUseCaseMocks();
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+      } = createUseCaseMocks();
       deleteCommentUseCase.execute.mockRejectedValue(
         new HttpError(404, 'Comentário não encontrado.'),
       );

@@ -67,13 +67,15 @@ describe('DeleteWorkImageUseCase', () => {
   it('remove a imagem do storage externo e do Mongo (AC-004, FR-005)', async () => {
     const workRepository = buildWorkRepository({
       findById: jest.fn().mockResolvedValue(workWithImage),
-      removeImage: jest.fn().mockImplementation(async () => {
+      removeImage: jest.fn().mockImplementation(() => {
         calls.push('removeImage');
+        return Promise.resolve();
       }),
     });
     const imageStorage = buildImageStorage({
-      delete: jest.fn().mockImplementation(async () => {
+      delete: jest.fn().mockImplementation(() => {
         calls.push('delete');
+        return Promise.resolve();
       }),
     });
 

@@ -70,10 +70,7 @@ describe('CreateCommentUseCase', () => {
       createPending: jest.fn().mockResolvedValue(createdComment),
     });
 
-    const useCase = new CreateCommentUseCase(
-      commentRepository,
-      workRepository,
-    );
+    const useCase = new CreateCommentUseCase(commentRepository, workRepository);
 
     const result = await useCase.execute({
       workId: 'work-1',
@@ -95,10 +92,7 @@ describe('CreateCommentUseCase', () => {
     });
     const commentRepository = buildCommentRepository();
 
-    const useCase = new CreateCommentUseCase(
-      commentRepository,
-      workRepository,
-    );
+    const useCase = new CreateCommentUseCase(commentRepository, workRepository);
 
     await expect(
       useCase.execute({

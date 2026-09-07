@@ -16,6 +16,7 @@ import type {
  * Cloudinary ou de produção.
  */
 export class FakeImageStorageAdapter implements ImageStoragePort {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async upload(_input: UploadImageInput): Promise<UploadImageResult> {
     await Promise.resolve();
 
@@ -27,6 +28,7 @@ export class FakeImageStorageAdapter implements ImageStoragePort {
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async delete(_publicId: string): Promise<void> {
     // Idempotente por design: mesmo um publicId nunca enviado deve
     // resolver com sucesso, espelhando a ADR-002.

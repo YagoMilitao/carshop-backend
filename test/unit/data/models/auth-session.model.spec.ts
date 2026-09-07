@@ -34,9 +34,7 @@ describe('AuthSessionModel', () => {
 
   it('deve exigir campos obrigatórios', async () => {
     const session = buildValidSession();
-    const withoutRefreshTokenHash = { ...session } as Partial<
-      typeof session
-    >;
+    const withoutRefreshTokenHash = { ...session } as Partial<typeof session>;
     delete withoutRefreshTokenHash.refreshTokenHash;
     const document = new AuthSessionModel(withoutRefreshTokenHash);
 

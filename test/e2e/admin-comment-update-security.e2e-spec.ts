@@ -175,11 +175,14 @@ describe('Admin comment update security (e2e)', () => {
 
   it('rejects a __proto__ prototype-pollution-key payload with 400 and does not mutate the comment (FR-004/AC-003/AC-007)', async () => {
     const { accessToken, workId, comment } = await setupApprovedComment();
+    const prototypePollutionPayload: Record<string, unknown> = JSON.parse(
+      '{"__proto__": {"polluted": true}}',
+    );
 
     await request(app)
       .patch(`/admin/comments/${comment.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
-      .send(JSON.parse('{"__proto__": {"polluted": true}}'))
+      .send(prototypePollutionPayload)
       .expect(400);
 
     const persisted = await findApprovedComment(app, workId, comment.id);

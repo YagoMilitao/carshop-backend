@@ -64,6 +64,9 @@ jobs:
           CLOUDINARY_API_KEY: e2e-test-key
           CLOUDINARY_API_SECRET: e2e-test-secret
 
+      - name: Lint check (no auto-fix)
+        run: npm run lint:check
+
       - name: SonarCloud scan
         uses: SonarSource/sonarqube-scan-action@v8.2.1
         with:

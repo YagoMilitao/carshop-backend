@@ -11,7 +11,17 @@ jest.mock('../../../../src/data/models/comment.model', () => ({
   },
 }));
 
-const commentModel = jest.requireMock(
+interface MockedCommentModel {
+  CommentModel: {
+    create: jest.Mock;
+    find: jest.Mock;
+    findOne: jest.Mock;
+    findOneAndUpdate: jest.Mock;
+    deleteOne: jest.Mock;
+  };
+}
+
+const commentModel = jest.requireMock<MockedCommentModel>(
   '../../../../src/data/models/comment.model',
 );
 
@@ -69,7 +79,7 @@ describe('MongoCommentRepository', () => {
 
     commentModel.CommentModel.find.mockReturnValue({
       sort: () => ({
-        lean: async () => commentDocuments,
+        lean: () => commentDocuments,
       }),
     });
 
@@ -85,7 +95,7 @@ describe('MongoCommentRepository', () => {
 
   it('deve buscar comentário por id válido (AC-005)', async () => {
     commentModel.CommentModel.findOne.mockReturnValue({
-      lean: async () => ({
+      lean: () => ({
         id: 'comment-1',
         workId: 'work-1',
         authorName: 'Yago',
@@ -106,7 +116,7 @@ describe('MongoCommentRepository', () => {
 
   it('deve atualizar comentário com payload permitido (AC-004, AC-005)', async () => {
     commentModel.CommentModel.findOneAndUpdate.mockReturnValue({
-      lean: async () => ({
+      lean: () => ({
         id: 'comment-1',
         workId: 'work-1',
         authorName: 'Yago',
@@ -131,7 +141,7 @@ describe('MongoCommentRepository', () => {
 
   it('deve atualizar authorName e status quando informados (AC-004, AC-005)', async () => {
     commentModel.CommentModel.findOneAndUpdate.mockReturnValue({
-      lean: async () => ({
+      lean: () => ({
         id: 'comment-1',
         workId: 'work-1',
         authorName: 'Novo Nome',
@@ -172,7 +182,7 @@ describe('MongoCommentRepository', () => {
 
   it('deve descartar campo extra não permitido mantendo apenas os campos conhecidos (FR-003)', async () => {
     commentModel.CommentModel.findOneAndUpdate.mockReturnValue({
-      lean: async () => ({
+      lean: () => ({
         id: 'comment-1',
         workId: 'work-1',
         authorName: 'Yago',
@@ -217,7 +227,7 @@ describe('MongoCommentRepository', () => {
       'findById rejeita id malicioso (%s) sem consultar o CommentModel',
       async (_label, maliciousId) => {
         await expect(
-          repository.findById(maliciousId as unknown as string),
+          repository.findById(maliciousId as string),
         ).rejects.toThrow(HttpError);
         expect(commentModel.CommentModel.findOne).not.toHaveBeenCalled();
       },
@@ -227,7 +237,7 @@ describe('MongoCommentRepository', () => {
       'update rejeita id malicioso (%s) sem chamar findOneAndUpdate',
       async (_label, maliciousId) => {
         await expect(
-          repository.update(maliciousId as unknown as string, {
+          repository.update(maliciousId as string, {
             content: 'Atualizado',
           }),
         ).rejects.toThrow(HttpError);
@@ -241,7 +251,7 @@ describe('MongoCommentRepository', () => {
       'deleteById rejeita id malicioso (%s) sem chamar deleteOne',
       async (_label, maliciousId) => {
         await expect(
-          repository.deleteById(maliciousId as unknown as string),
+          repository.deleteById(maliciousId as string),
         ).rejects.toThrow(HttpError);
         expect(commentModel.CommentModel.deleteOne).not.toHaveBeenCalled();
       },

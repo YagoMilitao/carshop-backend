@@ -68,7 +68,9 @@ describe('Global security headers (e2e, CARSHOP-111)', () => {
   });
 
   it('applies the same header set to an error response (404) (FR-001/AC-001)', async () => {
-    const response = await request(app).get('/route-that-does-not-exist').expect(404);
+    const response = await request(app)
+      .get('/route-that-does-not-exist')
+      .expect(404);
 
     expect(response.headers['x-powered-by']).toBeUndefined();
     expect(response.headers['x-content-type-options']).toBe('nosniff');

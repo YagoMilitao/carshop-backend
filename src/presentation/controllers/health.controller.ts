@@ -10,8 +10,13 @@ import { GetHealthStatusUseCase } from '../../usecase/get-health-status.use-case
  * correspondente (200 quando saudável, 503 quando degradado).
  */
 export class HealthController {
-  constructor(private readonly getHealthStatusUseCase: GetHealthStatusUseCase) {}
+  constructor(
+    private readonly getHealthStatusUseCase: GetHealthStatusUseCase,
+  ) {}
 
+  // Preserves the project's async controller-handler convention (see
+  // controllers.md) even though this handler has no internal await.
+  // eslint-disable-next-line @typescript-eslint/require-await
   check = async (
     _request: Request,
     response: Response,

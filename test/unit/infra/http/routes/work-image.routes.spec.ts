@@ -121,7 +121,12 @@ describe('buildWorkImageRouter', () => {
     if (!uploadCallArgs) {
       throw new Error('upload route was not registered');
     }
-    return uploadCallArgs[4];
+    return uploadCallArgs[4] as (
+      error: unknown,
+      request: unknown,
+      response: unknown,
+      next: jest.Mock,
+    ) => void;
   }
 
   it('maps Multer LIMIT_FILE_SIZE errors to HttpError 413 (AC-007, FR-009)', () => {

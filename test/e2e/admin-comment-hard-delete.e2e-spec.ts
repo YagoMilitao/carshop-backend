@@ -129,9 +129,9 @@ describe('Admin comment hard-delete (e2e)', () => {
     const commentsBeforeDelete =
       beforeDeleteResponse.body as CommentResponseBody[];
 
-    expect(
-      commentsBeforeDelete.some((entry) => entry.id === comment.id),
-    ).toBe(true);
+    expect(commentsBeforeDelete.some((entry) => entry.id === comment.id)).toBe(
+      true,
+    );
 
     await request(app)
       .delete(`/admin/comments/${comment.id}`)

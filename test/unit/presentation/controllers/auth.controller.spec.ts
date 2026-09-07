@@ -2,15 +2,7 @@ import type { Request, Response } from 'express';
 import { HttpError } from '../../../../src/core/domain/application/ApplicationError/http-error';
 import type { AuthService } from '../../../../src/core/domain/application/Auth/auth.service';
 import { AuthController } from '../../../../src/presentation/controllers/auth.controller';
-import {
-  expect,
-  describe,
-  it,
-  beforeAll,
-  beforeEach,
-  afterAll,
-  jest,
-} from '@jest/globals';
+import { expect, describe, it, jest } from '@jest/globals';
 
 function createResponseMock() {
   return {
@@ -67,13 +59,13 @@ describe('AuthController', () => {
     });
   });
 
-  it('forwards login errors to next middleware', () => {
+  it('forwards login errors to next middleware', async () => {
     const authService = createAuthServiceMock();
     const controller = new AuthController(authService);
     const response = createResponseMock();
     const next = jest.fn();
 
-    controller.login({ body: null } as Request, response, next);
+    await controller.login({ body: null } as Request, response, next);
 
     expect(next).toHaveBeenCalledWith(expect.any(HttpError));
   });
@@ -113,7 +105,7 @@ describe('AuthController', () => {
     });
   });
 
-  it('forwards refresh errors to next middleware', () => {
+  it('forwards refresh errors to next middleware', async () => {
     const authService = createAuthServiceMock();
     authService.refresh.mockImplementation(() => {
       throw new HttpError(401, 'Refresh token inválido.');
@@ -128,7 +120,7 @@ describe('AuthController', () => {
     const response = createResponseMock();
     const next = jest.fn();
 
-    controller.refresh(request, response, next);
+    await controller.refresh(request, response, next);
 
     expect(next).toHaveBeenCalledWith(expect.any(HttpError));
   });

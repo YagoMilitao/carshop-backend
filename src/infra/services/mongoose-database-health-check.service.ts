@@ -10,10 +10,8 @@ import type { DatabaseHealthCheckPort } from '../../core/domain/application/Heal
  * (`src/infra/database/mongoose.ts`), sem abrir uma nova conexão ou
  * realizar uma consulta ativa ao banco.
  */
-export class MongooseDatabaseHealthCheckService
-  implements DatabaseHealthCheckPort
-{
+export class MongooseDatabaseHealthCheckService implements DatabaseHealthCheckPort {
   isConnected(): boolean {
-    return mongoose.connection.readyState === 1;
+    return Number(mongoose.connection.readyState) === 1;
   }
 }

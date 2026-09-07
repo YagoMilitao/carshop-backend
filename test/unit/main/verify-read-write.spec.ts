@@ -50,23 +50,24 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
 
     let capturedMarker = '';
     const createMock = jest.fn(
-      async (payload: { marker: string }): Promise<{ _id: string }> => {
+      (payload: { marker: string }): Promise<{ _id: string }> => {
         capturedMarker = payload.marker;
-        return { _id: 'ping-id' };
+        return Promise.resolve({ _id: 'ping-id' });
       },
     );
     const leanMock = jest.fn<() => Promise<{ _id: string; marker?: string }>>(
-      async () => ({
-        _id: 'ping-id',
-        marker: capturedMarker,
-      }),
+      () =>
+        Promise.resolve({
+          _id: 'ping-id',
+          marker: capturedMarker,
+        }),
     );
     const findByIdMock = jest.fn<(id: string) => { lean: typeof leanMock }>(
       () => ({ lean: leanMock }),
     );
     const deleteOneMock = jest.fn<
       (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
-    >(async () => ({ acknowledged: true }));
+    >(() => Promise.resolve({ acknowledged: true }));
 
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -122,23 +123,24 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
 
     let capturedMarker = '';
     const createMock = jest.fn(
-      async (payload: { marker: string }): Promise<{ _id: string }> => {
+      (payload: { marker: string }): Promise<{ _id: string }> => {
         capturedMarker = payload.marker;
-        return { _id: 'ping-id' };
+        return Promise.resolve({ _id: 'ping-id' });
       },
     );
     const leanMock = jest.fn<() => Promise<{ _id: string; marker: string }>>(
-      async () => ({
-        _id: 'ping-id',
-        marker: 'unexpected-marker',
-      }),
+      () =>
+        Promise.resolve({
+          _id: 'ping-id',
+          marker: 'unexpected-marker',
+        }),
     );
     const findByIdMock = jest.fn<(id: string) => { lean: typeof leanMock }>(
       () => ({ lean: leanMock }),
     );
     const deleteOneMock = jest.fn<
       (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
-    >(async () => ({ acknowledged: true }));
+    >(() => Promise.resolve({ acknowledged: true }));
 
     jest.spyOn(console, 'log').mockImplementation(() => {});
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -197,7 +199,7 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
     const findByIdMock = jest.fn();
     const deleteOneMock = jest.fn<
       (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
-    >(async () => ({ acknowledged: true }));
+    >(() => Promise.resolve({ acknowledged: true }));
 
     jest.spyOn(console, 'log').mockImplementation(() => {});
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -252,16 +254,17 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
 
     let capturedMarker = '';
     const createMock = jest.fn(
-      async (payload: { marker: string }): Promise<{ _id: string }> => {
+      (payload: { marker: string }): Promise<{ _id: string }> => {
         capturedMarker = payload.marker;
-        return { _id: 'ping-id' };
+        return Promise.resolve({ _id: 'ping-id' });
       },
     );
     const leanMock = jest.fn<() => Promise<{ _id: string; marker: string }>>(
-      async () => ({
-        _id: 'ping-id',
-        marker: capturedMarker,
-      }),
+      () =>
+        Promise.resolve({
+          _id: 'ping-id',
+          marker: capturedMarker,
+        }),
     );
     const findByIdMock = jest.fn<(id: string) => { lean: typeof leanMock }>(
       () => ({ lean: leanMock }),
@@ -323,7 +326,7 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
     const findByIdMock = jest.fn();
     const deleteOneMock = jest.fn<
       (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
-    >(async () => ({ acknowledged: true }));
+    >(() => Promise.resolve({ acknowledged: true }));
 
     jest.spyOn(console, 'log').mockImplementation(() => {});
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});

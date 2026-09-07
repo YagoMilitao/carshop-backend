@@ -56,10 +56,7 @@ describe('buildAdminCommentRouter', () => {
       '/:commentId/approve',
       expect.any(Function),
     );
-    expect(mockPatch).toHaveBeenCalledWith(
-      '/:commentId',
-      expect.any(Function),
-    );
+    expect(mockPatch).toHaveBeenCalledWith('/:commentId', expect.any(Function));
     expect(mockDelete).toHaveBeenCalledWith(
       '/:commentId',
       expect.any(Function),

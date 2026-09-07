@@ -11,6 +11,16 @@ import type {
 } from '../../../core/domain/application/Storage/image-storage.port';
 
 /**
+ * O tipo de retorno de `cloudinary.uploader.destroy` na lib `cloudinary`
+ * é `Promise<any>`. Este tipo local descreve o formato real da resposta
+ * documentada pela API do Cloudinary, evitando acesso a membros de um
+ * valor `any`.
+ */
+interface CloudinaryDestroyResponse {
+  result: string;
+}
+
+/**
  * Implementação concreta do armazenamento usando Cloudinary.
  *
  * O arquivo é enviado diretamente da memória, sem ser salvo
@@ -91,10 +101,11 @@ export class CloudinaryStorageService implements ImageStoragePort {
    * idempotente: repetir o hard delete não causa falha.
    */
   async delete(publicId: string): Promise<void> {
-    const result = await cloudinary.uploader.destroy(publicId, {
-      resource_type: 'image',
-      invalidate: true,
-    });
+    const result: CloudinaryDestroyResponse =
+      (await cloudinary.uploader.destroy(publicId, {
+        resource_type: 'image',
+        invalidate: true,
+      })) as CloudinaryDestroyResponse;
 
     if (result.result !== 'ok' && result.result !== 'not found') {
       throw new Error(
