@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { env } from '../infra/config/env';
 import {
   connectDatabase,
@@ -11,41 +12,36 @@ import { HealthCheckPingModel } from '../data/models/health-check-ping.model';
  * que a conexão e as permissões estão funcionais de ponta a ponta, sem
  * deixar dados residuais (FR-006/AC-005).
  *
- * A remoção do documento de verificação roda em um `finally` interno,
- * portanto acontece mesmo quando a asserção de leitura falha.
+ * A criação e a leitura ficam dentro de um `try/finally` interno que remove
+ * pelo marker predefinido, inclusive quando a confirmação da escrita se perde.
  */
 async function run(): Promise<void> {
   try {
     await connectDatabase(env.mongoUri);
 
-    const marker = `health-check-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}`;
-
-    const createdPing = await HealthCheckPingModel.create({ marker });
+    const marker = `health-check-${Date.now()}-${randomUUID()}`;
 
     try {
+      const createdPing = await HealthCheckPingModel.create({ marker });
+
       const readBackPing = await HealthCheckPingModel.findById(
         createdPing._id,
       ).lean();
 
-      if (!readBackPing || readBackPing.marker !== marker) {
+      if (readBackPing?.marker !== marker) {
         throw new Error(
           'O documento lido não corresponde ao documento escrito.',
         );
       }
-
-      console.log(
-        'Verificação de leitura/escrita concluída com sucesso, sem dados residuais.',
-      );
     } finally {
-      await HealthCheckPingModel.deleteOne({ _id: createdPing._id });
+      await HealthCheckPingModel.deleteOne({ marker });
     }
-  } catch (error: unknown) {
-    console.error(
-      'Erro ao executar a verificação de leitura/escrita.',
-      error instanceof Error ? error.message : 'erro desconhecido',
+
+    console.log(
+      'Verificação de leitura/escrita concluída com sucesso, sem dados residuais.',
     );
+  } catch {
+    console.error('Erro ao executar a verificação de leitura/escrita.');
     process.exitCode = 1;
   } finally {
     await disconnectDatabase();

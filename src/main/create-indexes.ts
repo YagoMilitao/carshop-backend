@@ -41,7 +41,9 @@ interface IndexPresenceEntry {
  * ignorando direção/tipo do índice (1, -1, 'text', etc.).
  */
 function normalizeIndexFieldNames(fields: Record<string, unknown>): string {
-  return Object.keys(fields).sort().join(',');
+  return Object.keys(fields)
+    .sort((left, right) => left.localeCompare(right))
+    .join(',');
 }
 
 /**

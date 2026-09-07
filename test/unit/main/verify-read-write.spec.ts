@@ -48,7 +48,7 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
       Promise.resolve(),
     );
 
-    let capturedMarker: string | undefined;
+    let capturedMarker = '';
     const createMock = jest.fn(
       async (payload: { marker: string }): Promise<{ _id: string }> => {
         capturedMarker = payload.marker;
@@ -65,7 +65,7 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
       () => ({ lean: leanMock }),
     );
     const deleteOneMock = jest.fn<
-      (filter: { _id: string }) => Promise<{ acknowledged: boolean }>
+      (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
     >(async () => ({ acknowledged: true }));
 
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -97,8 +97,11 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
 
     expect(connectDatabaseMock).toHaveBeenCalledWith('mongodb://unit-test');
     expect(createMock).toHaveBeenCalledTimes(1);
+    expect(capturedMarker).toMatch(
+      /^health-check-\d+-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     expect(findByIdMock).toHaveBeenCalledWith('ping-id');
-    expect(deleteOneMock).toHaveBeenCalledWith({ _id: 'ping-id' });
+    expect(deleteOneMock).toHaveBeenCalledWith({ marker: capturedMarker });
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining('sem dados residuais'),
     );
@@ -117,7 +120,13 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
       Promise.resolve(),
     );
 
-    const createMock = jest.fn(async () => ({ _id: 'ping-id' }));
+    let capturedMarker = '';
+    const createMock = jest.fn(
+      async (payload: { marker: string }): Promise<{ _id: string }> => {
+        capturedMarker = payload.marker;
+        return { _id: 'ping-id' };
+      },
+    );
     const leanMock = jest.fn<() => Promise<{ _id: string; marker: string }>>(
       async () => ({
         _id: 'ping-id',
@@ -128,7 +137,7 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
       () => ({ lean: leanMock }),
     );
     const deleteOneMock = jest.fn<
-      (filter: { _id: string }) => Promise<{ acknowledged: boolean }>
+      (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
     >(async () => ({ acknowledged: true }));
 
     jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -158,10 +167,9 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
 
     await waitFor(() => disconnectDatabaseMock.mock.calls.length > 0);
 
-    expect(deleteOneMock).toHaveBeenCalledWith({ _id: 'ping-id' });
+    expect(deleteOneMock).toHaveBeenCalledWith({ marker: capturedMarker });
     expect(errorSpy).toHaveBeenCalledWith(
       'Erro ao executar a verificação de leitura/escrita.',
-      expect.stringContaining('não corresponde'),
     );
     expect(process.exitCode).toBe(1);
     expect(disconnectDatabaseMock).toHaveBeenCalledTimes(1);
@@ -169,7 +177,7 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
     process.exitCode = originalExitCode;
   });
 
-  it('quando a escrita falha, loga a mensagem sanitizada, marca exitCode = 1 e ainda assim desconecta', async () => {
+  it('quando a escrita é confirmada pelo banco mas a resposta se perde, tenta remover pelo marker conhecido', async () => {
     const connectDatabaseMock = jest.fn<(uri: string) => Promise<void>>(() =>
       Promise.resolve(),
     );
@@ -177,11 +185,19 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
       Promise.resolve(),
     );
 
-    const createMock = jest.fn(() =>
-      Promise.reject(new Error('write failed')),
-    );
+    let capturedMarker = '';
+    const createMock = jest.fn((payload: { marker: string }) => {
+      capturedMarker = payload.marker;
+      return Promise.reject(
+        new Error(
+          'write acknowledgement lost at mongodb://fake-user:fake-pass@fake-cluster.mongodb.net/carshop',
+        ),
+      );
+    });
     const findByIdMock = jest.fn();
-    const deleteOneMock = jest.fn(async () => ({ acknowledged: true }));
+    const deleteOneMock = jest.fn<
+      (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
+    >(async () => ({ acknowledged: true }));
 
     jest.spyOn(console, 'log').mockImplementation(() => {});
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -212,10 +228,14 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Erro ao executar a verificação de leitura/escrita.',
-      'write failed',
+    );
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('fake-user');
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('fake-pass');
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(
+      'fake-cluster.mongodb.net',
     );
     expect(findByIdMock).not.toHaveBeenCalled();
-    expect(deleteOneMock).not.toHaveBeenCalled();
+    expect(deleteOneMock).toHaveBeenCalledWith({ marker: capturedMarker });
     expect(process.exitCode).toBe(1);
     expect(disconnectDatabaseMock).toHaveBeenCalledTimes(1);
 
@@ -230,21 +250,27 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
       Promise.resolve(),
     );
 
-    const createMock = jest.fn(async () => ({ _id: 'ping-id' }));
+    let capturedMarker = '';
+    const createMock = jest.fn(
+      async (payload: { marker: string }): Promise<{ _id: string }> => {
+        capturedMarker = payload.marker;
+        return { _id: 'ping-id' };
+      },
+    );
     const leanMock = jest.fn<() => Promise<{ _id: string; marker: string }>>(
       async () => ({
         _id: 'ping-id',
-        marker: 'will-not-matter',
+        marker: capturedMarker,
       }),
     );
     const findByIdMock = jest.fn<(id: string) => { lean: typeof leanMock }>(
       () => ({ lean: leanMock }),
     );
     const deleteOneMock = jest.fn<
-      (filter: { _id: string }) => Promise<{ acknowledged: boolean }>
+      (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
     >(() => Promise.reject(new Error('cleanup failed')));
 
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     const originalExitCode = process.exitCode;
@@ -271,11 +297,11 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
 
     await waitFor(() => disconnectDatabaseMock.mock.calls.length > 0);
 
-    expect(deleteOneMock).toHaveBeenCalledWith({ _id: 'ping-id' });
+    expect(deleteOneMock).toHaveBeenCalledWith({ marker: capturedMarker });
     expect(errorSpy).toHaveBeenCalledWith(
       'Erro ao executar a verificação de leitura/escrita.',
-      'cleanup failed',
     );
+    expect(logSpy).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
     expect(disconnectDatabaseMock).toHaveBeenCalledTimes(1);
 
@@ -295,7 +321,9 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
       Promise.reject('mongodb://fake-user:fake-pass@localhost:27017'),
     );
     const findByIdMock = jest.fn();
-    const deleteOneMock = jest.fn(async () => ({ acknowledged: true }));
+    const deleteOneMock = jest.fn<
+      (filter: { marker: string }) => Promise<{ acknowledged: boolean }>
+    >(async () => ({ acknowledged: true }));
 
     jest.spyOn(console, 'log').mockImplementation(() => {});
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -326,12 +354,13 @@ describe('verify-read-write script (FR-006, AC-005, NFR-001, NFR-003)', () => {
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Erro ao executar a verificação de leitura/escrita.',
-      'erro desconhecido',
     );
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('fake-user');
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('fake-pass');
     expect(findByIdMock).not.toHaveBeenCalled();
-    expect(deleteOneMock).not.toHaveBeenCalled();
+    expect(deleteOneMock).toHaveBeenCalledWith({
+      marker: expect.stringMatching(/^health-check-/),
+    });
     expect(process.exitCode).toBe(1);
     expect(disconnectDatabaseMock).toHaveBeenCalledTimes(1);
 
