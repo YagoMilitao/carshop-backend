@@ -24,6 +24,7 @@ export const updateCommentSchema = z
 
     status: z.enum(['PENDING', 'APPROVED']).optional(),
   })
+  .strict()
   .refine(
     (value) =>
       value.authorName !== undefined ||

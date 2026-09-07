@@ -160,18 +160,14 @@ describe('MongoCommentRepository', () => {
         status: 'REJECTED' as never,
       }),
     ).rejects.toThrow(HttpError);
-    expect(
-      commentModel.CommentModel.findOneAndUpdate,
-    ).not.toHaveBeenCalled();
+    expect(commentModel.CommentModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('rejeita payload de atualização em formato de array sem chamar findOneAndUpdate', async () => {
     await expect(
       repository.update('comment-1', ['content'] as never),
     ).rejects.toThrow(HttpError);
-    expect(
-      commentModel.CommentModel.findOneAndUpdate,
-    ).not.toHaveBeenCalled();
+    expect(commentModel.CommentModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('deve descartar campo extra não permitido mantendo apenas os campos conhecidos (FR-003)', async () => {
@@ -212,6 +208,9 @@ describe('MongoCommentRepository', () => {
       ['objeto com operador', { $ne: null }],
       ['array', ['comment-1']],
       ['string vazia', ''],
+      ['string com operador', '$ne'],
+      ['string com ponto', 'a.b'],
+      ['string sensível a prototype pollution', '__proto__'],
     ];
 
     it.each(maliciousIds)(
@@ -262,9 +261,7 @@ describe('MongoCommentRepository', () => {
           $where: 'this.content',
         } as never),
       ).rejects.toThrow(HttpError);
-      expect(
-        commentModel.CommentModel.findOneAndUpdate,
-      ).not.toHaveBeenCalled();
+      expect(commentModel.CommentModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
     it('rejeita valor com formato de operador em campo permitido (ex.: content: { $ne: null }) sem chamar findOneAndUpdate', async () => {
@@ -273,9 +270,7 @@ describe('MongoCommentRepository', () => {
           content: { $ne: null },
         } as never),
       ).rejects.toThrow(HttpError);
-      expect(
-        commentModel.CommentModel.findOneAndUpdate,
-      ).not.toHaveBeenCalled();
+      expect(commentModel.CommentModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
     it('rejeita chave com ponto (path aninhado) sem chamar findOneAndUpdate', async () => {
@@ -284,9 +279,7 @@ describe('MongoCommentRepository', () => {
           ...({ 'content.nested': 'x' } as Record<string, unknown>),
         } as never),
       ).rejects.toThrow(HttpError);
-      expect(
-        commentModel.CommentModel.findOneAndUpdate,
-      ).not.toHaveBeenCalled();
+      expect(commentModel.CommentModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
     it.each(['__proto__', 'constructor', 'prototype'])(
@@ -304,13 +297,23 @@ describe('MongoCommentRepository', () => {
       },
     );
 
-    it('rejeita payload sem nenhum campo válido informado', async () => {
+    it('rejeita payload com protótipo customizado e não lê campos herdados', async () => {
+      const payload = Object.create({
+        authorName: 'Injected',
+      }) as Record<string, unknown>;
+      payload.content = 'Atualizado';
+
       await expect(
-        repository.update('comment-1', {} as never),
+        repository.update('comment-1', payload as never),
       ).rejects.toThrow(HttpError);
-      expect(
-        commentModel.CommentModel.findOneAndUpdate,
-      ).not.toHaveBeenCalled();
+      expect(commentModel.CommentModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita payload sem nenhum campo válido informado', async () => {
+      await expect(repository.update('comment-1', {} as never)).rejects.toThrow(
+        HttpError,
+      );
+      expect(commentModel.CommentModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
     it('as rejeições de update ocorrem com status HTTP 400', async () => {

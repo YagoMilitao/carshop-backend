@@ -22,6 +22,19 @@ describe('updateCommentSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it.each(['$where', 'content.nested', '__proto__'])(
+    'rejeita campo não permitido mesmo quando há um campo válido (%s)',
+    (dangerousKey) => {
+      const payload = JSON.parse(
+        `{"${dangerousKey}": "malicious", "content": "Editado"}`,
+      ) as Record<string, unknown>;
+
+      const result = updateCommentSchema.safeParse(payload);
+
+      expect(result.success).toBe(false);
+    },
+  );
+
   it('rejeita payload sem nenhum campo', () => {
     const result = updateCommentSchema.safeParse({});
 
