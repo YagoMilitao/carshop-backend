@@ -140,7 +140,11 @@ export async function connectDatabase(mongoUri: string): Promise<void> {
       throw atlasIpNotAllowedError;
     }
 
-    throw error;
+    const genericConnectionError = new Error(
+      'Não foi possível conectar ao MongoDB. Verifique a configuração de MONGO_URI e a conectividade com o servidor.',
+    );
+    (genericConnectionError as Error & { cause?: unknown }).cause = error;
+    throw genericConnectionError;
   }
 
   console.log('✅ Conectado ao MongoDB com sucesso.');

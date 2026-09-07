@@ -55,13 +55,33 @@ describe('mongoose database connector', () => {
     );
   });
 
-  it('rethrows unknown connection errors', async () => {
+  it('wraps unknown connection errors in a sanitized error, preserving the original as cause (FR-004, AC-004)', async () => {
     const connectionError = new Error('connection timeout');
     mongooseMock.connect.mockRejectedValueOnce(connectionError);
 
-    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(
-      connectionError,
-    );
+    await expect(connectDatabase('mongodb://atlas')).rejects.toMatchObject({
+      message:
+        'Não foi possível conectar ao MongoDB. Verifique a configuração de MONGO_URI e a conectividade com o servidor.',
+      cause: connectionError,
+    });
+  });
+
+  it('never includes the raw driver message content when it looks like it embeds a connection string (NFR-001, FR-004, AC-004)', async () => {
+    const fakeLeakySubstring =
+      'connect ECONNREFUSED to mongodb://fake-test-user:fake-test-pass@localhost:27017';
+    const leakyError = new Error(fakeLeakySubstring);
+    mongooseMock.connect.mockRejectedValueOnce(leakyError);
+
+    let thrown: unknown;
+    try {
+      await connectDatabase('mongodb://atlas');
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).not.toContain(fakeLeakySubstring);
+    expect((thrown as Error & { cause?: unknown }).cause).toBe(leakyError);
   });
 
   it('disconnects from database', async () => {
@@ -80,7 +100,11 @@ describe('mongoose database connector', () => {
     mainError.cause = rootCause;
     mongooseMock.connect.mockRejectedValueOnce(mainError);
 
-    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(mainError);
+    await expect(connectDatabase('mongodb://atlas')).rejects.toMatchObject({
+      message:
+        'Não foi possível conectar ao MongoDB. Verifique a configuração de MONGO_URI e a conectividade com o servidor.',
+      cause: mainError,
+    });
   });
 
   it('extracts message/cause/reason from a plain object shaped like an error', async () => {
@@ -91,7 +115,11 @@ describe('mongoose database connector', () => {
     };
     mongooseMock.connect.mockRejectedValueOnce(shapedError);
 
-    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(shapedError);
+    await expect(connectDatabase('mongodb://atlas')).rejects.toMatchObject({
+      message:
+        'Não foi possível conectar ao MongoDB. Verifique a configuração de MONGO_URI e a conectividade com o servidor.',
+      cause: shapedError,
+    });
   });
 
   it('skips a candidate without a message and without a reason key', async () => {
@@ -100,7 +128,11 @@ describe('mongoose database connector', () => {
     mainError.cause = noMessageNode;
     mongooseMock.connect.mockRejectedValueOnce(mainError);
 
-    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(mainError);
+    await expect(connectDatabase('mongodb://atlas')).rejects.toMatchObject({
+      message:
+        'Não foi possível conectar ao MongoDB. Verifique a configuração de MONGO_URI e a conectividade com o servidor.',
+      cause: mainError,
+    });
   });
 
   it('does not loop forever when the cause chain is cyclic', async () => {
@@ -110,6 +142,10 @@ describe('mongoose database connector', () => {
     cyclicError.cause = cyclicError;
     mongooseMock.connect.mockRejectedValueOnce(cyclicError);
 
-    await expect(connectDatabase('mongodb://atlas')).rejects.toBe(cyclicError);
+    await expect(connectDatabase('mongodb://atlas')).rejects.toMatchObject({
+      message:
+        'Não foi possível conectar ao MongoDB. Verifique a configuração de MONGO_URI e a conectividade com o servidor.',
+      cause: cyclicError,
+    });
   });
 });

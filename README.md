@@ -27,6 +27,47 @@ ENABLE_SWAGGER=true
 > configurações — veja "Segurança" abaixo — e rejeita, por exemplo,
 > `ADMIN_PASSWORD=123456`.
 
+## Banco de Dados (MongoDB Atlas)
+
+A aplicação usa MongoDB via Mongoose, conectando-se através da variável de
+ambiente `MONGO_URI`. Em produção, recomenda-se um cluster gerenciado no
+MongoDB Atlas. Os passos abaixo são manuais, executados pelo operador fora
+deste repositório, e usam apenas placeholders fictícios — nunca valores
+reais:
+
+1. **Criar/selecionar o cluster e o database**: no painel do MongoDB Atlas,
+   crie (ou selecione) o projeto e o cluster de produção, e crie o database
+   dedicado à aplicação (ex.: `<DATABASE_NAME>`).
+2. **Criar um usuário de banco com privilégio mínimo**: crie um usuário de
+   banco (`<DB_USER>`) com uma senha forte (`<DB_PASSWORD>`) e conceda
+   apenas as permissões de leitura/escrita necessárias no database da
+   aplicação — evite privilégios administrativos amplos.
+3. **Restringir o Network Access (IP allowlist)**: em Atlas > Network
+   Access, libere apenas os IPs/CIDRs de origem estritamente necessários
+   (ex.: os IPs de saída do provedor de hospedagem/deploy usado em
+   produção). Evite liberar `0.0.0.0/0` em produção.
+4. **Obter a connection string**: no Atlas, obtenha a connection string no
+   formato:
+
+   ```text
+   mongodb+srv://<DB_USER>:<DB_PASSWORD>@<CLUSTER_HOST>/<DATABASE_NAME>
+   ```
+
+   Substitua cada placeholder pelos valores reais do seu cluster; nunca
+   copie um exemplo real para fora do cofre de segredos do provedor.
+
+5. **Fornecer `MONGO_URI` como secret no provedor de hospedagem/deploy**: o
+   valor resultante da connection string deve ser configurado
+   exclusivamente através do mecanismo de variáveis de ambiente/secrets do
+   provedor de hospedagem/deploy usado em produção. `MONGO_URI` nunca deve
+   ser commitado no repositório nem hardcoded em código-fonte.
+
+No startup, a aplicação valida que `MONGO_URI` está definida e que começa
+com `mongodb://` ou `mongodb+srv://`; caso contrário, o processo falha
+antes de o servidor HTTP começar a aceitar requisições, com uma mensagem
+que referencia apenas o nome da variável (`MONGO_URI`), nunca o valor
+configurado.
+
 ## Instalação
 
 ```bash
