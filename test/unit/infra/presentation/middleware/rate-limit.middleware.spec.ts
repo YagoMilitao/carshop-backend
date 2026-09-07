@@ -36,7 +36,10 @@ describe('buildLoginRateLimitKey (CARSHOP-108, FR-006/NFR-002, AC-004)', () => {
   });
 
   it('normaliza o e-mail (trim + lowercase) antes de gerar a chave', () => {
-    const withPadding = buildLoginRateLimitKey('127.0.0.1', '  Admin@Example.com  ');
+    const withPadding = buildLoginRateLimitKey(
+      '127.0.0.1',
+      '  Admin@Example.com  ',
+    );
     const normalized = buildLoginRateLimitKey('127.0.0.1', normalizedEmail);
 
     expect(withPadding).toBe(normalized);
@@ -97,14 +100,8 @@ describe('loginRateLimitKeyGenerator (CARSHOP-111, correção ERR_ERL_KEY_GEN_IP
   });
 
   it('normaliza IPs IPv6 distintos do mesmo /56 na mesma chave, sem colidir com um /56 diferente', () => {
-    const sameSubnetA = buildRequest(
-      '2001:db8:1234::1',
-      'admin@example.com',
-    );
-    const sameSubnetB = buildRequest(
-      '2001:db8:1234::2',
-      'admin@example.com',
-    );
+    const sameSubnetA = buildRequest('2001:db8:1234::1', 'admin@example.com');
+    const sameSubnetB = buildRequest('2001:db8:1234::2', 'admin@example.com');
     const differentSubnet = buildRequest(
       '2001:db8:9999::1',
       'admin@example.com',

@@ -5,7 +5,10 @@ import {
   disconnectDatabase,
 } from '../../src/infra/database/mongoose';
 import { AuthSessionModel } from '../../src/data/models/auth-session.model';
-import { getSetCookieArray, extractCookie } from './support/security-test.helpers';
+import {
+  getSetCookieArray,
+  extractCookie,
+} from './support/security-test.helpers';
 
 const ADMIN_EMAIL = 'admin@carshop.com';
 const ADMIN_PASSWORD = '123456';

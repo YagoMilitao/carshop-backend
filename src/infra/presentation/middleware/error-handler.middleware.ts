@@ -7,9 +7,7 @@ type PayloadTooLargeError = Error & {
   status?: number;
 };
 
-function isPayloadTooLargeError(
-  error: unknown,
-): error is PayloadTooLargeError {
+function isPayloadTooLargeError(error: unknown): error is PayloadTooLargeError {
   if (!(error instanceof Error)) {
     return false;
   }
@@ -25,6 +23,7 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
   error,
   _request,
   response,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next,
 ) => {
   if (error instanceof HttpError) {

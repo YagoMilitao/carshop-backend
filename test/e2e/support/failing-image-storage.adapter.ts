@@ -20,11 +20,13 @@ import type {
  * weakening any production control.
  */
 export class FailingImageStorageAdapter implements ImageStoragePort {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async upload(_input: UploadImageInput): Promise<UploadImageResult> {
     await Promise.resolve();
     throw new Error('Simulated upstream failure.');
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async delete(_publicId: string): Promise<void> {
     await Promise.resolve();
     throw new Error('Simulated upstream failure.');

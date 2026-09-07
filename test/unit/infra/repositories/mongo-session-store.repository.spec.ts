@@ -10,7 +10,16 @@ jest.mock('../../../../src/data/models/auth-session.model', () => ({
   },
 }));
 
-const authSessionModel = jest.requireMock(
+interface MockedAuthSessionModel {
+  AuthSessionModel: {
+    create: jest.Mock;
+    findOne: jest.Mock;
+    findOneAndUpdate: jest.Mock;
+    deleteMany: jest.Mock;
+  };
+}
+
+const authSessionModel = jest.requireMock<MockedAuthSessionModel>(
   '../../../../src/data/models/auth-session.model',
 );
 
@@ -45,7 +54,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('busca uma sessão existente pelo id', async () => {
     authSessionModel.AuthSessionModel.findOne.mockReturnValue({
-      lean: async () => ({ ...session, revokedAt: undefined }),
+      lean: () => ({ ...session, revokedAt: undefined }),
     });
 
     const found = await repository.findById('session-1');
@@ -58,7 +67,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('retorna undefined quando a sessão não existe', async () => {
     authSessionModel.AuthSessionModel.findOne.mockReturnValue({
-      lean: async () => null,
+      lean: () => null,
     });
 
     const found = await repository.findById('missing-session');
@@ -68,7 +77,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('atualiza uma sessão existente', async () => {
     authSessionModel.AuthSessionModel.findOneAndUpdate.mockReturnValue({
-      lean: async () => ({ ...session, csrfToken: 'new-csrf' }),
+      lean: () => ({ ...session, csrfToken: 'new-csrf' }),
     });
 
     const updated = await repository.update('session-1', {
@@ -87,7 +96,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('retorna undefined ao atualizar sessão inexistente', async () => {
     authSessionModel.AuthSessionModel.findOneAndUpdate.mockReturnValue({
-      lean: async () => null,
+      lean: () => null,
     });
 
     const updated = await repository.update('missing-session', {
@@ -99,7 +108,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('revoga uma sessão existente', async () => {
     authSessionModel.AuthSessionModel.findOneAndUpdate.mockReturnValue({
-      lean: async () => ({ ...session, revokedAt: 123456 }),
+      lean: () => ({ ...session, revokedAt: 123456 }),
     });
 
     const revoked = await repository.revoke('session-1');
@@ -116,7 +125,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('retorna undefined ao revogar sessão inexistente', async () => {
     authSessionModel.AuthSessionModel.findOneAndUpdate.mockReturnValue({
-      lean: async () => null,
+      lean: () => null,
     });
 
     const revoked = await repository.revoke('missing-session');
@@ -126,7 +135,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('retorna false para isActive quando a sessão não existe', async () => {
     authSessionModel.AuthSessionModel.findOne.mockReturnValue({
-      lean: async () => null,
+      lean: () => null,
     });
 
     const isActive = await repository.isActive('missing-session');
@@ -136,7 +145,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('retorna false para isActive quando a sessão foi revogada', async () => {
     authSessionModel.AuthSessionModel.findOne.mockReturnValue({
-      lean: async () => ({ ...session, revokedAt: Date.now() }),
+      lean: () => ({ ...session, revokedAt: Date.now() }),
     });
 
     const isActive = await repository.isActive('session-1');
@@ -146,7 +155,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('retorna true para isActive quando a sessão está válida', async () => {
     authSessionModel.AuthSessionModel.findOne.mockReturnValue({
-      lean: async () => ({
+      lean: () => ({
         ...session,
         expiresAt: Date.now() + 60_000,
         revokedAt: undefined,
@@ -160,7 +169,7 @@ describe('MongoSessionStoreRepository', () => {
 
   it('retorna false para isActive quando a sessão expirou', async () => {
     authSessionModel.AuthSessionModel.findOne.mockReturnValue({
-      lean: async () => ({
+      lean: () => ({
         ...session,
         expiresAt: Date.now() - 60_000,
         revokedAt: undefined,

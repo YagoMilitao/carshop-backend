@@ -167,7 +167,9 @@ describe('WorkController', () => {
 
       const response = createResponseMock();
       const next = jest.fn();
-      const request = { query: { includeDrafts: 'true' } } as unknown as Request;
+      const request = {
+        query: { includeDrafts: 'true' },
+      } as unknown as Request;
 
       await controller.list(request, response, next);
 

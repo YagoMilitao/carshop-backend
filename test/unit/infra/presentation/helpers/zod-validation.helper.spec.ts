@@ -14,9 +14,7 @@ describe('validateWithSchema', () => {
   });
 
   it('lança HttpError 400 quando o input é inválido', () => {
-    expect(() => validateWithSchema(schema, { name: 'M' })).toThrow(
-      HttpError,
-    );
+    expect(() => validateWithSchema(schema, { name: 'M' })).toThrow(HttpError);
 
     try {
       validateWithSchema(schema, { name: 'M' });

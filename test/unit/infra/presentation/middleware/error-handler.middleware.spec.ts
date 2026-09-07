@@ -97,7 +97,9 @@ describe('errorHandlerMiddleware', () => {
   it('falls through to the generic 500 branch when only one of type/statusCode is set', () => {
     const response = createResponseMock();
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-    const error = new Error('unrelated error with a stray 413 status') as Error & {
+    const error = new Error(
+      'unrelated error with a stray 413 status',
+    ) as Error & {
       type?: string;
       statusCode?: number;
       status?: number;

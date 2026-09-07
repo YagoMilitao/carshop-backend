@@ -21,9 +21,27 @@ jest.mock('../../../../src/data/models/comment.model', () => ({
   },
 }));
 
-const workModel = jest.requireMock('../../../../src/data/models/work.model');
+interface MockedWorkModel {
+  WorkModel: {
+    create: jest.Mock;
+    findOne: jest.Mock;
+    find: jest.Mock;
+    updateOne: jest.Mock;
+    deleteOne: jest.Mock;
+  };
+}
 
-const commentModel = jest.requireMock(
+interface MockedCommentModel {
+  CommentModel: {
+    deleteMany: jest.Mock;
+  };
+}
+
+const workModel = jest.requireMock<MockedWorkModel>(
+  '../../../../src/data/models/work.model',
+);
+
+const commentModel = jest.requireMock<MockedCommentModel>(
   '../../../../src/data/models/comment.model',
 );
 
@@ -96,7 +114,7 @@ describe('MongoWorkRepository', () => {
 
     workModel.WorkModel.find.mockReturnValue({
       sort: () => ({
-        lean: async () => workDocuments,
+        lean: () => workDocuments,
       }),
     });
 
@@ -147,7 +165,7 @@ describe('MongoWorkRepository', () => {
 
     workModel.WorkModel.updateOne.mockResolvedValue({ acknowledged: true });
     workModel.WorkModel.findOne.mockReturnValue({
-      lean: async () => ({
+      lean: () => ({
         id: workId,
         slug: 'work-slug',
         title: 'Work title',
@@ -191,7 +209,7 @@ describe('MongoWorkRepository', () => {
 
     workModel.WorkModel.updateOne.mockResolvedValue({ acknowledged: true });
     workModel.WorkModel.findOne.mockReturnValue({
-      lean: async () => ({
+      lean: () => ({
         id: workId,
         slug: 'work-slug',
         title: 'Work title',
@@ -238,7 +256,7 @@ describe('MongoWorkRepository', () => {
       const workId = 'work-1';
 
       workModel.WorkModel.findOne.mockReturnValue({
-        lean: async () => ({
+        lean: () => ({
           id: workId,
           slug: 'work-slug',
           title: 'Work title',
@@ -264,7 +282,7 @@ describe('MongoWorkRepository', () => {
 
     it('findById retorna undefined quando o WorkModel não encontra o work', async () => {
       workModel.WorkModel.findOne.mockReturnValue({
-        lean: async () => null,
+        lean: () => null,
       });
 
       const work = await repository.findById('work-inexistente');
@@ -276,7 +294,7 @@ describe('MongoWorkRepository', () => {
       const slug = '  Work-Slug  ';
 
       workModel.WorkModel.findOne.mockReturnValue({
-        lean: async () => ({
+        lean: () => ({
           id: 'work-1',
           slug: 'work-slug',
           title: 'Work title',
@@ -304,7 +322,7 @@ describe('MongoWorkRepository', () => {
       const workId = 'work-1';
 
       workModel.WorkModel.findOne.mockReturnValue({
-        lean: async () => ({
+        lean: () => ({
           id: workId,
           slug: 'work-slug',
           title: 'Work title',

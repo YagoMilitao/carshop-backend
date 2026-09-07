@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 import rateLimit, {
   ipKeyGenerator,
+  type Options,
   type RateLimitRequestHandler,
 } from 'express-rate-limit';
 
@@ -13,7 +14,7 @@ import rateLimit, {
  * - facilitar criação de limitadores específicos por rota no futuro
  * - manter tipagem forte
  */
-function createRateLimiter(options: any): RateLimitRequestHandler {
+function createRateLimiter(options: Partial<Options>): RateLimitRequestHandler {
   return rateLimit(options);
 }
 

@@ -32,9 +32,7 @@ export function extractCookie(
 /**
  * Normaliza o header `Set-Cookie` (string única ou array) em um array.
  */
-export function getSetCookieArray(
-  headers: Record<string, unknown>,
-): string[] {
+export function getSetCookieArray(headers: Record<string, unknown>): string[] {
   const rawSetCookie = headers['set-cookie'];
   if (Array.isArray(rawSetCookie)) {
     return rawSetCookie as string[];

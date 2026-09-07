@@ -70,13 +70,15 @@ describe('CloudinaryStorageService', () => {
 
   describe('upload', () => {
     it('resolve com url e publicId quando o upload é bem-sucedido', async () => {
-      mockUploadStream.mockImplementation((_options, callback) => {
-        callback(undefined, {
-          secure_url: 'https://cdn.example.com/image.png',
-          public_id: 'carshop/works/work-1/image-1',
-        });
-        return { end: mockEnd };
-      });
+      mockUploadStream.mockImplementation(
+        (_options: unknown, callback: UploadCallback) => {
+          callback(undefined, {
+            secure_url: 'https://cdn.example.com/image.png',
+            public_id: 'carshop/works/work-1/image-1',
+          });
+          return { end: mockEnd };
+        },
+      );
 
       const service = new CloudinaryStorageService();
 
@@ -95,10 +97,12 @@ describe('CloudinaryStorageService', () => {
     });
 
     it('rejeita quando o Cloudinary retorna erro', async () => {
-      mockUploadStream.mockImplementation((_options, callback) => {
-        callback({ message: 'falha de rede' }, undefined);
-        return { end: mockEnd };
-      });
+      mockUploadStream.mockImplementation(
+        (_options: unknown, callback: UploadCallback) => {
+          callback({ message: 'falha de rede' }, undefined);
+          return { end: mockEnd };
+        },
+      );
 
       const service = new CloudinaryStorageService();
 
@@ -113,10 +117,12 @@ describe('CloudinaryStorageService', () => {
     });
 
     it('rejeita quando o Cloudinary não retorna secure_url ou public_id', async () => {
-      mockUploadStream.mockImplementation((_options, callback) => {
-        callback(undefined, {});
-        return { end: mockEnd };
-      });
+      mockUploadStream.mockImplementation(
+        (_options: unknown, callback: UploadCallback) => {
+          callback(undefined, {});
+          return { end: mockEnd };
+        },
+      );
 
       const service = new CloudinaryStorageService();
 
@@ -140,10 +146,10 @@ describe('CloudinaryStorageService', () => {
       await expect(
         service.delete('carshop/works/work-1/image-1'),
       ).resolves.toBeUndefined();
-      expect(mockDestroy).toHaveBeenCalledWith(
-        'carshop/works/work-1/image-1',
-        { resource_type: 'image', invalidate: true },
-      );
+      expect(mockDestroy).toHaveBeenCalledWith('carshop/works/work-1/image-1', {
+        resource_type: 'image',
+        invalidate: true,
+      });
     });
 
     it('trata "not found" como sucesso (idempotência)', async () => {
