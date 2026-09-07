@@ -30,7 +30,8 @@ pode acessar. Esta especificação divide o trabalho em dois grupos:
 
 Garantir que:
 
-- nenhum secret real esteja versionado no repositório;
+- nenhum secret real esteja versionado no estado atual ou no histórico do
+  repositório;
 - `.env` permaneça fora do controle de versão, incluindo o histórico do
   git;
 - a validação de força de `JWT_SECRET` em produção exista e esteja
@@ -53,9 +54,11 @@ repositório.
 FR-002
 Nenhum valor real de secret (ex.: `JWT_SECRET`, `ADMIN_PASSWORD`,
 `MONGO_URI` com credenciais, `CLOUDINARY_API_KEY`,
-`CLOUDINARY_API_SECRET`) deve estar commitado em nenhum arquivo do
-repositório, incluindo `.env.example`, documentação (`README.md`,
-`CLAUDE.md`) e qualquer conteúdo sob `specs/`.
+`CLOUDINARY_API_SECRET`) deve estar commitado em nenhum arquivo rastreado,
+independentemente do caminho ou tipo, nem em qualquer revisão alcançável do
+histórico git do repositório. Isso inclui, sem se limitar a, código-fonte,
+testes, workflows, arquivos de configuração, `.env.example`, documentação e
+todo o conteúdo sob `specs/`.
 
 FR-003
 `.env.example` pode listar apenas os NOMES das variáveis de ambiente
@@ -116,11 +119,16 @@ AC-002
 Ao inspecionar `.gitignore`, a entrada `.env` deve estar presente.
 
 AC-003
-Ao inspecionar `.env.example`, README, CLAUDE.md e todo o conteúdo sob
-`specs/`, nenhum valor de secret real (string com aparência de
-JWT secret, senha, API key/secret do Cloudinary, connection string com
-credenciais embutidas) deve estar presente — apenas nomes de variáveis
-ou valores explicitamente fictícios.
+Ao executar uma varredura de secrets em todos os arquivos rastreados no estado
+atual e em todas as revisões alcançáveis do histórico git, nenhum valor de
+secret real (string com aparência de JWT secret, senha, API key/secret do
+Cloudinary ou connection string com credenciais embutidas) deve ser encontrado.
+A verificação deve abranger todos os caminhos e tipos de arquivo, incluindo
+código-fonte, testes, workflows, arquivos de configuração, `.env.example`,
+documentação e `specs/`; apenas nomes de variáveis ou valores explicitamente
+fictícios são permitidos. O relatório da varredura pode identificar caminho,
+revisão, regra acionada e resultado da análise, mas não pode reproduzir o valor
+encontrado nem qualquer trecho que permita reconstruí-lo.
 
 AC-004
 Ao inspecionar `src/infra/config/env.ts`, deve existir uma validação que,
@@ -211,5 +219,5 @@ FR-004 → AC-004
 FR-005 → AC-005
 FR-006 → AC-006
 FR-007 → AC-006
-NFR-001 → AC-004, AC-005
+NFR-001 → AC-003, AC-004, AC-005
 NFR-002 → (risco operacional, não coberto por AC automatizável neste repositório)

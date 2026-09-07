@@ -114,11 +114,16 @@ aplicável" e registrar o motivo, em vez de executar os itens abaixo.
       nomes de variáveis efetivamente usados na configuração da Vercel)
       para qualquer variável de ambiente equivalente configurada no
       dashboard da Vercel.
-- [ ] **3.2** Confirmar que não existe divergência de valores entre o que
-      está configurado na Vercel e o que está configurado no Render para
-      a mesma variável lógica (por exemplo, `JWT_SECRET` diferente entre
-      as duas plataformas pode quebrar validação de sessão, caso ambas
-      sirvam a mesma aplicação).
+- [ ] **3.2** Confirmar, com base na topologia real, quais configurações
+      precisam compartilhar estado ou credenciais entre Vercel e Render.
+      Exigir igualdade somente para a variável cuja função dependa desse
+      compartilhamento (por exemplo, validação das mesmas sessões com
+      `JWT_SECRET`). Quando os componentes pertençam a ambientes ou
+      fronteiras de segurança distintos e não compartilhem sessões, banco,
+      dados ou conta de provedor, validar cada secret contra o destino
+      pretendido sem exigir igualdade; nesses casos, preferir credenciais
+      distintas e com o menor privilégio necessário para limitar o impacto
+      de um eventual vazamento.
 - [ ] **3.3** Repetir a verificação de secrets vazados (itens 2.1 e 2.2)
       para os valores configurados na Vercel.
 
