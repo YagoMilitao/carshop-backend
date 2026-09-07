@@ -1,5 +1,8 @@
 import { env } from '../infra/config/env';
-import { connectDatabase, disconnectDatabase } from '@/infra/database/mongoose';
+import {
+  connectDatabase,
+  disconnectDatabase,
+} from '../infra/database/mongoose';
 import { WorkModel } from '../data/models/work.model';
 import { CategoryModel } from '../data/models/category.model';
 import { TagModel } from '../data/models/tag.model';

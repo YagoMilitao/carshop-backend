@@ -1,4 +1,4 @@
-import { HttpError } from '@/core/domain/application/ApplicationError/http-error';
+import { HttpError } from '../../../core/domain/application/ApplicationError/http-error';
 import { z, type ZodType } from 'zod';
 
 /**
