@@ -33,6 +33,9 @@ const mockTokenService = { name: 'token-service' };
 const mockCredentialsProvider = { name: 'credentials-provider' };
 const mockImageStorage = { name: 'image-storage' };
 const mockAuthService = { name: 'auth-service' };
+const mockDatabaseHealthCheck = { name: 'database-health-check' };
+const mockGetHealthStatusUseCase = { name: 'get-health-status-use-case' };
+const mockHealthController = { name: 'health-controller' };
 
 const mockExpress = jest.fn(() => mockApp);
 const mockMongoSessionStoreRepository = jest.fn(() => mockSessionStore);
@@ -41,6 +44,15 @@ const mockMongoCommentRepository = jest.fn(() => mockCommentRepository);
 const mockJsonWebTokenService = jest.fn(() => mockTokenService);
 const mockEnvAdminCredentialsProvider = jest.fn(() => mockCredentialsProvider);
 const mockCloudinaryStorageService = jest.fn(() => mockImageStorage);
+const mockMongooseDatabaseHealthCheckService = jest.fn(
+  () => mockDatabaseHealthCheck,
+);
+const mockGetHealthStatusUseCaseConstructor = jest.fn<
+  (databaseHealthCheck: unknown) => typeof mockGetHealthStatusUseCase
+>(() => mockGetHealthStatusUseCase);
+const mockHealthControllerConstructor = jest.fn<
+  (getHealthStatusUseCase: unknown) => typeof mockHealthController
+>(() => mockHealthController);
 const mockAuthServiceConstructor = jest.fn<
   (
     sessionStore: unknown,
@@ -105,6 +117,21 @@ jest.mock('../../../src/infra/swagger', () => ({
   registerSwagger: mockRegisterSwagger,
 }));
 
+jest.mock(
+  '../../../src/infra/services/mongoose-database-health-check.service',
+  () => ({
+    MongooseDatabaseHealthCheckService: mockMongooseDatabaseHealthCheckService,
+  }),
+);
+
+jest.mock('../../../src/usecase/get-health-status.use-case', () => ({
+  GetHealthStatusUseCase: mockGetHealthStatusUseCaseConstructor,
+}));
+
+jest.mock('../../../src/presentation/controllers/health.controller', () => ({
+  HealthController: mockHealthControllerConstructor,
+}));
+
 function loadCreateApp() {
   const module =
     require('../../../src/infra/server') as typeof import('../../../src/infra/server');
@@ -142,6 +169,13 @@ describe('createApp', () => {
       mockTokenService,
       mockCredentialsProvider,
     );
+    expect(mockMongooseDatabaseHealthCheckService).toHaveBeenCalledTimes(1);
+    expect(mockGetHealthStatusUseCaseConstructor).toHaveBeenCalledWith(
+      mockDatabaseHealthCheck,
+    );
+    expect(mockHealthControllerConstructor).toHaveBeenCalledWith(
+      mockGetHealthStatusUseCase,
+    );
 
     expect(mockRegisterBaseMiddlewares).toHaveBeenCalledWith(mockApp);
     expect(mockRegisterSwagger).toHaveBeenCalledWith(mockApp);
@@ -152,6 +186,7 @@ describe('createApp', () => {
       workRepository: mockWorkRepository,
       commentRepository: mockCommentRepository,
       imageStorage: mockImageStorage,
+      healthController: mockHealthController,
     });
     expect(mockRegisterTerminalMiddlewares).toHaveBeenCalledWith(mockApp);
   });
@@ -214,6 +249,7 @@ describe('createApp', () => {
       workRepository: mockWorkRepository,
       commentRepository: mockCommentRepository,
       imageStorage: overrideImageStorage,
+      healthController: mockHealthController,
     });
   });
 });

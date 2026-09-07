@@ -93,6 +93,61 @@ Comportamento padrão de segurança:
 - Demais ambientes: Swagger habilitado por padrão.
 - Para forçar comportamento: use `ENABLE_SWAGGER=true` ou `ENABLE_SWAGGER=false`.
 
+## Deploy no Render (Web Service)
+
+O backend pode ser publicado no Render como um **Web Service**, usando os
+scripts de build/start já existentes do projeto:
+
+- **Build Command**: `npm run build`
+- **Start Command**: `npm run start:prod`
+- **Health Check Path**: `/health`
+
+O endpoint `GET /health` responde `200` com
+`{ "status": "ok", "database": "connected" }` quando o processo está no ar
+e conectado ao MongoDB, e `503` com
+`{ "status": "degraded", "database": "disconnected" }` quando a conexão
+com o banco não está ativa — permitindo que o Render detecte instâncias
+não saudáveis (não apenas o processo vivo).
+
+### Variáveis de ambiente exigidas
+
+Configure exclusivamente pelo mecanismo de variáveis de ambiente/secrets
+do Render — nunca commitar valores reais no repositório. Nomes exigidos
+(ver `.env.example` para a lista completa e mais detalhes de cada uma):
+
+- `NODE_ENV`
+- `PORT`
+- `CORS_ORIGIN`
+- `MONGO_URI`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN`
+- `JWT_REFRESH_EXPIRES_IN`
+- `JWT_REFRESH_COOKIE_MAX_AGE_MS`
+- `ENABLE_SWAGGER`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `WORK_HARD_DELETE_AFTER_DAYS`
+- `TRUST_PROXY_HOPS`
+
+### Recomendações operacionais
+
+- **`TRUST_PROXY_HOPS`**: recomenda-se configurar `TRUST_PROXY_HOPS=1` no
+  Render, já que os Web Services do Render ficam atrás de exatamente um
+  proxy reverso gerenciado pela plataforma. Esta é uma recomendação
+  externa/operacional baseada na topologia documentada do Render, **não
+  verificada contra a topologia real deste deploy específico** — confirme
+  antes de confiar no comportamento de rate limiting baseado em IP em
+  produção.
+- **Versão do Node.js**: o projeto fixa `engines.node` como `20.x` em
+  `package.json`, alinhado à versão já validada pelo pipeline de CI, para
+  manter consistência de build/runtime entre CI e Render.
+- O provisionamento do cluster do MongoDB Atlas e o valor de `MONGO_URI`
+  são tratados por uma tarefa relacionada e separada; este backend apenas
+  consome `MONGO_URI` como variável de ambiente.
+
 ## Arquitetura Hexagonal
 
 O módulo de autenticação foi separado em quatro camadas:

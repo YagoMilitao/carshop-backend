@@ -194,6 +194,15 @@ describe('Health check (e2e)', () => {
 
     expect(response.text).toBe('Hello World!');
   });
+
+  // CARSHOP-37 / FR-005, FR-007, NFR-003, AC-004: with a live MongoDB
+  // connection established, GET /health must report the service as
+  // healthy and connected.
+  it('returns 200 with { status: "ok", database: "connected" } when the database is connected (CARSHOP-37)', async () => {
+    const response = await request(app).get('/health').expect(200);
+
+    expect(response.body).toEqual({ status: 'ok', database: 'connected' });
+  });
 });
 
 /**

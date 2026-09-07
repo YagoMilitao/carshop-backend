@@ -20,6 +20,23 @@ describe('openApiDocument', () => {
     expect(openApiDocument.paths['/works/{slug}']).toBeDefined();
   });
 
+  // CARSHOP-37 / FR-005, NFR-003, AC-004: GET /health must be documented
+  // with 200 (ok/connected) and 503 (degraded/disconnected) responses.
+  it('documents GET /health with 200 and 503 responses (CARSHOP-37)', () => {
+    const healthPath = openApiDocument.paths['/health'] as unknown as {
+      get: {
+        tags: string[];
+        responses: Record<string, unknown>;
+      };
+    };
+
+    expect(healthPath).toBeDefined();
+    expect(healthPath.get).toBeDefined();
+    expect(healthPath.get.tags).toContain('Health');
+    expect(healthPath.get.responses['200']).toBeDefined();
+    expect(healthPath.get.responses['503']).toBeDefined();
+  });
+
   // CARSHOP-117 / FR-011, AC-006: GET /works/{slug} must be documented
   // with 200 and 404 responses, referencing the corrected WorkResponse
   // schema.

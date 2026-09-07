@@ -7,6 +7,7 @@ import type { ImageStoragePort } from '../../core/domain/application/Storage/ima
 import type { SessionStorePort } from '../../core/domain/repositories/session-store.repository';
 import type { WorkRepositoryPort } from '../../core/domain/repositories/work.repository';
 import type { CommentRepositoryPort } from '../../core/domain/repositories/comment.repository';
+import type { HealthController } from '../../presentation/controllers/health.controller';
 
 import { buildAuthRouter } from '../http/routes/auth.routes';
 import { buildWorkRouter } from '../http/routes/work.routes';
@@ -28,6 +29,7 @@ interface RegisterRoutesDependencies {
   workRepository: WorkRepositoryPort;
   commentRepository: CommentRepositoryPort;
   imageStorage: ImageStoragePort;
+  healthController: HealthController;
 }
 
 /**
@@ -43,6 +45,12 @@ export function registerRoutes(
   app.get('/', (_request, response) => {
     response.status(200).send('Hello World!');
   });
+
+  /**
+   * Health check detalhado, usado pela plataforma de deploy (Render)
+   * para detectar liveness do processo e conectividade com o MongoDB.
+   */
+  app.get('/health', dependencies.healthController.check);
 
   /**
    * Rotas de autenticação.

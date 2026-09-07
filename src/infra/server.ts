@@ -15,6 +15,9 @@ import { MongoWorkRepository } from './repositories/mongo-work.repository';
 import { MongoCommentRepository } from './repositories/mongo-comment.repository';
 import { JsonWebTokenService } from './services/jsonwebtoken-token.service';
 import { CloudinaryStorageService } from './gateway/cloudinary/cloudinary-storage.service';
+import { MongooseDatabaseHealthCheckService } from './services/mongoose-database-health-check.service';
+import { GetHealthStatusUseCase } from '../usecase/get-health-status.use-case';
+import { HealthController } from '../presentation/controllers/health.controller';
 import { registerSwagger } from './swagger';
 
 /**
@@ -85,6 +88,19 @@ export function createApp(overrides: CreateAppOverrides = {}): Express {
   );
 
   /**
+   * Health check (CARSHOP-37).
+   *
+   * Motivo:
+   * expor `GET /health`, usado pela plataforma de deploy (Render) para
+   * detectar liveness do processo e conectividade com o MongoDB.
+   */
+  const databaseHealthCheck = new MongooseDatabaseHealthCheckService();
+  const getHealthStatusUseCase = new GetHealthStatusUseCase(
+    databaseHealthCheck,
+  );
+  const healthController = new HealthController(getHealthStatusUseCase);
+
+  /**
    * Documentação Swagger.
    */
   registerSwagger(app);
@@ -99,6 +115,7 @@ export function createApp(overrides: CreateAppOverrides = {}): Express {
     workRepository,
     commentRepository,
     imageStorage,
+    healthController,
   });
 
   /**

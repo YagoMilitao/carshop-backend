@@ -5,6 +5,7 @@ import type { ImageStoragePort } from '../../../../src/core/domain/application/S
 import type { SessionStorePort } from '../../../../src/core/domain/repositories/session-store.repository';
 import type { WorkRepositoryPort } from '../../../../src/core/domain/repositories/work.repository';
 import type { CommentRepositoryPort } from '../../../../src/core/domain/repositories/comment.repository';
+import type { HealthController } from '../../../../src/presentation/controllers/health.controller';
 
 const mockAuthRouter = { name: 'auth-router' };
 const mockWorkRouter = { name: 'work-router' };
@@ -61,6 +62,9 @@ describe('registerRoutes', () => {
   const workRepository = {} as WorkRepositoryPort;
   const commentRepository = {} as CommentRepositoryPort;
   const imageStorage = {} as ImageStoragePort;
+  const healthController = {
+    check: jest.fn(),
+  } as unknown as HealthController;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -76,6 +80,7 @@ describe('registerRoutes', () => {
       workRepository,
       commentRepository,
       imageStorage,
+      healthController,
     });
 
     expect(app.get).toHaveBeenCalledWith('/', expect.any(Function));
@@ -95,6 +100,22 @@ describe('registerRoutes', () => {
     expect(response.send).toHaveBeenCalledWith('Hello World!');
   });
 
+  it('registers GET /health with the injected health controller', () => {
+    const app = createAppMock();
+
+    registerRoutes(app, {
+      authService,
+      sessionStore,
+      tokenService,
+      workRepository,
+      commentRepository,
+      imageStorage,
+      healthController,
+    });
+
+    expect(app.get).toHaveBeenCalledWith('/health', healthController.check);
+  });
+
   it('wires each feature router with its dependencies at the expected base path', () => {
     const app = createAppMock();
 
@@ -105,6 +126,7 @@ describe('registerRoutes', () => {
       workRepository,
       commentRepository,
       imageStorage,
+      healthController,
     });
 
     expect(mockBuildAuthRouter).toHaveBeenCalledWith(
