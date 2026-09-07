@@ -98,10 +98,9 @@ describe('create-indexes script (NFR-001)', () => {
     process.exitCode = originalExitCode;
   });
 
-  it('em caso de falha na conexão, loga apenas a mensagem sanitizada, marca exitCode = 1 e ainda assim desconecta', async () => {
-    const failure = new Error('connection refused');
+  it('em caso de falha na conexão, loga apenas uma mensagem fixa, marca exitCode = 1 e ainda assim desconecta', async () => {
     const connectDatabaseMock = jest.fn<(uri: string) => Promise<void>>(() =>
-      Promise.reject(failure),
+      Promise.reject(new Error('connection refused')),
     );
     const disconnectDatabaseMock = jest.fn<() => Promise<void>>(() =>
       Promise.resolve(),
@@ -146,21 +145,7 @@ describe('create-indexes script (NFR-001)', () => {
     await waitFor(() => disconnectDatabaseMock.mock.calls.length > 0);
 
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    const [errorCallArgs] = errorSpy.mock.calls;
-    expect(errorCallArgs).toEqual([
-      'Erro ao sincronizar índices.',
-      'connection refused',
-    ]);
-    // Guard against a regression that would leak the raw Error object,
-    // its stack, or a `.cause` property to the console instead of only
-    // the sanitized `.message` string.
-    errorCallArgs.forEach((arg) => {
-      expect(arg).not.toBeInstanceOf(Error);
-    });
-    expect(errorSpy).not.toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ cause: expect.anything() }),
-    );
+    expect(errorSpy).toHaveBeenCalledWith('Erro ao sincronizar índices.');
 
     expect(process.exitCode).toBe(1);
     expect(workSyncIndexesMock).not.toHaveBeenCalled();
@@ -181,13 +166,13 @@ describe('create-indexes script (NFR-001)', () => {
     };
 
     const connectDatabaseMock = jest.fn<(uri: string) => Promise<void>>(() =>
-      Promise.reject(fakeConnectionStringError),
+      Promise.resolve(),
     );
     const disconnectDatabaseMock = jest.fn<() => Promise<void>>(() =>
       Promise.resolve(),
     );
     const workSyncIndexesMock = jest.fn<() => Promise<void>>(() =>
-      Promise.resolve(),
+      Promise.reject(fakeConnectionStringError),
     );
     const categorySyncIndexesMock = jest.fn<() => Promise<void>>(() =>
       Promise.resolve(),
@@ -225,23 +210,16 @@ describe('create-indexes script (NFR-001)', () => {
 
     await waitFor(() => disconnectDatabaseMock.mock.calls.length > 0);
 
-    // The current implementation logs error.message directly, which is the
-    // accepted pattern already used by other scripts (e.g.
-    // purge-expired-works.ts). Confirm no additional raw object/cause leaks
-    // beyond that single sanitized string argument.
     expect(errorSpy).toHaveBeenCalledTimes(1);
     const [errorCallArgs] = errorSpy.mock.calls;
-    expect(errorCallArgs).toEqual([
-      'Erro ao sincronizar índices.',
-      fakeConnectionStringError.message,
-    ]);
-    expect(errorCallArgs).toHaveLength(2);
-    errorCallArgs.forEach((arg) => {
-      expect(arg).not.toBeInstanceOf(Error);
-      expect(arg).not.toHaveProperty('cause');
-    });
+    expect(errorCallArgs).toEqual(['Erro ao sincronizar índices.']);
+    expect(JSON.stringify(errorCallArgs)).not.toContain('fake-test-user');
+    expect(JSON.stringify(errorCallArgs)).not.toContain('fake-test-pass');
 
     expect(process.exitCode).toBe(1);
+    expect(workSyncIndexesMock).toHaveBeenCalledTimes(1);
+    expect(categorySyncIndexesMock).not.toHaveBeenCalled();
+    expect(tagSyncIndexesMock).not.toHaveBeenCalled();
     expect(disconnectDatabaseMock).toHaveBeenCalledTimes(1);
     expect(logSpy).not.toHaveBeenCalledWith(
       'Índices sincronizados com sucesso.',
@@ -252,6 +230,8 @@ describe('create-indexes script (NFR-001)', () => {
 
   it('quando o valor rejeitado não é uma instância de Error, loga uma mensagem genérica sem vazar o valor bruto', async () => {
     const connectDatabaseMock = jest.fn<(uri: string) => Promise<void>>(() =>
+      // Deliberately reject a non-Error value to cover an untrusted rejection.
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
       Promise.reject('mongodb://fake-test-user:fake-test-pass@localhost:27017'),
     );
     const disconnectDatabaseMock = jest.fn<() => Promise<void>>(() =>
@@ -296,10 +276,7 @@ describe('create-indexes script (NFR-001)', () => {
 
     await waitFor(() => disconnectDatabaseMock.mock.calls.length > 0);
 
-    expect(errorSpy).toHaveBeenCalledWith(
-      'Erro ao sincronizar índices.',
-      'erro desconhecido',
-    );
+    expect(errorSpy).toHaveBeenCalledWith('Erro ao sincronizar índices.');
     expect(process.exitCode).toBe(1);
     expect(disconnectDatabaseMock).toHaveBeenCalledTimes(1);
     expect(logSpy).not.toHaveBeenCalledWith(

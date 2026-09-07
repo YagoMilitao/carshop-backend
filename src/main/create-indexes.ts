@@ -13,11 +13,8 @@ async function run(): Promise<void> {
     await TagModel.syncIndexes();
 
     console.log('Índices sincronizados com sucesso.');
-  } catch (error: unknown) {
-    console.error(
-      'Erro ao sincronizar índices.',
-      error instanceof Error ? error.message : 'erro desconhecido',
-    );
+  } catch {
+    console.error('Erro ao sincronizar índices.');
     process.exitCode = 1;
   } finally {
     await disconnectDatabase();
