@@ -94,6 +94,7 @@ Return `BLOCKED`.
 ## Validation and delivery
 
 - Run the most directly related test and `npm run build` when changing TypeScript.
+- Run `npm run lint` on the files you touched before delivering. It auto-fixes style issues; treat any remaining error (and any new warning on your own changed lines, e.g. `no-floating-promises`, `no-unsafe-argument`) as something to fix now, not something to leave for `reviewer` or CI to catch later.
 - Don't hide failures or weaken tests. Distinguish pre-existing issues from regressions.
 - Review the diff before finishing to remove accidental changes, debugging, and incomplete code.
 - Deliver to the coordinator a summary of the implemented behavior, affected files, commands run, results, and any remaining risk.
