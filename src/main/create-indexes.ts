@@ -5,15 +5,20 @@ import { TagModel } from '../data/models/tag.model';
 import { connectDatabase, disconnectDatabase } from '@/infra/database/mongoose';
 
 async function run(): Promise<void> {
-  await connectDatabase(env.mongoUri);
+  try {
+    await connectDatabase(env.mongoUri);
 
-  await WorkModel.syncIndexes();
-  await CategoryModel.syncIndexes();
-  await TagModel.syncIndexes();
+    await WorkModel.syncIndexes();
+    await CategoryModel.syncIndexes();
+    await TagModel.syncIndexes();
 
-  console.log('Índices sincronizados com sucesso.');
-
-  await disconnectDatabase();
+    console.log('Índices sincronizados com sucesso.');
+  } catch {
+    console.error('Erro ao sincronizar índices.');
+    process.exitCode = 1;
+  } finally {
+    await disconnectDatabase();
+  }
 }
 
 void run();

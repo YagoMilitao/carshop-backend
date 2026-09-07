@@ -37,6 +37,77 @@ function captureEnvLoadError(): Error {
   return thrown as Error;
 }
 
+describe('env — MONGO_URI shape validation (CARSHOP-36, FR-001, FR-002, AC-001, AC-002)', () => {
+  const originalEnv = process.env;
+
+  const REQUIRED_ENV = {
+    MONGO_URI: 'mongodb://unit-test',
+    JWT_SECRET: 'unit-test-secret',
+    ADMIN_EMAIL: 'admin@example.com',
+    ADMIN_PASSWORD: 'unit-test-password',
+    NODE_ENV: 'test',
+  };
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, ...REQUIRED_ENV };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('falha ao startup quando MONGO_URI está ausente/vazia, sem vazar valor (AC-001)', () => {
+    process.env.MONGO_URI = '';
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain('MONGO_URI');
+  });
+
+  it.each(['not-a-uri', 'http://example.com', 'postgres://localhost/db'])(
+    'falha ao startup quando MONGO_URI não começa com "mongodb://" ou "mongodb+srv://": %p (AC-002)',
+    (invalidValue) => {
+      process.env.MONGO_URI = invalidValue;
+
+      const error = captureEnvLoadError();
+
+      expect(error.message).toContain('MONGO_URI');
+      expect(error.message).not.toContain(invalidValue);
+    },
+  );
+
+  it('aceita MONGO_URI iniciando com "mongodb://"', () => {
+    process.env.MONGO_URI = 'mongodb://unit-test/db';
+
+    const loadedEnv = loadEnvModule();
+
+    expect(loadedEnv.mongoUri).toBe('mongodb://unit-test/db');
+  });
+
+  it('aceita MONGO_URI iniciando com "mongodb+srv://"', () => {
+    process.env.MONGO_URI = 'mongodb+srv://unit-test/db';
+
+    const loadedEnv = loadEnvModule();
+
+    expect(loadedEnv.mongoUri).toBe('mongodb+srv://unit-test/db');
+  });
+
+  it('aplica a validação de forma incondicional em NODE_ENV=development', () => {
+    process.env = {
+      ...originalEnv,
+      ...REQUIRED_ENV,
+      NODE_ENV: 'development',
+      MONGO_URI: 'not-a-uri',
+    };
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain('MONGO_URI');
+    expect(error.message).not.toContain('not-a-uri');
+  });
+});
+
 describe('env — WORK_HARD_DELETE_AFTER_DAYS (FR-005, AC-009, AC-010)', () => {
   const originalEnv = process.env;
 

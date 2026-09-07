@@ -220,6 +220,25 @@ function assertProductionCorsOrigins(
 }
 
 /**
+ * Garante que "MONGO_URI" tenha o formato estrutural de uma connection
+ * string MongoDB válida (CARSHOP-36).
+ *
+ * Motivo:
+ * falhar rápido no startup quando "MONGO_URI" está ausente/malformada é
+ * melhor do que deixar o Mongoose falhar de forma pouco clara mais tarde.
+ * Roda incondicionalmente em todo `NODE_ENV`, assim como a checagem de
+ * presença já existente em `getRequiredEnv`. A mensagem de erro nomeia
+ * apenas a variável, nunca o valor configurado.
+ */
+function assertMongoUriShape(mongoUri: string): void {
+  if (!/^mongodb(\+srv)?:\/\//.test(mongoUri)) {
+    throw new Error(
+      'A variável "MONGO_URI" precisa ser uma connection string MongoDB válida (iniciando com "mongodb://" ou "mongodb+srv://").',
+    );
+  }
+}
+
+/**
  * Lê uma variável obrigatória do ambiente.
  *
  * Motivo:
@@ -337,6 +356,7 @@ const corsOrigins = getCorsOrigins();
 assertProductionCorsOrigins(nodeEnv, corsOrigins);
 
 const mongoUri = getRequiredEnv('MONGO_URI');
+assertMongoUriShape(mongoUri);
 
 const jwtSecret = getRequiredEnv('JWT_SECRET');
 assertJwtSecretStrength(nodeEnv, jwtSecret);
