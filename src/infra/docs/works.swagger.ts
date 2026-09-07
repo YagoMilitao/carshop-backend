@@ -1,8 +1,37 @@
-import { errorResponse, successResponse } from './swagger.helpers';
+import {
+  bearerSecurity,
+  errorResponse,
+  successResponse,
+} from './swagger.helpers';
 
 export const worksTags = [{ name: 'Works' }] as const;
 
 export const worksSchemas = {
+  CreateWorkRequest: {
+    type: 'object',
+    required: ['slug', 'title', 'description', 'category'],
+    properties: {
+      slug: { type: 'string', example: 'honda-civic-2020' },
+      title: { type: 'string', example: 'Honda Civic 2020' },
+      description: {
+        type: 'string',
+        example: 'Restauração completa do banco em couro.',
+      },
+      category: { type: 'string', example: 'bancos' },
+      tags: {
+        type: 'array',
+        items: { type: 'string' },
+        default: [],
+        example: ['couro', 'restauração'],
+      },
+      status: {
+        type: 'string',
+        enum: ['draft', 'published'],
+        default: 'draft',
+      },
+    },
+  },
+
   WorkResponse: {
     type: 'object',
     properties: {
@@ -83,6 +112,32 @@ export const worksPaths = {
         '401': errorResponse(
           'Access token ausente, inválido ou sessão expirada ao solicitar includeDrafts=true.',
         ),
+      },
+    },
+    post: {
+      tags: ['Works'],
+      summary: 'Cria um novo trabalho',
+      description:
+        'Endpoint privado. Exige um access token Bearer válido vinculado a uma sessão ativa.',
+      security: bearerSecurity,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CreateWorkRequest' },
+          },
+        },
+      },
+      responses: {
+        '201': successResponse(
+          'Trabalho criado com sucesso',
+          '#/components/schemas/WorkResponse',
+        ),
+        '400': errorResponse('Payload inválido.'),
+        '401': errorResponse(
+          'Access token ausente, inválido ou sessão expirada.',
+        ),
+        '409': errorResponse('Já existe um trabalho com o slug informado.'),
       },
     },
   },

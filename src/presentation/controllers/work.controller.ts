@@ -1,18 +1,13 @@
 import type { NextFunction, Request, Response } from 'express';
-import { HttpError } from '../../core/domain/application/ApplicationError/http-error';
 import { CreateWorkUseCase } from '../../usecase/create-work.use-case';
 import { ListWorksUseCase } from '../../usecase/list-works.use-case';
 import { GetWorkBySlugUseCase } from '../../usecase/get-work-by-slug.use-case';
 import { requireStringRouteParam } from '../helpers/route-param.helper';
-
-type CreateWorkPayload = {
-  slug?: string;
-  title?: string;
-  description?: string;
-  category?: string;
-  tags?: string[];
-  status?: 'draft' | 'published';
-};
+import { validateWithSchema } from '../../infra/presentation/helpers/zod-validation.helper';
+import {
+  CreateWorkSchemaInput,
+  createWorkSchema,
+} from '../../infra/presentation/validators/create-work.schema';
 
 export class WorkController {
   constructor(
@@ -27,24 +22,18 @@ export class WorkController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const body = request.body as CreateWorkPayload;
-
-      if (
-        typeof body.slug !== 'string' ||
-        typeof body.title !== 'string' ||
-        typeof body.description !== 'string' ||
-        typeof body.category !== 'string'
-      ) {
-        throw new HttpError(400, 'Payload inválido para criação de trabalho.');
-      }
+      const body = validateWithSchema<CreateWorkSchemaInput>(
+        createWorkSchema,
+        request.body,
+      );
 
       const work = await this.createWorkUseCase.execute({
         slug: body.slug,
         title: body.title,
         description: body.description,
         category: body.category,
-        tags: Array.isArray(body.tags) ? body.tags : [],
-        status: body.status ?? 'draft',
+        tags: body.tags,
+        status: body.status,
       });
 
       response.status(201).json(work);

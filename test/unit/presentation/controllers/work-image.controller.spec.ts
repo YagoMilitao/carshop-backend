@@ -113,6 +113,93 @@ describe('WorkImageController', () => {
       expect(next).toHaveBeenCalledWith(expect.any(HttpError));
     });
 
+    it('forwards a 400 error to next when body contains an unknown property (AC-001/FR-005)', async () => {
+      const uploadUseCase = createUploadUseCaseMock();
+      const deleteUseCase = createDeleteUseCaseMock();
+      const controller = new WorkImageController(uploadUseCase, deleteUseCase);
+
+      const response = createResponseMock();
+      const next = jest.fn();
+
+      const request = {
+        params: { workId: 'work-1' },
+        body: { alt: 'Descrição', isCover: 'true', unknownField: 'nope' },
+        file: {
+          path: '/tmp/uploads/file.png',
+          mimetype: 'image/png',
+          originalname: 'photo.png',
+        },
+      } as unknown as Request<
+        { workId: string },
+        unknown,
+        { alt?: unknown; isCover?: unknown }
+      >;
+
+      await controller.upload(request, response, next);
+
+      expect(uploadUseCase.execute).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+    });
+
+    it('forwards a 400 error to next when alt has the wrong type (AC-001)', async () => {
+      const uploadUseCase = createUploadUseCaseMock();
+      const deleteUseCase = createDeleteUseCaseMock();
+      const controller = new WorkImageController(uploadUseCase, deleteUseCase);
+
+      const response = createResponseMock();
+      const next = jest.fn();
+
+      const request = {
+        params: { workId: 'work-1' },
+        body: { alt: 123 },
+        file: {
+          path: '/tmp/uploads/file.png',
+          mimetype: 'image/png',
+          originalname: 'photo.png',
+        },
+      } as unknown as Request<
+        { workId: string },
+        unknown,
+        { alt?: unknown; isCover?: unknown }
+      >;
+
+      await controller.upload(request, response, next);
+
+      expect(uploadUseCase.execute).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+    });
+
+    it('calls the use case with alt defaulted to empty string and isCover false when body is empty (AC-004)', async () => {
+      const uploadUseCase = createUploadUseCaseMock();
+      uploadUseCase.execute.mockResolvedValue(undefined);
+      const deleteUseCase = createDeleteUseCaseMock();
+      const controller = new WorkImageController(uploadUseCase, deleteUseCase);
+
+      const response = createResponseMock();
+      const next = jest.fn();
+
+      const request = {
+        params: { workId: 'work-1' },
+        body: {},
+        file: {
+          path: '/tmp/uploads/file.png',
+          mimetype: 'image/png',
+          originalname: 'photo.png',
+        },
+      } as unknown as Request<
+        { workId: string },
+        unknown,
+        { alt?: unknown; isCover?: unknown }
+      >;
+
+      await controller.upload(request, response, next);
+
+      expect(uploadUseCase.execute).toHaveBeenCalledWith(
+        expect.objectContaining({ alt: '', isCover: false }),
+      );
+      expect(next).not.toHaveBeenCalled();
+    });
+
     it('forwards use case errors to next', async () => {
       const uploadUseCase = createUploadUseCaseMock();
       uploadUseCase.execute.mockRejectedValue(new HttpError(404, 'not found'));
