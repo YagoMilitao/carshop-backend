@@ -94,6 +94,7 @@ Return `BLOCKED`.
 ## Validation and delivery
 
 - Run the most directly related test and `npm run build` when changing TypeScript.
+- Run ESLint with `--fix` only on the TypeScript files you touched before delivering (for example, `npx eslint --fix src/path/file.ts test/path/file.spec.ts`). Do not use the repository-wide `npm run lint` command for focused validation because it may rewrite unrelated files. Treat any remaining error (and any new warning on your own changed lines, e.g. `no-floating-promises`, `no-unsafe-argument`) as something to fix now, not something to leave for `reviewer` or CI to catch later.
 - Don't hide failures or weaken tests. Distinguish pre-existing issues from regressions.
 - Review the diff before finishing to remove accidental changes, debugging, and incomplete code.
 - Deliver to the coordinator a summary of the implemented behavior, affected files, commands run, results, and any remaining risk.
