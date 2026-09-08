@@ -1,6 +1,7 @@
 import {
   bearerSecurity,
   errorResponse,
+  globalRateLimitResponse,
   successResponse,
 } from './swagger.helpers';
 
@@ -74,7 +75,8 @@ export const adminWorksPaths = {
         '- formatos aceitos: JPEG, PNG e WebP;',
         '- tamanho máximo: 5 MB;',
         '- o campo do arquivo deve se chamar `file`;',
-        '- `alt` é usado para acessibilidade e SEO;',
+        '- `alt` é usado para acessibilidade e SEO e a persistência o limita a 160 caracteres;',
+        '- o validator HTTP atual não verifica o tamanho de `alt` antes do upload; valores acima de 160 caracteres chegam à persistência, causam resposta 500 e disparam uma tentativa de remoção compensatória do arquivo já enviado;',
         '- `isCover=true` define a imagem como capa e remove a marcação de capa das demais imagens;',
         '- o conteúdo binário real do arquivo é inspecionado (não apenas o Content-Type declarado); um arquivo cujo conteúdo detectado não seja um JPEG, PNG ou WebP válido, ou que divirja do tipo declarado, é rejeitado com a mesma resposta 415 usada para tipo de arquivo não suportado.',
       ].join('\n'),
@@ -130,7 +132,7 @@ export const adminWorksPaths = {
                   type: 'string',
                   maxLength: 160,
                   description:
-                    'Texto alternativo usado para acessibilidade e SEO. Opcional; quando ausente, é tratado como string vazia.',
+                    'Texto alternativo usado para acessibilidade e SEO. Opcional; quando ausente, é tratado como string vazia. O limite de 160 caracteres é imposto somente na persistência: o validator HTTP atual aceita valores maiores antes do upload, mas a operação termina com 500 quando o Mongoose rejeita os metadados.',
                   example: 'Banco do Honda Civic reformado em couro preto.',
                 },
 
@@ -159,7 +161,7 @@ export const adminWorksPaths = {
         ),
 
         '400': errorResponse(
-          'Arquivo ausente, formato inválido ou metadados incorretos.',
+          'Arquivo ausente, falha ao processar o multipart ou payload de campos inválido. Não se aplica a alt com mais de 160 caracteres.',
         ),
 
         '401': errorResponse(
@@ -174,8 +176,10 @@ export const adminWorksPaths = {
           'Tipo de arquivo não suportado. Envie JPEG, PNG ou WebP.',
         ),
 
+        '429': globalRateLimitResponse,
+
         '500': errorResponse(
-          'Falha inesperada ao enviar ou persistir a imagem.',
+          'Falha inesperada ao enviar ou persistir a imagem. Inclui alt com mais de 160 caracteres: o arquivo é enviado antes da falha de persistência e o backend tenta removê-lo como compensação.',
         ),
       },
     },
@@ -228,6 +232,8 @@ export const adminWorksPaths = {
 
         '404': errorResponse('Trabalho ou imagem não encontrado(a).'),
 
+        '429': globalRateLimitResponse,
+
         '500': errorResponse('Falha inesperada ao remover a imagem.'),
       },
     },
@@ -272,6 +278,8 @@ export const adminWorksPaths = {
         ),
 
         '404': errorResponse('Trabalho não encontrado.'),
+
+        '429': globalRateLimitResponse,
 
         '502': errorResponse(
           'Falha ao remover arquivos do armazenamento externo. Tente novamente.',

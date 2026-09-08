@@ -15,12 +15,16 @@ no `carshop-backend`, para consumo do time de frontend (Next.js).
 - Nenhum valor real de credencial, segredo, cookie ou token aparece neste
   documento. Todos os exemplos usam placeholders fictícios (ex.:
   `admin@example.com`, `<ACCESS_TOKEN>`).
-- **Fonte viva do contrato**: enquanto este documento existir, ele deve ser
-  tratado como um resumo de consolidação. A fonte viva, sempre atualizada
-  automaticamente com o código, é:
+- **Referência operacional do contrato**: enquanto este documento existir, ele
+  deve ser tratado como um resumo de consolidação. A especificação OpenAPI é
+  mantida manualmente em `src/infra/docs/*.swagger.ts` e disponibilizada em:
   - `GET /docs` — Swagger UI interativo;
   - `GET /docs.json` — spec OpenAPI em JSON, consumível por geradores de
     client HTTP.
+
+  Como essa especificação não é gerada automaticamente a partir das rotas ou
+  dos validators, ela pode divergir do comportamento executado pelo backend e
+  deve ser conferida com a implementação quando houver dúvida.
 
   A disponibilidade de `/docs` e `/docs.json` depende das variáveis de
   ambiente `ENABLE_SWAGGER` e `NODE_ENV` (por padrão, habilitado fora de
@@ -104,6 +108,22 @@ comportamento ao desenhar sua estratégia de retry/loading/timeout,
 especialmente em fluxos que dependem de `GET /health` para verificar
 disponibilidade do backend.
 
+### 4. Rate limit global
+
+Todas as rotas documentadas passam por um limitador global de **100
+requisições por IP a cada 15 minutos**, incluindo respostas de sucesso e de
+erro. Isso inclui `/`, `/health` e, quando habilitados, `/docs` e `/docs.json`.
+Ao exceder o limite, qualquer endpoint pode responder `429` com o corpo:
+
+```json
+{ "message": "Muitas requisições. Tente novamente em alguns minutos." }
+```
+
+As respostas também expõem os headers padrão de rate limit para indicar o
+limite, o saldo restante e o momento de reset. `POST /auth/login` passa ainda
+por um limitador dedicado mais restritivo: 5 tentativas por combinação de IP e
+hash do e-mail a cada 5 minutos.
+
 ---
 
 ## Autenticação
@@ -159,7 +179,7 @@ Erros:
 | --- | --- |
 | `400` | Corpo inválido (schema de `email`/`password`). |
 | `401` | Credenciais inválidas. |
-| `429` | Muitas tentativas de login na janela de rate limit configurada. |
+| `429` | Limite global ou limite dedicado de login excedido. |
 
 ### `POST /auth/refresh`
 
@@ -181,6 +201,7 @@ Erros:
 | --- | --- |
 | `401` | Refresh token ausente, inválido, expirado ou sessão revogada. |
 | `403` | Falha na validação CSRF (`X-CSRF-Token` ausente ou divergente do cookie). |
+| `429` | Limite global de requisições excedido. |
 
 ### `POST /auth/logout`
 
@@ -202,6 +223,7 @@ Erros:
 | --- | --- |
 | `401` | Sessão inválida. |
 | `403` | Falha na validação CSRF. |
+| `429` | Limite global de requisições excedido. |
 
 ### `GET /auth/session`
 
@@ -225,6 +247,7 @@ Erros:
 | Status | Quando ocorre |
 | --- | --- |
 | `401` | Token ausente, inválido ou sessão expirada. |
+| `429` | Limite global de requisições excedido. |
 
 ---
 
@@ -278,6 +301,7 @@ Erros:
 | Status | Quando ocorre |
 | --- | --- |
 | `401` | `includeDrafts=true` informado sem access token válido. |
+| `429` | Limite global de requisições excedido. |
 
 ### `GET /works/{slug}`
 
@@ -296,6 +320,7 @@ Erros:
 | Status | Quando ocorre |
 | --- | --- |
 | `404` | Nenhum trabalho publicado e não removido encontrado para o slug. |
+| `429` | Limite global de requisições excedido. |
 
 ### `POST /works`
 
@@ -329,6 +354,7 @@ Erros:
 | `400` | Payload inválido. |
 | `401` | Access token ausente, inválido ou sessão expirada. |
 | `409` | Já existe um trabalho com o slug informado. |
+| `429` | Limite global de requisições excedido. |
 
 ---
 
@@ -342,7 +368,9 @@ Erros:
   "workId": "string",
   "authorName": "string",
   "content": "string",
-  "status": "PENDING | APPROVED"
+  "status": "PENDING | APPROVED",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
 }
 ```
 
@@ -360,6 +388,7 @@ Erros:
 | Status | Quando ocorre |
 | --- | --- |
 | `404` | Trabalho não encontrado. |
+| `429` | Limite global de requisições excedido. |
 
 ### `POST /works/{workId}/comments`
 
@@ -394,6 +423,7 @@ Erros:
 | --- | --- |
 | `400` | Payload inválido. |
 | `404` | Trabalho não encontrado. |
+| `429` | Limite global de requisições excedido. |
 
 ---
 
@@ -417,6 +447,7 @@ Erros:
 | --- | --- |
 | `401` | Token ausente, inválido ou sessão expirada. |
 | `404` | Comentário não encontrado. |
+| `429` | Limite global de requisições excedido. |
 
 ### `PATCH /admin/comments/{commentId}`
 
@@ -447,6 +478,7 @@ Erros:
 | `400` | Payload inválido. |
 | `401` | Token ausente, inválido ou sessão expirada. |
 | `404` | Comentário não encontrado. |
+| `429` | Limite global de requisições excedido. |
 
 ### `DELETE /admin/comments/{commentId}`
 
@@ -466,6 +498,7 @@ Erros:
 | --- | --- |
 | `401` | Token ausente, inválido ou sessão expirada. |
 | `404` | Comentário não encontrado. |
+| `429` | Limite global de requisições excedido. |
 
 ---
 
@@ -487,8 +520,14 @@ Campos do form-data:
 | Campo | Obrigatório | Descrição |
 | --- | --- | --- |
 | `file` | Sim | Arquivo de imagem. Apenas um por requisição. Formatos aceitos: JPEG, PNG, WebP. Tamanho máximo: 5 MB. O conteúdo binário real do arquivo é inspecionado (não apenas o `Content-Type` declarado); um arquivo cujo conteúdo detectado não seja um JPEG/PNG/WebP válido, ou que divirja do tipo declarado, é rejeitado com `415`. |
-| `alt` | Não | Texto alternativo para acessibilidade/SEO (até 160 caracteres). Quando ausente, é tratado como string vazia. |
+| `alt` | Não | Texto alternativo para acessibilidade/SEO. Quando ausente, é tratado como string vazia. A persistência limita o valor a 160 caracteres, mas o validator HTTP atual não verifica esse tamanho antes do upload; veja a ressalva abaixo. |
 | `isCover` | Não | Quando enviado como a string `"true"`, define esta imagem como capa do trabalho e remove a marcação de capa das demais imagens do mesmo trabalho. |
+
+**Ressalva sobre `alt`**: um valor com mais de 160 caracteres passa pela
+validação inicial e o arquivo é enviado ao storage antes de a persistência ser
+tentada. O Mongoose rejeita os metadados, o backend tenta compensar removendo o
+arquivo já enviado e responde `500`; não responde `400` nesse caso. Essa é uma
+limitação atual da validação na fronteira HTTP.
 
 Resposta de sucesso `201`:
 
@@ -500,12 +539,13 @@ Erros:
 
 | Status | Quando ocorre |
 | --- | --- |
-| `400` | Arquivo ausente, formato inválido ou metadados incorretos. |
+| `400` | Arquivo ausente, falha ao processar o multipart ou payload de campos inválido. Não se aplica a `alt` com mais de 160 caracteres. |
 | `401` | Access token ausente, inválido ou sessão expirada. |
 | `404` | Trabalho não encontrado. |
 | `413` | Imagem ultrapassa o limite de 5 MB. |
 | `415` | Tipo de arquivo não suportado (declarado ou detectado no conteúdo binário). |
-| `500` | Falha inesperada ao enviar ou persistir a imagem. |
+| `429` | Limite global de requisições excedido. |
+| `500` | Falha inesperada ao enviar ou persistir a imagem, incluindo `alt` com mais de 160 caracteres; se o upload externo já ocorreu, o backend tenta removê-lo como compensação. |
 
 ### `DELETE /admin/works/{workId}/images/{imageId}`
 
@@ -527,6 +567,7 @@ Erros:
 | --- | --- |
 | `401` | Access token ausente, inválido ou sessão expirada. |
 | `404` | Trabalho ou imagem não encontrado(a). |
+| `429` | Limite global de requisições excedido. |
 | `500` | Falha inesperada ao remover a imagem. |
 
 ### `DELETE /admin/works/{workId}`
@@ -555,6 +596,7 @@ Erros:
 | --- | --- |
 | `401` | Access token ausente, inválido ou sessão expirada. |
 | `404` | Trabalho não encontrado. |
+| `429` | Limite global de requisições excedido. |
 | `502` | Falha ao remover arquivos do storage externo (operação abortada antes de alterar o MongoDB). |
 
 ---
@@ -566,6 +608,8 @@ Erros:
 Health check simples, sem autenticação.
 
 Resposta de sucesso `200` (`text/plain`): `Hello World!`
+
+Erro possível: `429` quando o limite global de requisições é excedido.
 
 ### `GET /health`
 
@@ -585,6 +629,8 @@ Resposta `503` (serviço degradado, sem conexão com o banco):
 ```json
 { "status": "degraded", "database": "disconnected" }
 ```
+
+Erro possível: `429` quando o limite global de requisições é excedido.
 
 Ver também o alerta sobre cold start do free tier do Render na seção
 "Alertas operacionais".

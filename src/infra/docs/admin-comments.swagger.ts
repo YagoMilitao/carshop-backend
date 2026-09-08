@@ -1,6 +1,7 @@
 import {
   bearerSecurity,
   errorResponse,
+  globalRateLimitResponse,
   successResponse,
 } from './swagger.helpers';
 
@@ -88,6 +89,7 @@ export const adminCommentsPaths = {
         ),
         '401': errorResponse('Token ausente, inválido ou sessão expirada.'),
         '404': errorResponse('Comentário não encontrado.'),
+        '429': globalRateLimitResponse,
       },
     },
   },
@@ -129,6 +131,7 @@ export const adminCommentsPaths = {
         '400': errorResponse('Payload inválido.'),
         '401': errorResponse('Token ausente, inválido ou sessão expirada.'),
         '404': errorResponse('Comentário não encontrado.'),
+        '429': globalRateLimitResponse,
       },
     },
 
@@ -157,6 +160,7 @@ export const adminCommentsPaths = {
         ),
         '401': errorResponse('Token ausente, inválido ou sessão expirada.'),
         '404': errorResponse('Comentário não encontrado.'),
+        '429': globalRateLimitResponse,
       },
     },
   },

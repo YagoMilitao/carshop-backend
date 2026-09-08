@@ -1,3 +1,5 @@
+import { globalRateLimitResponse } from './swagger.helpers';
+
 export const healthTags = [{ name: 'Health' }] as const;
 
 export const healthPaths = {
@@ -17,6 +19,7 @@ export const healthPaths = {
             },
           },
         },
+        '429': globalRateLimitResponse,
       },
     },
   },
@@ -41,6 +44,7 @@ export const healthPaths = {
             },
           },
         },
+        '429': globalRateLimitResponse,
         '503': {
           description: 'Serviço degradado (sem conexão com o banco de dados)',
           content: {
