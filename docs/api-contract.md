@@ -27,7 +27,7 @@
 ## Convenções gerais
 
 - Todas as respostas de sucesso e erro usam `Content-Type: application/json`,
-  exceto `GET /` (`text/plain`).
+  exceto `GET /` (`text/html; charset=utf-8` — ver seção "Health" abaixo).
 - Respostas de erro seguem o formato:
 
   ```json
@@ -38,10 +38,19 @@
 
   Erros originados de `HttpError` podem incluir também um campo opcional
   `details` (ver `src/infra/presentation/middleware/error-handler.middleware.ts`).
-  JSON inválido no corpo da requisição retorna `400` com
-  `{ "message": "JSON inválido no corpo da requisição." }`, e corpo acima do
-  limite (`1mb`) retorna `413` com
-  `{ "message": "Corpo da requisição excede o limite permitido." }`.
+  Qualquer erro não tratado explicitamente pelo middleware (ex.: `ValidationError`
+  do Mongoose lançado por `.create()`/`.save()` quando um limite de schema é
+  violado) cai no fallback genérico e retorna `500` com
+  `{ "message": "Erro interno no servidor." }`, sem detalhar a causa.
+  Esses limites são aplicados apenas ao parser JSON (`express.json({ limit: '1mb' })`,
+  ver `src/infra/config/middleware.ts`):
+  - JSON inválido no corpo da requisição retorna `400` com
+    `{ "message": "JSON inválido no corpo da requisição." }`.
+  - Corpo JSON acima do limite (`1mb`) retorna `413` com
+    `{ "message": "Corpo da requisição excede o limite permitido." }`.
+  Rotas `multipart/form-data` (upload de imagem) não passam por esse parser e
+  têm um limite independente de 5 MB, aplicado pelo Multer (ver seção
+  "Admin — Works").
 
 - **Rate limit global**: todas as rotas (exceto onde indicado um limite
   dedicado) estão sujeitas ao rate limit global —
@@ -70,7 +79,11 @@
     `NODE_ENV`), para suportar um frontend hospedado em origem diferente
     da API.
   - `maxAge` de ambos os cookies segue `JWT_REFRESH_COOKIE_MAX_AGE_MS`
-    (padrão: 7 dias, se a variável não estiver definida ou for inválida).
+    (padrão: 7 dias). O fallback para 7 dias só é aplicado quando a variável
+    está **ausente/vazia** ou quando seu valor não é um número (`NaN`). Um
+    valor numericamente válido porém não-positivo (ex.: `0` ou negativo) é
+    usado como está, **sem** cair no fallback — resultando em cookie de
+    sessão (`maxAge: 0`) ou expiração imediata/indefinida.
 
 - **CORS**: origens permitidas vêm de `CORS_ORIGIN` (`cors.origin`),
   `credentials: true`, métodos permitidos `GET, POST, PATCH, DELETE`,
@@ -83,7 +96,10 @@
 ### `GET /`
 
 - Autenticação: nenhuma.
-- Resposta `200` (`text/plain`): `Hello World!`
+- Resposta `200`: `Hello World!`. O handler chama `response.send('Hello World!')`
+  sem definir `Content-Type` explicitamente; o Express, para uma resposta
+  `string`, define `Content-Type: text/html; charset=utf-8` por padrão — **não**
+  `text/plain`.
 - `429`: rate limit global.
 
 ### `GET /health`
@@ -242,12 +258,33 @@ Rotas montadas em `/works` (`src/infra/http/routes/work.routes.ts`).
   - `slug`, `title`, `description`, `category`: obrigatórios (`string`).
   - `tags`: `string[]`, padrão `[]`.
   - `status`: `"draft" | "published"`, padrão `"draft"`.
+
+  **Atenção — limites reais, nem todos validados no mesmo nível:**
+  - `slug`: validado explicitamente pelo use case/repositório (não pelo Zod)
+    — máximo 120 caracteres e padrão `^[a-z0-9]+(?:-[a-z0-9]+)*$`
+    (minúsculo, hífen como separador). Violação retorna `400`.
+  - `title`: o Zod (`create-work.schema.ts`) só rejeita string vazia, sem
+    limite de tamanho. O limite real (**máximo 120 caracteres**) só existe
+    no schema Mongoose (`work.model.ts`) e é validado apenas quando o
+    documento é persistido via `.create()`.
+  - `description`: mesma situação de `title` — Zod só rejeita vazio; limite
+    real de **máximo 5000 caracteres** só existe no Mongoose.
+  - Violar o limite de `title`/`description` **não retorna `400`**: o
+    `ValidationError` do Mongoose não é tratado explicitamente pelo
+    `errorHandlerMiddleware` e cai no fallback genérico — resposta `500`
+    com `{ "message": "Erro interno no servidor." }`, sem indicar qual
+    campo falhou. Clientes devem validar esses limites no próprio
+    frontend antes de enviar, para não depender desse `500` não descritivo.
 - Resposta `201`: `WorkResponse` (ver abaixo).
 - Erros:
-  - `400`: payload inválido.
+  - `400`: payload inválido (campo obrigatório ausente/vazio, ou `slug` fora
+    do tamanho/formato permitido).
   - `401`: access token ausente/inválido/sessão expirada.
   - `409`: já existe um trabalho com o `slug` informado.
   - `429`: rate limit global.
+  - `500`: `title` ou `description` excedem o limite do schema Mongoose
+    (120 e 5000 caracteres, respectivamente) — não validado antes da
+    persistência, portanto não retorna `400` (ver observação acima).
 
 ### `GET /works/{slug}`
 
@@ -360,11 +397,17 @@ mesmo prefixo `/admin/works`).
 
 - Autenticação: `Authorization: Bearer <ACCESS_TOKEN>` (obrigatório).
 - Path param: `workId` (string, formato `uuid` no exemplo do Swagger).
-- Remove definitivamente o trabalho: apaga todas as imagens no storage
-  externo (Cloudinary), depois remove o trabalho e seus comentários no
-  MongoDB. Se a remoção de qualquer arquivo no storage externo falhar, a
-  operação é abortada **antes** de alterar o MongoDB, evitando registros
-  órfãos.
+- Remove definitivamente o trabalho: apaga as imagens no storage externo
+  (Cloudinary) **sequencialmente, uma por uma**, e só então remove o
+  trabalho e seus comentários no MongoDB. O documento do work no MongoDB
+  não é tocado até que **todas** as remoções externas tenham sucesso.
+- **Sem compensação em falha parcial**: se a remoção da imagem N falhar
+  (após as imagens 1..N-1 já terem sido removidas do Cloudinary com
+  sucesso), a operação aborta com `502` e **não** há tentativa de
+  restaurar as imagens já removidas nem de atualizar o documento no
+  MongoDB. O work permanece intacto no banco, mas passa a referenciar
+  arquivos que não existem mais no storage externo até uma nova tentativa
+  bem-sucedida da mesma operação.
 - Resposta `200`:
 
   ```json
@@ -375,7 +418,9 @@ mesmo prefixo `/admin/works`).
   - `401`: access token ausente/inválido/sessão expirada.
   - `404`: trabalho não encontrado.
   - `429`: rate limit global.
-  - `502`: falha ao remover arquivos do armazenamento externo.
+  - `502`: falha ao remover arquivos do armazenamento externo (ver nota de
+    consistência acima — pode deixar imagens já removidas do storage ainda
+    referenciadas pelo work no MongoDB).
 
 ### `POST /admin/works/{workId}/images`
 
@@ -387,12 +432,17 @@ mesmo prefixo `/admin/works`).
     (`uploadMiddleware.single('file')`). O conteúdo binário real é
     inspecionado (não apenas o `Content-Type` declarado); divergência ou
     tipo não suportado é rejeitado com `415`.
-  - `alt` (string, opcional, máx. 160 caracteres): texto alternativo para
-    acessibilidade/SEO. Quando ausente, tratado como string vazia. **O
-    limite de 160 caracteres é imposto apenas na persistência** — o
-    validator HTTP atual não valida esse limite antes do upload; um `alt`
-    maior chega à persistência, causa `500` e dispara uma tentativa de
-    remoção compensatória do arquivo já enviado ao storage externo.
+  - `alt` (string, opcional): texto alternativo para acessibilidade/SEO.
+    Quando ausente, tratado como string vazia. **O limite de 160
+    caracteres declarado no schema Mongoose (`work.model.ts`,
+    `maxlength: 160`) não é aplicado na prática**: o Zod HTTP não valida
+    esse limite (`upload-work-image-body.schema.ts` aceita `z.string()`
+    irrestrita), e a persistência é feita via `WorkModel.updateOne()` com
+    `$push`, operação em que o Mongoose **não** executa validators por
+    padrão (`runValidators` não é habilitado). Resultado real: um `alt`
+    com mais de 160 caracteres é **aceito e persistido sem truncamento e
+    sem erro**, retornando `201` normalmente — o limite documentado no
+    schema é, hoje, apenas decorativo para esta rota.
   - `isCover` (boolean, opcional, padrão `false`): quando `true`, define a
     imagem como capa do trabalho e remove a marcação de capa das demais
     imagens do mesmo trabalho.
@@ -404,14 +454,14 @@ mesmo prefixo `/admin/works`).
 
 - Erros:
   - `400`: arquivo ausente, falha ao processar o multipart ou payload de
-    campos inválido (não se aplica a `alt` com mais de 160 caracteres).
+    campos inválido (não se aplica a `alt` com mais de 160 caracteres — ver
+    nota acima, esse caso não gera erro algum hoje).
   - `401`: access token ausente/inválido/sessão expirada.
   - `404`: trabalho não encontrado.
   - `413`: imagem acima de 5 MB.
   - `415`: tipo de arquivo não suportado.
   - `429`: rate limit global.
-  - `500`: falha inesperada ao enviar ou persistir a imagem (inclui o caso
-    de `alt` acima de 160 caracteres).
+  - `500`: falha inesperada ao enviar ou persistir a imagem.
 
 ### `DELETE /admin/works/{workId}/images/{imageId}`
 
