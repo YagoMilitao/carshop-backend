@@ -23,6 +23,10 @@ export const errorResponse = (description: string) =>
     ...jsonErrorResponse,
   }) as const;
 
+export const globalRateLimitResponse = errorResponse(
+  'Limite global de 100 requisições por IP em 15 minutos excedido.',
+);
+
 export const bearerSecurity = [{ bearerAuth: [] }] as const;
 
 export const csrfHeaderParameter = {

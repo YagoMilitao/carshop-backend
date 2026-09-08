@@ -80,6 +80,53 @@ describe('openApiDocument', () => {
     expect(workResponseSchema.properties.deletedAt.nullable).toBe(true);
   });
 
+  it('documents CommentResponse timestamps as required date-time fields', () => {
+    const commentResponseSchema = openApiDocument.components.schemas
+      .CommentResponse as unknown as {
+      required: string[];
+      properties: Record<string, { type: string; format?: string }>;
+    };
+
+    expect(commentResponseSchema.required).toEqual(
+      expect.arrayContaining(['createdAt', 'updatedAt']),
+    );
+    expect(commentResponseSchema.properties.createdAt).toEqual({
+      type: 'string',
+      format: 'date-time',
+    });
+    expect(commentResponseSchema.properties.updatedAt).toEqual({
+      type: 'string',
+      format: 'date-time',
+    });
+  });
+
+  it('documents the global 429 response for every operation', () => {
+    const paths = openApiDocument.paths as unknown as Record<
+      string,
+      Record<string, { responses: Record<string, unknown> }>
+    >;
+
+    for (const operations of Object.values(paths)) {
+      for (const operation of Object.values(operations)) {
+        expect(operation.responses['429']).toBeDefined();
+      }
+    }
+  });
+
+  it('documents the current 500 response for image alt values over 160 characters', () => {
+    const uploadImagePath = openApiDocument.paths[
+      '/admin/works/{workId}/images'
+    ] as unknown as {
+      post: {
+        responses: Record<string, { description: string }>;
+      };
+    };
+
+    expect(uploadImagePath.post.responses['500'].description).toContain(
+      'alt com mais de 160 caracteres',
+    );
+  });
+
   it('contains security schemes used by auth endpoints', () => {
     expect(openApiDocument.components.securitySchemes.bearerAuth).toMatchObject(
       {

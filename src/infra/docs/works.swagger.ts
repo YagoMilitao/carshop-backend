@@ -1,6 +1,7 @@
 import {
   bearerSecurity,
   errorResponse,
+  globalRateLimitResponse,
   successResponse,
 } from './swagger.helpers';
 
@@ -112,6 +113,7 @@ export const worksPaths = {
         '401': errorResponse(
           'Access token ausente, inválido ou sessão expirada ao solicitar includeDrafts=true.',
         ),
+        '429': globalRateLimitResponse,
       },
     },
     post: {
@@ -138,6 +140,7 @@ export const worksPaths = {
           'Access token ausente, inválido ou sessão expirada.',
         ),
         '409': errorResponse('Já existe um trabalho com o slug informado.'),
+        '429': globalRateLimitResponse,
       },
     },
   },
@@ -165,6 +168,7 @@ export const worksPaths = {
         '404': errorResponse(
           'Nenhum trabalho publicado e não removido foi encontrado para o slug informado.',
         ),
+        '429': globalRateLimitResponse,
       },
     },
   },

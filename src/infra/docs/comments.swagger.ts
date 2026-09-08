@@ -1,4 +1,8 @@
-import { errorResponse, successResponse } from './swagger.helpers';
+import {
+  errorResponse,
+  globalRateLimitResponse,
+  successResponse,
+} from './swagger.helpers';
 
 export const commentsTags = [{ name: 'Comments' }] as const;
 
@@ -7,9 +11,16 @@ export const commentsSchemas = {
     type: 'object',
     required: ['authorName', 'content'],
     properties: {
-      authorName: { type: 'string', example: 'Yago' },
+      authorName: {
+        type: 'string',
+        minLength: 2,
+        maxLength: 80,
+        example: 'Yago',
+      },
       content: {
         type: 'string',
+        minLength: 3,
+        maxLength: 1000,
         example: 'Ficou muito bom esse trabalho.',
       },
     },
@@ -17,6 +28,15 @@ export const commentsSchemas = {
 
   CommentResponse: {
     type: 'object',
+    required: [
+      'id',
+      'workId',
+      'authorName',
+      'content',
+      'status',
+      'createdAt',
+      'updatedAt',
+    ],
     properties: {
       id: { type: 'string' },
       workId: { type: 'string' },
@@ -26,6 +46,8 @@ export const commentsSchemas = {
         type: 'string',
         enum: ['PENDING', 'APPROVED'],
       },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
     },
   },
 } as const;
@@ -56,6 +78,7 @@ export const commentsPaths = {
           },
         },
         '404': errorResponse('Trabalho não encontrado'),
+        '429': globalRateLimitResponse,
       },
     },
 
@@ -85,6 +108,7 @@ export const commentsPaths = {
         ),
         '400': errorResponse('Payload inválido'),
         '404': errorResponse('Trabalho não encontrado'),
+        '429': globalRateLimitResponse,
       },
     },
   },
