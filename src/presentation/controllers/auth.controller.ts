@@ -42,6 +42,7 @@ export class AuthController {
 
       response.status(200).json({
         accessToken: authResult.accessToken,
+        csrfToken: authResult.csrfToken,
         sessionId: authResult.sessionId,
         tokenType: authResult.tokenType,
       });
@@ -68,6 +69,7 @@ export class AuthController {
 
       response.status(200).json({
         accessToken: authResult.accessToken,
+        csrfToken: authResult.csrfToken,
         sessionId: authResult.sessionId,
         tokenType: authResult.tokenType,
       });

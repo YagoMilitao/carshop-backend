@@ -28,9 +28,14 @@ export const authSchemas = {
 
   AuthResponse: {
     type: 'object',
-    required: ['accessToken', 'sessionId', 'tokenType'],
+    required: ['accessToken', 'csrfToken', 'sessionId', 'tokenType'],
     properties: {
       accessToken: { type: 'string' },
+      csrfToken: {
+        type: 'string',
+        description:
+          'Token CSRF que deve ser enviado no header X-CSRF-Token da próxima requisição de refresh ou logout.',
+      },
       sessionId: { type: 'string', format: 'uuid' },
       tokenType: { type: 'string', enum: ['Bearer'] },
     },
@@ -69,6 +74,15 @@ export const authPaths = {
     post: {
       tags: ['Auth'],
       summary: 'Autentica o administrador e cria sessão',
+      description:
+        'Em caso de sucesso, define os cookies refresh_token (HttpOnly, ' +
+        'Secure, SameSite=None, Path=/auth) e csrf_token (Secure, ' +
+        'SameSite=None, Path=/auth, não HttpOnly). ' +
+        'SameSite=None e Secure são aplicados sempre, independentemente ' +
+        'do ambiente, para suportar um frontend hospedado em origem ' +
+        'diferente da do backend. O corpo da resposta também inclui o ' +
+        'csrfToken, pois JavaScript em outra origem não pode ler o cookie ' +
+        'definido para o domínio da API.',
       requestBody: loginRequestBody,
       responses: {
         '200': successResponse(
@@ -88,6 +102,13 @@ export const authPaths = {
     post: {
       tags: ['Auth'],
       summary: 'Rotaciona access token, refresh token e csrf token',
+      description:
+        'Em caso de sucesso, rotaciona e redefine os cookies ' +
+        'refresh_token (HttpOnly, Secure, SameSite=None, Path=/auth) e ' +
+        'csrf_token (Secure, SameSite=None, Path=/auth) a cada chamada, ' +
+        'invalidando os valores anteriores. Exige o cookie refresh_token ' +
+        'e o header X-CSRF-Token correspondente ao csrf_token. O novo ' +
+        'csrfToken é retornado no corpo para uso na próxima requisição.',
       security: refreshCsrfSecurity,
       parameters: [csrfHeaderParameter],
       responses: {
@@ -106,6 +127,10 @@ export const authPaths = {
     post: {
       tags: ['Auth'],
       summary: 'Revoga a sessão autenticada e remove cookies',
+      description:
+        'Revoga a sessão no servidor e remove os cookies refresh_token e ' +
+        'csrf_token (ambos com Path=/auth, Secure e SameSite=None), ' +
+        'exigindo o header X-CSRF-Token correspondente ao csrf_token.',
       security: refreshCsrfSecurity,
       parameters: [csrfHeaderParameter],
       responses: {

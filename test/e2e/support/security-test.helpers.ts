@@ -13,6 +13,7 @@ import type { createApp } from '../../../src/infra/server';
 
 export interface AuthResponseBody {
   accessToken: string;
+  csrfToken: string;
   sessionId: string;
   tokenType: 'Bearer';
 }
@@ -75,11 +76,11 @@ export async function loginAsAdmin(
   );
   const refreshCookie = extractCookie(setCookie, 'refresh_token');
   const csrfCookie = extractCookie(setCookie, 'csrf_token');
-  const csrfToken = csrfCookie?.split('=')[1];
+  const csrfToken = loginBody.csrfToken;
 
   if (!refreshCookie || !csrfCookie || !csrfToken) {
     throw new Error(
-      'loginAsAdmin: login response did not include the expected refresh_token/csrf_token cookies.',
+      'loginAsAdmin: login response did not include the expected auth cookies and CSRF response field.',
     );
   }
 

@@ -266,7 +266,15 @@ Resposta:
 
 ## Segurança
 
-- `refresh token` trafega em cookie `HttpOnly` com `SameSite=Strict`.
+- `refresh token` trafega em cookie `HttpOnly` com `SameSite=None; Secure`,
+  aplicado sempre (independentemente de `NODE_ENV`), já que
+  `SameSite=None` exige `Secure` por especificação do navegador. Essa
+  combinação é necessária para suportar um frontend hospedado em uma
+  origem diferente da do backend (cross-origin), como um frontend Next.js
+  servido separadamente da API. Para funcionar em um navegador real, a API
+  precisa ter `CORS_ORIGIN` configurada com a(s) origem(ns) exata(s) do
+  frontend e `credentials: true` (já habilitado na configuração de CORS
+  existente).
 - Proteção CSRF por double-submit cookie em `refresh` e `logout`.
 - Sessões armazenadas no servidor com revogação explícita no logout.
 - Middleware JWT valida assinatura, tipo do token e status da sessão antes de liberar acesso.

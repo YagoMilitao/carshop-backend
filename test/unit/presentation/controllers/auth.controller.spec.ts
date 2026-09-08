@@ -54,6 +54,7 @@ describe('AuthController', () => {
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith({
       accessToken: 'access-token',
+      csrfToken: 'csrf-token',
       sessionId: 'session-id',
       tokenType: 'Bearer',
     });
@@ -156,6 +157,7 @@ describe('AuthController', () => {
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith({
       accessToken: 'new-access-token',
+      csrfToken: 'csrf-token',
       sessionId: 'session-id',
       tokenType: 'Bearer',
     });
