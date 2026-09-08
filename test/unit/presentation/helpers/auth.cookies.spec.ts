@@ -37,8 +37,8 @@ describe('auth.cookies', () => {
       'refresh-token',
       expect.objectContaining({
         httpOnly: true,
-        sameSite: 'strict',
-        secure: false,
+        sameSite: 'none',
+        secure: true,
         path: '/auth',
         maxAge: defaultMaxAge,
       }),
@@ -49,11 +49,31 @@ describe('auth.cookies', () => {
       'csrf-token',
       expect.objectContaining({
         httpOnly: false,
-        sameSite: 'strict',
-        secure: false,
+        sameSite: 'none',
+        secure: true,
         path: '/auth',
         maxAge: defaultMaxAge,
       }),
+    );
+  });
+
+  it('keeps secure true even outside production (SameSite=None requires Secure)', () => {
+    expect(process.env.NODE_ENV).not.toBe('production');
+    const response = createResponseMock();
+
+    setAuthCookies(response, 'refresh-token', 'csrf-token');
+
+    expect(response.cookie).toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      'refresh-token',
+      expect.objectContaining({ secure: true, sameSite: 'none' }),
+    );
+    expect(response.cookie).toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      'csrf-token',
+      expect.objectContaining({ secure: true, sameSite: 'none' }),
     );
   });
 
@@ -70,6 +90,7 @@ describe('auth.cookies', () => {
       'refresh-token',
       expect.objectContaining({
         secure: true,
+        sameSite: 'none',
         maxAge: 1234,
       }),
     );
@@ -79,6 +100,7 @@ describe('auth.cookies', () => {
       'csrf-token',
       expect.objectContaining({
         secure: true,
+        sameSite: 'none',
         maxAge: 1234,
       }),
     );
@@ -109,7 +131,7 @@ describe('auth.cookies', () => {
       'refresh_token',
       expect.objectContaining({
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'none',
         secure: true,
         path: '/auth',
       }),
@@ -119,10 +141,28 @@ describe('auth.cookies', () => {
       'csrf_token',
       expect.objectContaining({
         httpOnly: false,
-        sameSite: 'strict',
+        sameSite: 'none',
         secure: true,
         path: '/auth',
       }),
+    );
+  });
+
+  it('keeps secure true when clearing cookies even outside production', () => {
+    expect(process.env.NODE_ENV).not.toBe('production');
+    const response = createResponseMock();
+
+    clearAuthCookies(response);
+
+    expect(response.clearCookie).toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      expect.objectContaining({ secure: true, sameSite: 'none' }),
+    );
+    expect(response.clearCookie).toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      expect.objectContaining({ secure: true, sameSite: 'none' }),
     );
   });
 

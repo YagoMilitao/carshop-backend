@@ -5,16 +5,6 @@ import {
 } from '../../infra/constants/auth.constants';
 
 /**
- * Indica se a aplicação está rodando em produção.
- *
- * Motivo:
- * em produção devemos ativar a flag Secure dos cookies.
- */
-function isProduction(): boolean {
-  return process.env.NODE_ENV === 'production';
-}
-
-/**
  * Calcula o tempo de vida do cookie de refresh.
  *
  * Permite override por variável de ambiente,
@@ -46,8 +36,12 @@ export function setAuthCookies(
   refreshToken: string,
   csrfToken: string,
 ): void {
-  const secure = isProduction();
-  const sameSite = 'strict' as const;
+  // SameSite=None é exigido para suportar o frontend cross-origin
+  // (Next.js em outra origem que não a do backend). Navegadores rejeitam
+  // SameSite=None sem o atributo Secure, portanto secure precisa ser
+  // incondicional aqui, independentemente de NODE_ENV.
+  const secure = true;
+  const sameSite = 'none' as const;
   const maxAge = getRefreshTokenMaxAgeMs();
 
   response.cookie(getRefreshCookieName(), refreshToken, {
@@ -71,8 +65,10 @@ export function setAuthCookies(
  * Remove os cookies de autenticação no logout.
  */
 export function clearAuthCookies(response: Response): void {
-  const secure = isProduction();
-  const sameSite = 'strict' as const;
+  // Mesmo motivo de setAuthCookies: SameSite=None exige Secure sempre,
+  // independentemente de NODE_ENV, para o navegador aceitar o cookie.
+  const secure = true;
+  const sameSite = 'none' as const;
 
   response.clearCookie(getRefreshCookieName(), {
     httpOnly: true,
