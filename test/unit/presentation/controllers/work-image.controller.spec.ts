@@ -1,4 +1,13 @@
 import type { Request, Response } from 'express';
+
+const mockUnlink = jest.fn<Promise<void>, [string]>();
+
+jest.mock('node:fs', () => ({
+  promises: {
+    unlink: (...args: [string]) => mockUnlink(...args),
+  },
+}));
+
 import { HttpError } from '../../../../src/core/domain/application/ApplicationError/http-error';
 import type { UploadWorkImageUseCase } from '../../../../src/usecase/upload-work-image.use-case';
 import type { DeleteWorkImageUseCase } from '../../../../src/usecase/delete-work-image.use-case';
@@ -24,6 +33,11 @@ function createDeleteUseCaseMock() {
 }
 
 describe('WorkImageController', () => {
+  beforeEach(() => {
+    mockUnlink.mockReset();
+    mockUnlink.mockResolvedValue(undefined);
+  });
+
   describe('upload', () => {
     it('calls the use case with data extracted from the multipart request and responds 201', async () => {
       const uploadUseCase = createUploadUseCaseMock();
@@ -86,6 +100,7 @@ describe('WorkImageController', () => {
       await controller.upload(request, response, next);
 
       expect(uploadUseCase.execute).not.toHaveBeenCalled();
+      expect(mockUnlink).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(expect.any(HttpError));
     });
 
@@ -109,6 +124,37 @@ describe('WorkImageController', () => {
 
       await controller.upload(request, response, next);
 
+      expect(uploadUseCase.execute).not.toHaveBeenCalled();
+      expect(mockUnlink).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+    });
+
+    it('preserves the body validation error when temporary file cleanup fails', async () => {
+      mockUnlink.mockRejectedValue(new Error('cleanup failed'));
+      const uploadUseCase = createUploadUseCaseMock();
+      const deleteUseCase = createDeleteUseCaseMock();
+      const controller = new WorkImageController(uploadUseCase, deleteUseCase);
+
+      const response = createResponseMock();
+      const next = jest.fn();
+
+      const request = {
+        params: { workId: 'work-1' },
+        body: { alt: 123 },
+        file: {
+          path: '/tmp/uploads/file.png',
+          mimetype: 'image/png',
+          originalname: 'photo.png',
+        },
+      } as unknown as Request<
+        { workId: string },
+        unknown,
+        { alt?: unknown; isCover?: unknown }
+      >;
+
+      await controller.upload(request, response, next);
+
+      expect(mockUnlink).toHaveBeenCalledWith('/tmp/uploads/file.png');
       expect(uploadUseCase.execute).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(expect.any(HttpError));
     });
@@ -138,6 +184,7 @@ describe('WorkImageController', () => {
       await controller.upload(request, response, next);
 
       expect(uploadUseCase.execute).not.toHaveBeenCalled();
+      expect(mockUnlink).toHaveBeenCalledWith('/tmp/uploads/file.png');
       expect(next).toHaveBeenCalledWith(expect.any(HttpError));
     });
 
@@ -166,6 +213,7 @@ describe('WorkImageController', () => {
       await controller.upload(request, response, next);
 
       expect(uploadUseCase.execute).not.toHaveBeenCalled();
+      expect(mockUnlink).toHaveBeenCalledWith('/tmp/uploads/file.png');
       expect(next).toHaveBeenCalledWith(expect.any(HttpError));
     });
 
