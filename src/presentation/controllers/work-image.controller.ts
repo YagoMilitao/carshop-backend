@@ -1,8 +1,14 @@
 import type { NextFunction, Request, Response } from 'express';
+import { promises as fs } from 'node:fs';
 import { HttpError } from '../../core/domain/application/ApplicationError/http-error';
 import { UploadWorkImageUseCase } from '../../usecase/upload-work-image.use-case';
 import { DeleteWorkImageUseCase } from '../../usecase/delete-work-image.use-case';
 import { requireStringRouteParam } from '../helpers/route-param.helper';
+import { validateWithSchema } from '../../infra/presentation/helpers/zod-validation.helper';
+import {
+  UploadWorkImageBodyInput,
+  uploadWorkImageBodySchema,
+} from '../../infra/presentation/validators/upload-work-image-body.schema';
 
 /**
  * Controller HTTP para imagens dos Works.
@@ -36,10 +42,25 @@ export class WorkImageController {
         throw new HttpError(400, 'Imagem é obrigatória.');
       }
 
-      const alt = typeof request.body.alt === 'string' ? request.body.alt : '';
-      const isCover =
-        typeof request.body.isCover === 'string' &&
-        request.body.isCover === 'true';
+      let body: UploadWorkImageBodyInput;
+
+      try {
+        body = validateWithSchema<UploadWorkImageBodyInput>(
+          uploadWorkImageBodySchema,
+          request.body,
+        );
+      } catch (error: unknown) {
+        try {
+          await fs.unlink(request.file.path);
+        } catch {
+          // Melhor esforço: a limpeza não deve mascarar o erro de validação.
+        }
+
+        throw error;
+      }
+
+      const alt = body.alt ?? '';
+      const isCover = body.isCover === 'true';
 
       await this.uploadWorkImageUseCase.execute({
         workId,

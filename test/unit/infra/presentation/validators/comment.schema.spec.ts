@@ -51,4 +51,14 @@ describe('createCommentSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('rejeita propriedade desconhecida (.strict(), FR-005/AC-001)', () => {
+    const result = createCommentSchema.safeParse({
+      authorName: 'Maria',
+      content: 'Comentário válido',
+      isApproved: true,
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

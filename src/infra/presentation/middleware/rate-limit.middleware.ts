@@ -92,7 +92,8 @@ const NO_EMAIL_SENTINEL = 'no-email';
  * Motivo:
  * - nunca armazenar e-mail ou senha em texto puro no estado do limiter
  *   (FR-006/NFR-002);
- * - normalizar o e-mail da mesma forma que `login.validator.ts`;
+ * - normalizar o e-mail da mesma forma que o fluxo de login (trim +
+ *   lowercase);
  * - usar `createHash('sha256')`, o mesmo primitivo já utilizado por
  *   `AuthService` para hashear tokens.
  */

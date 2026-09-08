@@ -70,6 +70,62 @@ describe('AuthController', () => {
     expect(next).toHaveBeenCalledWith(expect.any(HttpError));
   });
 
+  it('rejects login with 400 and does not call the service when a required field is missing (AC-001)', async () => {
+    const authService = createAuthServiceMock();
+    const controller = new AuthController(authService);
+    const request = {
+      body: {
+        email: 'admin@example.com',
+      },
+    } as Request;
+    const response = createResponseMock();
+    const next = jest.fn();
+
+    await controller.login(request, response, next);
+
+    expect(authService.validateAdmin).not.toHaveBeenCalled();
+    expect(authService.login).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+    expect(response.status).not.toHaveBeenCalled();
+  });
+
+  it('rejects login with 400 when the email format is invalid (AC-001)', async () => {
+    const authService = createAuthServiceMock();
+    const controller = new AuthController(authService);
+    const request = {
+      body: {
+        email: 'not-an-email',
+        password: 'super-secret',
+      },
+    } as Request;
+    const response = createResponseMock();
+    const next = jest.fn();
+
+    await controller.login(request, response, next);
+
+    expect(authService.validateAdmin).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+  });
+
+  it('rejects login with 400 when body contains an unknown property (AC-001/FR-005)', async () => {
+    const authService = createAuthServiceMock();
+    const controller = new AuthController(authService);
+    const request = {
+      body: {
+        email: 'admin@example.com',
+        password: 'super-secret',
+        extraField: 'not allowed',
+      },
+    } as Request;
+    const response = createResponseMock();
+    const next = jest.fn();
+
+    await controller.login(request, response, next);
+
+    expect(authService.validateAdmin).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+  });
+
   it('handles refresh successfully', async () => {
     const authService = createAuthServiceMock();
     authService.refresh.mockResolvedValue({

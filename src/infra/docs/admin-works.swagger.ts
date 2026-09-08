@@ -113,7 +113,7 @@ export const adminWorksPaths = {
           'multipart/form-data': {
             schema: {
               type: 'object',
-              required: ['file', 'alt'],
+              required: ['file'],
               properties: {
                 /**
                  * O nome precisa ser igual ao configurado no Multer:
@@ -128,10 +128,9 @@ export const adminWorksPaths = {
 
                 alt: {
                   type: 'string',
-                  minLength: 2,
                   maxLength: 160,
                   description:
-                    'Texto alternativo usado para acessibilidade e SEO.',
+                    'Texto alternativo usado para acessibilidade e SEO. Opcional; quando ausente, é tratado como string vazia.',
                   example: 'Banco do Honda Civic reformado em couro preto.',
                 },
 

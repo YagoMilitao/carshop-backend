@@ -10,7 +10,11 @@ import {
   parseCookies,
   setAuthCookies,
 } from '../helpers/auth.cookies';
-import { validateLoginPayload } from '../helpers/login.validator';
+import { validateWithSchema } from '../../infra/presentation/helpers/zod-validation.helper';
+import {
+  LoginInput,
+  loginSchema,
+} from '../../infra/presentation/validators/login.schema';
 
 /**
  * Controller HTTP: adapta requisições Express
@@ -25,7 +29,10 @@ export class AuthController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const loginInput = validateLoginPayload(request.body);
+      const loginInput = validateWithSchema<LoginInput>(
+        loginSchema,
+        request.body,
+      );
 
       this.authService.validateAdmin(loginInput.email, loginInput.password);
 

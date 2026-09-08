@@ -129,6 +129,62 @@ describe('WorkController', () => {
       expect(createWorkUseCase.execute).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(expect.any(HttpError));
     });
+
+    it('encaminha 400 e não invoca o caso de uso quando body contém propriedade desconhecida (AC-001/FR-005)', async () => {
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = {
+        body: {
+          slug: 'work-slug',
+          title: 'Work title',
+          description: 'Work description',
+          category: 'bancos',
+          unknownField: 'not allowed',
+        },
+      } as unknown as Request;
+
+      await controller.create(request, response, next);
+
+      expect(createWorkUseCase.execute).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+      expect(response.status).not.toHaveBeenCalled();
+    });
+
+    it('encaminha 400 e não invoca o caso de uso quando tags não é um array (AC-001)', async () => {
+      const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
+        createUseCaseMocks();
+      const controller = new WorkController(
+        createWorkUseCase,
+        listWorksUseCase,
+        getWorkBySlugUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = {
+        body: {
+          slug: 'work-slug',
+          title: 'Work title',
+          description: 'Work description',
+          category: 'bancos',
+          tags: 'couro',
+        },
+      } as unknown as Request;
+
+      await controller.create(request, response, next);
+
+      expect(createWorkUseCase.execute).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+      expect(response.status).not.toHaveBeenCalled();
+    });
   });
 
   describe('list', () => {
