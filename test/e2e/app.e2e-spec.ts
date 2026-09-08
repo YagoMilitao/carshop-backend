@@ -8,6 +8,7 @@ import { AuthSessionModel } from '../../src/data/models/auth-session.model';
 
 interface AuthResponseBody {
   accessToken: string;
+  csrfToken: string;
   sessionId: string;
   tokenType: 'Bearer';
 }
@@ -66,10 +67,10 @@ describe('Auth flow (e2e)', () => {
         : [];
     const refreshCookie = extractCookie(setCookie, 'refresh_token');
     const csrfCookie = extractCookie(setCookie, 'csrf_token');
-    const csrfToken = csrfCookie?.split('=')[1];
 
     expect(refreshCookie).toBeDefined();
     expect(csrfCookie).toBeDefined();
+    expect(loginBody.csrfToken).toBeDefined();
 
     const sessionResponse = await request(app)
       .get('/auth/session')
@@ -88,7 +89,7 @@ describe('Auth flow (e2e)', () => {
     const refreshResponse = await request(app)
       .post('/auth/refresh')
       .set('Cookie', [refreshCookie!, csrfCookie!])
-      .set('X-CSRF-Token', csrfToken!)
+      .set('X-CSRF-Token', loginBody.csrfToken)
       .expect(200);
     const refreshBody = refreshResponse.body as AuthResponseBody;
 
@@ -103,12 +104,12 @@ describe('Auth flow (e2e)', () => {
         : [];
     const rotatedRefreshCookie = extractCookie(rotatedCookies, 'refresh_token');
     const rotatedCsrfCookie = extractCookie(rotatedCookies, 'csrf_token');
-    const rotatedCsrfToken = rotatedCsrfCookie?.split('=')[1];
+    expect(refreshBody.csrfToken).toBeDefined();
 
     await request(app)
       .post('/auth/logout')
       .set('Cookie', [rotatedRefreshCookie!, rotatedCsrfCookie!])
-      .set('X-CSRF-Token', rotatedCsrfToken!)
+      .set('X-CSRF-Token', refreshBody.csrfToken)
       .expect(200)
       .expect({ success: true });
 

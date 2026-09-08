@@ -12,6 +12,7 @@ const ALLOWED_ORIGIN = 'https://allowed.e2e.test';
 
 interface AuthResponseBody {
   accessToken: string;
+  csrfToken: string;
   sessionId: string;
   tokenType: 'Bearer';
 }
@@ -66,10 +67,9 @@ function extractFullSetCookie(
  *   state.
  * - AC-004/FR-003: a missing refresh_token cookie in the cross-origin
  *   scenario is rejected (401).
- * - AC-007/NFR-003: none of these tests logs or asserts on the raw
- *   refresh token value outside of the `Set-Cookie`/`Cookie` mechanism —
- *   only cookie names, cookie attributes, and the (intentionally opaque)
- *   accessToken from the response body are inspected.
+ * - AC-007/NFR-003: the refresh token remains confined to the
+ *   `Set-Cookie`/`Cookie` mechanism. The CSRF token is read from the JSON
+ *   response, as a browser-hosted cross-origin frontend must do.
  *
  * Test-infrastructure note: mirrors the `jest.isolateModules` pattern
  * from `security-cors-policy.e2e-spec.ts`, required because
@@ -176,11 +176,13 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
     );
     const refreshCookie = extractCookie(setCookie, 'refresh_token');
     const csrfCookie = extractCookie(setCookie, 'csrf_token');
-    const csrfToken = csrfCookie?.split('=')[1];
+    const csrfToken = loginBody.csrfToken;
+
+    expect(loginBody).not.toHaveProperty('refreshToken');
 
     if (!refreshCookie || !csrfCookie || !csrfToken) {
       throw new Error(
-        'loginCrossOrigin: login response did not include the expected refresh_token/csrf_token cookies.',
+        'loginCrossOrigin: login response did not include the expected auth cookies and CSRF response field.',
       );
     }
 
@@ -206,6 +208,9 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
     const refreshBody = refreshResponse.body as AuthResponseBody;
     expect(refreshBody.accessToken).toBeDefined();
     expect(refreshBody.accessToken).not.toBe(login.accessToken);
+    expect(refreshBody.csrfToken).toBeDefined();
+    expect(refreshBody.csrfToken).not.toBe(login.csrfToken);
+    expect(refreshBody).not.toHaveProperty('refreshToken');
 
     const rotatedSetCookie = getSetCookieArray(
       refreshResponse.headers as Record<string, unknown>,
@@ -248,6 +253,23 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
     expect(refreshResponse.headers['access-control-allow-credentials']).toBe(
       'true',
     );
+
+    const rotatedRefreshCookie = extractCookie(
+      rotatedSetCookie,
+      'refresh_token',
+    );
+    const rotatedCsrfCookie = extractCookie(rotatedSetCookie, 'csrf_token');
+
+    // Proves the rotated CSRF value is usable by a real cross-origin
+    // frontend without reading Set-Cookie: only the cookies themselves are
+    // replayed by the simulated browser; the header comes from the JSON body.
+    await request(app)
+      .post('/auth/logout')
+      .set('Origin', ALLOWED_ORIGIN)
+      .set('Cookie', [rotatedRefreshCookie!, rotatedCsrfCookie!])
+      .set('X-CSRF-Token', refreshBody.csrfToken)
+      .expect(200)
+      .expect({ success: true });
   });
 
   it('revokes the session on POST /auth/logout from an allowed cross-origin Origin, invalidating a subsequent refresh (AC-002/FR-002)', async () => {

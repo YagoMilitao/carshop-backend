@@ -29,7 +29,8 @@ function getRefreshTokenMaxAgeMs(): number {
  * - httpOnly para não ser lido por JavaScript
  *
  * csrf_token:
- * - precisa ser lido pelo frontend para enviar no header x-csrf-token
+ * - participa da validação double-submit enviada automaticamente pelo browser
+ * - o frontend cross-origin recebe o mesmo valor no corpo da resposta de auth
  */
 export function setAuthCookies(
   response: Response,
