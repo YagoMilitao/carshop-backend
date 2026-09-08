@@ -7,9 +7,16 @@ export const commentsSchemas = {
     type: 'object',
     required: ['authorName', 'content'],
     properties: {
-      authorName: { type: 'string', example: 'Yago' },
+      authorName: {
+        type: 'string',
+        minLength: 2,
+        maxLength: 80,
+        example: 'Yago',
+      },
       content: {
         type: 'string',
+        minLength: 3,
+        maxLength: 1000,
         example: 'Ficou muito bom esse trabalho.',
       },
     },
