@@ -388,11 +388,10 @@ mesmo prefixo `/admin/works`).
     inspecionado (não apenas o `Content-Type` declarado); divergência ou
     tipo não suportado é rejeitado com `415`.
   - `alt` (string, opcional, máx. 160 caracteres): texto alternativo para
-    acessibilidade/SEO. Quando ausente, tratado como string vazia. **O
-    limite de 160 caracteres é imposto apenas na persistência** — o
-    validator HTTP atual não valida esse limite antes do upload; um `alt`
-    maior chega à persistência, causa `500` e dispara uma tentativa de
-    remoção compensatória do arquivo já enviado ao storage externo.
+    acessibilidade/SEO. Quando ausente, tratado como string vazia. O
+    limite de 160 caracteres é validado na camada HTTP (Zod), antes do
+    upload: um `alt` com mais de 160 caracteres é rejeitado com `400` sem
+    enviar o arquivo ao storage externo.
   - `isCover` (boolean, opcional, padrão `false`): quando `true`, define a
     imagem como capa do trabalho e remove a marcação de capa das demais
     imagens do mesmo trabalho.
@@ -403,15 +402,14 @@ mesmo prefixo `/admin/works`).
   ```
 
 - Erros:
-  - `400`: arquivo ausente, falha ao processar o multipart ou payload de
-    campos inválido (não se aplica a `alt` com mais de 160 caracteres).
+  - `400`: arquivo ausente, falha ao processar o multipart, payload de
+    campos inválido ou `alt` com mais de 160 caracteres.
   - `401`: access token ausente/inválido/sessão expirada.
   - `404`: trabalho não encontrado.
   - `413`: imagem acima de 5 MB.
   - `415`: tipo de arquivo não suportado.
   - `429`: rate limit global.
-  - `500`: falha inesperada ao enviar ou persistir a imagem (inclui o caso
-    de `alt` acima de 160 caracteres).
+  - `500`: falha inesperada ao enviar ou persistir a imagem.
 
 ### `DELETE /admin/works/{workId}/images/{imageId}`
 
