@@ -75,7 +75,7 @@ export const adminWorksPaths = {
         '- formatos aceitos: JPEG, PNG e WebP;',
         '- tamanho máximo: 5 MB;',
         '- o campo do arquivo deve se chamar `file`;',
-        '- `alt` é usado para acessibilidade e SEO e é limitado a 160 caracteres, tanto na validação HTTP quanto na persistência;',
+        '- `alt` é usado para acessibilidade e SEO e é limitado a 160 caracteres pela validação HTTP;',
         '- valores de `alt` acima de 160 caracteres são rejeitados com 400 antes do upload, sem enviar o arquivo ao storage externo;',
         '- `isCover=true` define a imagem como capa e remove a marcação de capa das demais imagens;',
         '- o conteúdo binário real do arquivo é inspecionado (não apenas o Content-Type declarado); um arquivo cujo conteúdo detectado não seja um JPEG, PNG ou WebP válido, ou que divirja do tipo declarado, é rejeitado com a mesma resposta 415 usada para tipo de arquivo não suportado.',
