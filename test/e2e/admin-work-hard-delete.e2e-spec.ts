@@ -225,9 +225,9 @@ describe('Admin work hard-delete (e2e)', () => {
     const worksAfterPartialFailure =
       afterPartialFailure.body as WorkResponseBody[];
 
-    expect(
-      worksAfterPartialFailure.some((work) => work.id === workId),
-    ).toBe(true);
+    expect(worksAfterPartialFailure.some((work) => work.id === workId)).toBe(
+      true,
+    );
 
     deleteImageSpy.mockReset();
     deleteImageSpy.mockResolvedValue(undefined);

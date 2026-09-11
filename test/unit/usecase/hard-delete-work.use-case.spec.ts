@@ -132,7 +132,7 @@ describe('HardDeleteWorkUseCase', () => {
     expect(workRepository.hardDeleteData).not.toHaveBeenCalled();
   });
 
-  it('após falha parcial (imagem 2 falha), uma nova tentativa completa o hard delete com sucesso (AC-007)', async () => {
+  it('após falha parcial, uma nova tentativa completa o hard delete quando o storage se recupera (AC-007)', async () => {
     const workRepository = buildWorkRepository({
       findByIdIncludingDeleted: jest.fn().mockResolvedValue(workWithImages),
     });
