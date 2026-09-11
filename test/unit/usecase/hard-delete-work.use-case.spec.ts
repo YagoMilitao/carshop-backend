@@ -1,5 +1,4 @@
 import { HardDeleteWorkUseCase } from '../../../src/usecase/hard-delete-work.use-case';
-import { HttpError } from '../../../src/core/domain/application/ApplicationError/http-error';
 import type { WorkRepositoryPort } from '../../../src/core/domain/repositories/work.repository';
 import type { ImageStoragePort } from '../../../src/core/domain/application/Storage/image-storage.port';
 import type { Work } from '../../../src/core/domain/application/Work/work.types';

@@ -323,10 +323,17 @@ export const adminWorksPaths = {
 
         '429': globalRateLimitResponse,
 
-        '502': successResponse(
-          'Falha no storage externo. Se algumas imagens já tiverem sido removidas, details.code será PARTIAL_IMAGE_DELETION e a chamada poderá ser repetida com segurança.',
-          '#/components/schemas/HardDeleteWorkStorageErrorResponse',
-        ),
+        '502': {
+          description:
+            'Falha no storage externo. Se algumas imagens já tiverem sido removidas, details.code será PARTIAL_IMAGE_DELETION e a chamada poderá ser repetida com segurança.',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/HardDeleteWorkStorageErrorResponse',
+              },
+            },
+          },
+        },
       },
     },
   },
