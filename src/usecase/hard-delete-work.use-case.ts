@@ -21,8 +21,8 @@ import type { WorkRepositoryPort } from '../core/domain/repositories/work.reposi
  * automático das exclusões já realizadas. O cliente deve repetir a
  * mesma chamada DELETE; como o adapter trata "not found" como
  * sucesso, a nova tentativa reprocessa as imagens já removidas sem
- * erro e conclui a exclusão restante, tornando o retry seguro e
- * idempotente.
+ * erro. O retry é seguro e a operação é concluída quando todas as
+ * remoções restantes tiverem sucesso.
  */
 export class HardDeleteWorkUseCase {
   constructor(
@@ -37,14 +37,30 @@ export class HardDeleteWorkUseCase {
       throw new HttpError(404, 'Trabalho não encontrado.');
     }
 
+    let removedImagesCount = 0;
+
     for (const image of work.images) {
       try {
         await this.imageStorage.delete(image.publicId);
+        removedImagesCount += 1;
       } catch (error: unknown) {
         console.error(
           'Falha ao remover imagem do armazenamento externo durante hard delete.',
           error,
         );
+
+        if (removedImagesCount > 0) {
+          throw new HttpError(
+            502,
+            'Falha parcial ao remover arquivos do armazenamento externo. Algumas imagens já foram removidas. Tente novamente para concluir a operação.',
+            {
+              code: 'PARTIAL_IMAGE_DELETION',
+              retryable: true,
+              removedImagesCount,
+              remainingImagesCount: work.images.length - removedImagesCount,
+            },
+          );
+        }
 
         throw new HttpError(
           502,

@@ -55,6 +55,46 @@ export const adminWorksSchemas = {
       },
     },
   },
+
+  HardDeleteWorkStorageErrorResponse: {
+    type: 'object',
+    required: ['message'],
+    properties: {
+      message: {
+        type: 'string',
+        description:
+          'Mensagem genérica quando nenhuma imagem foi removida, ou mensagem de falha parcial quando a operação já removeu imagens.',
+      },
+      details: {
+        type: 'object',
+        description: 'Presente somente quando houve remoção parcial.',
+        required: [
+          'code',
+          'retryable',
+          'removedImagesCount',
+          'remainingImagesCount',
+        ],
+        properties: {
+          code: {
+            type: 'string',
+            enum: ['PARTIAL_IMAGE_DELETION'],
+          },
+          retryable: {
+            type: 'boolean',
+            enum: [true],
+          },
+          removedImagesCount: {
+            type: 'integer',
+            minimum: 1,
+          },
+          remainingImagesCount: {
+            type: 'integer',
+            minimum: 1,
+          },
+        },
+      },
+    },
+  },
 } as const;
 
 /**
@@ -283,8 +323,9 @@ export const adminWorksPaths = {
 
         '429': globalRateLimitResponse,
 
-        '502': errorResponse(
-          'Falha ao remover arquivos do armazenamento externo. Tente novamente.',
+        '502': successResponse(
+          'Falha no storage externo. Se algumas imagens já tiverem sido removidas, details.code será PARTIAL_IMAGE_DELETION e a chamada poderá ser repetida com segurança.',
+          '#/components/schemas/HardDeleteWorkStorageErrorResponse',
         ),
       },
     },

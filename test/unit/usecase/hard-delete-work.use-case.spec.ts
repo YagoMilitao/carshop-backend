@@ -121,9 +121,12 @@ describe('HardDeleteWorkUseCase', () => {
 
     const useCase = new HardDeleteWorkUseCase(workRepository, imageStorage);
 
-    await expect(useCase.execute('work-1')).rejects.toBeInstanceOf(HttpError);
     await expect(useCase.execute('work-1')).rejects.toMatchObject({
+      name: 'HttpError',
       statusCode: 502,
+      message:
+        'Falha ao remover arquivos do armazenamento externo. Tente novamente.',
+      details: undefined,
     });
 
     expect(workRepository.hardDelete).not.toHaveBeenCalled();
@@ -144,7 +147,16 @@ describe('HardDeleteWorkUseCase', () => {
     const useCase = new HardDeleteWorkUseCase(workRepository, imageStorage);
 
     await expect(useCase.execute('work-1')).rejects.toMatchObject({
+      name: 'HttpError',
       statusCode: 502,
+      message:
+        'Falha parcial ao remover arquivos do armazenamento externo. Algumas imagens já foram removidas. Tente novamente para concluir a operação.',
+      details: {
+        code: 'PARTIAL_IMAGE_DELETION',
+        retryable: true,
+        removedImagesCount: 1,
+        remainingImagesCount: 1,
+      },
     });
 
     expect(workRepository.hardDelete).not.toHaveBeenCalled();

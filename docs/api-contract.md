@@ -383,7 +383,21 @@ mesmo prefixo `/admin/works`).
   - `401`: access token ausente/inválido/sessão expirada.
   - `404`: trabalho não encontrado.
   - `429`: rate limit global.
-  - `502`: falha ao remover arquivos do armazenamento externo.
+  - `502`: falha ao remover arquivos do armazenamento externo. Se nenhuma
+    imagem tiver sido removida, retorna a mensagem genérica. Se a falha for
+    parcial, o corpo torna os efeitos já produzidos explícitos:
+
+    ```json
+    {
+      "message": "Falha parcial ao remover arquivos do armazenamento externo. Algumas imagens já foram removidas. Tente novamente para concluir a operação.",
+      "details": {
+        "code": "PARTIAL_IMAGE_DELETION",
+        "retryable": true,
+        "removedImagesCount": 1,
+        "remainingImagesCount": 1
+      }
+    }
+    ```
 
 ### `POST /admin/works/{workId}/images`
 
