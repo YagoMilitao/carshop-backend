@@ -70,7 +70,9 @@
     `NODE_ENV`), para suportar um frontend hospedado em origem diferente
     da API.
   - `maxAge` de ambos os cookies segue `JWT_REFRESH_COOKIE_MAX_AGE_MS`
-    (padrão: 7 dias, se a variável não estiver definida ou for inválida).
+    (padrão: 7 dias, se a variável não estiver definida, for vazia, não
+    resolver para um número válido, ou resolver para um valor numérico
+    não positivo, isto é, zero ou negativo).
 
 - **CORS**: origens permitidas vêm de `CORS_ORIGIN` (`cors.origin`),
   `credentials: true`, métodos permitidos `GET, POST, PATCH, DELETE`,

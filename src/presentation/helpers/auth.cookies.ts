@@ -11,15 +11,20 @@ import {
  * mantendo fallback seguro para desenvolvimento.
  */
 function getRefreshTokenMaxAgeMs(): number {
+  const DEFAULT_REFRESH_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
   const value = process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS;
 
   if (!value) {
-    return 7 * 24 * 60 * 60 * 1000;
+    return DEFAULT_REFRESH_MAX_AGE_MS;
   }
 
   const asNumber = Number(value);
 
-  return Number.isNaN(asNumber) ? 7 * 24 * 60 * 60 * 1000 : asNumber;
+  if (Number.isNaN(asNumber) || asNumber <= 0) {
+    return DEFAULT_REFRESH_MAX_AGE_MS;
+  }
+
+  return asNumber;
 }
 
 /**
