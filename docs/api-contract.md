@@ -368,11 +368,11 @@ mesmo prefixo `/admin/works`).
   imagem(ns) já tiverem sido removidas com sucesso do storage externo, o
   trabalho permanece no MongoDB referenciando as imagens já removidas —
   não há compensação/restauração automática das imagens já excluídas do
-  storage externo. Repetir a mesma chamada `DELETE` para o mesmo `workId`
-  resolve o estado: o storage externo trata "não encontrado" como sucesso,
-  então a nova tentativa reprocessa sem erro as imagens já removidas e
-  conclui a remoção das restantes, completando a operação de forma
-  idempotente.
+  storage externo. É seguro repetir a mesma chamada `DELETE` para o mesmo
+  `workId`, pois o storage externo trata "não encontrado" como sucesso e as
+  imagens já removidas não causam erro na nova tentativa. A operação só é
+  concluída quando a remoção de todas as imagens restantes no storage
+  externo tiver sucesso.
 - Resposta `200`:
 
   ```json

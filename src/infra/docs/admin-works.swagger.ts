@@ -250,7 +250,7 @@ export const adminWorksPaths = {
         '',
         'Se a remoção de qualquer arquivo no storage externo falhar, a operação é abortada antes de alterar o MongoDB.',
         '',
-        'Falha parcial: se a remoção de uma imagem falhar depois que outra(s) imagem(ns) já tiverem sido removidas com sucesso do storage externo, o trabalho permanece no MongoDB referenciando as imagens já removidas, sem compensação/restauração automática. Repetir a mesma chamada DELETE para o mesmo workId completa a operação de forma segura e idempotente, já que o storage externo trata "não encontrado" como sucesso.',
+        'Falha parcial: se a remoção de uma imagem falhar depois que outra(s) imagem(ns) já tiverem sido removidas com sucesso do storage externo, o trabalho permanece no MongoDB referenciando as imagens já removidas, sem compensação/restauração automática. É seguro repetir a mesma chamada DELETE para o mesmo workId, já que o storage externo trata "não encontrado" como sucesso. A operação só é concluída quando a remoção de todas as imagens restantes no storage externo tiver sucesso.',
       ].join('\n'),
 
       security: bearerSecurity,
