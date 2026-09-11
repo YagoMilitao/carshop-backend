@@ -71,33 +71,32 @@ function extractFullSetCookie(
  *   `Set-Cookie`/`Cookie` mechanism. The CSRF token is read from the JSON
  *   response, as a browser-hosted cross-origin frontend must do.
  *
- * Test-infrastructure note: mirrors the `jest.isolateModules` pattern
- * from `security-cors-policy.e2e-spec.ts`, required because
- * `src/infra/config/env.ts` computes `env.corsOrigins` eagerly at module
- * import time, so `CORS_ORIGIN` must be set before a fresh `createApp`
- * module graph is loaded.
+ * Test-infrastructure note: `src/infra/config/env.ts` computes
+ * `env.corsOrigins` eagerly at module import time. The application modules
+ * are therefore loaded with `require` only after `CORS_ORIGIN` is set in
+ * `beforeAll`.
  *
- * `jest.isolateModules` creates a brand-new module registry for
- * everything required inside its callback, including the `mongoose`
- * package itself and the module-scoped `loginRateLimitMiddleware`
- * singleton. This suite therefore rebuilds the isolated module graph
- * (app + `database/mongoose` connection + `AuthSessionModel`) fresh in
- * `beforeEach`/torn down in `afterEach`, for two independent reasons:
- * - the isolated app's models need an active connection bound to the
- *   *same* isolated `mongoose` instance (otherwise Mongoose operations
- *   buffer indefinitely against a disconnected singleton);
- * - `loginRateLimitMiddleware` is a module-level singleton (limit: 5
- *   login attempts per 5-minute window, counting successes too); reusing
- *   one isolated app across this file's six tests (each performing a
- *   login) would otherwise exhaust that shared limiter and produce a
- *   spurious `429` unrelated to the behavior under test.
+ * The application and Mongoose modules deliberately share the regular Jest
+ * module registry. Starting an asynchronous Mongoose connection inside
+ * `jest.isolateModules` and then leaving the isolation callback discards the
+ * registry while the MongoDB driver is still connecting, causing the hook to
+ * remain pending until Jest times out. A single connection for the suite also
+ * matches the lifecycle used by the other database-backed E2E specs.
+ *
+ * Since `loginRateLimitMiddleware` counts successful logins too, each test
+ * uses a distinct configured admin e-mail. The limiter key is IP + e-mail
+ * hash, so scenarios remain independent without rebuilding the entire module
+ * graph or changing production rate-limit behavior.
  */
 describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
   let app: ReturnType<typeof CreateAppType>;
-  let disconnectFreshDatabase: typeof DisconnectDatabaseType;
+  let createApp: typeof CreateAppType;
+  let disconnectDatabase: typeof DisconnectDatabaseType;
   let FreshAuthSessionModel: typeof AuthSessionModelType;
+  let currentAdminEmail: string;
+  let testSequence = 0;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     if (!process.env.MONGO_URI) {
       throw new Error(
         'MONGO_URI não foi definida. O globalSetup do Jest deveria tê-la configurado antes dos testes.',
@@ -110,51 +109,36 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
     process.env.JWT_EXPIRES_IN = '15m';
     process.env.JWT_REFRESH_EXPIRES_IN = '7d';
     process.env.CORS_ORIGIN = ALLOWED_ORIGIN;
+
+    const databaseModule = require('../../src/infra/database/mongoose') as {
+      connectDatabase: typeof ConnectDatabaseType;
+      disconnectDatabase: typeof DisconnectDatabaseType;
+    };
+    const serverModule = require('../../src/infra/server') as {
+      createApp: typeof CreateAppType;
+    };
+    const authSessionModule =
+      require('../../src/data/models/auth-session.model') as {
+        AuthSessionModel: typeof AuthSessionModelType;
+      };
+
+    createApp = serverModule.createApp;
+    disconnectDatabase = databaseModule.disconnectDatabase;
+    FreshAuthSessionModel = authSessionModule.AuthSessionModel;
+
+    await databaseModule.connectDatabase(process.env.MONGO_URI);
   });
 
-  afterAll(() => {
+  afterAll(async () => {
+    await disconnectDatabase();
     delete process.env.CORS_ORIGIN;
   });
 
-  beforeEach(async () => {
-    let freshApp: ReturnType<typeof CreateAppType> | undefined;
-    let connectPromise: Promise<void> | undefined;
-
-    jest.isolateModules(() => {
-      const freshDbModule = require('../../src/infra/database/mongoose') as {
-        connectDatabase: typeof ConnectDatabaseType;
-        disconnectDatabase: typeof DisconnectDatabaseType;
-      };
-      connectPromise = freshDbModule.connectDatabase(
-        process.env.MONGO_URI as string,
-      );
-      disconnectFreshDatabase = freshDbModule.disconnectDatabase;
-
-      const freshServerModule = require('../../src/infra/server') as {
-        createApp: typeof CreateAppType;
-      };
-      freshApp = freshServerModule.createApp();
-
-      const freshAuthSessionModule =
-        require('../../src/data/models/auth-session.model') as {
-          AuthSessionModel: typeof AuthSessionModelType;
-        };
-      FreshAuthSessionModel = freshAuthSessionModule.AuthSessionModel;
-    });
-
-    await connectPromise;
-
-    if (!freshApp) {
-      throw new Error(
-        'beforeEach: falha ao construir a aplicação com CORS_ORIGIN isolado.',
-      );
-    }
-
-    app = freshApp;
-  });
-
-  afterEach(async () => {
-    await disconnectFreshDatabase();
+  beforeEach(() => {
+    testSequence += 1;
+    currentAdminEmail = `admin-cross-origin-${testSequence}@carshop.com`;
+    process.env.ADMIN_EMAIL = currentAdminEmail;
+    app = createApp();
   });
 
   async function loginCrossOrigin(): Promise<{
@@ -167,7 +151,7 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
     const loginResponse = await request(app)
       .post('/auth/login')
       .set('Origin', ALLOWED_ORIGIN)
-      .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD })
+      .send({ email: currentAdminEmail, password: ADMIN_PASSWORD })
       .expect(200);
 
     const loginBody = loginResponse.body as AuthResponseBody;
@@ -294,7 +278,7 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
   it('rejects POST /auth/refresh with 403 and leaves session state unaltered when X-CSRF-Token is missing in a cross-origin request (AC-003/NFR-002)', async () => {
     const login = await loginCrossOrigin();
     const sessionCountBefore = await FreshAuthSessionModel.countDocuments({
-      email: ADMIN_EMAIL,
+      email: currentAdminEmail,
     });
 
     await request(app)
@@ -304,7 +288,7 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
       .expect(403);
 
     const sessionCountAfter = await FreshAuthSessionModel.countDocuments({
-      email: ADMIN_EMAIL,
+      email: currentAdminEmail,
     });
     expect(sessionCountAfter).toBe(sessionCountBefore);
 
@@ -319,7 +303,7 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
   it('rejects POST /auth/logout with 403 and leaves session state unaltered when X-CSRF-Token mismatches the cookie in a cross-origin request (AC-003/NFR-002)', async () => {
     const login = await loginCrossOrigin();
     const sessionCountBefore = await FreshAuthSessionModel.countDocuments({
-      email: ADMIN_EMAIL,
+      email: currentAdminEmail,
     });
 
     await request(app)
@@ -330,7 +314,7 @@ describe('Cross-origin auth flow (e2e, CARSHOP-126)', () => {
       .expect(403);
 
     const sessionCountAfter = await FreshAuthSessionModel.countDocuments({
-      email: ADMIN_EMAIL,
+      email: currentAdminEmail,
     });
     expect(sessionCountAfter).toBe(sessionCountBefore);
 

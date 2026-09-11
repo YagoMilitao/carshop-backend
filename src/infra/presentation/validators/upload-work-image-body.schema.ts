@@ -11,7 +11,10 @@ import { z } from 'zod';
  */
 export const uploadWorkImageBodySchema = z
   .object({
-    alt: z.string().optional(),
+    alt: z
+      .string()
+      .max(160, 'Alt pode ter no máximo 160 caracteres.')
+      .optional(),
     isCover: z.string().optional(),
   })
   .strict();

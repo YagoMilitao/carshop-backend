@@ -67,4 +67,28 @@ describe('uploadWorkImageBodySchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('rejeita alt com mais de 160 caracteres', () => {
+    const result = uploadWorkImageBodySchema.safeParse({
+      alt: 'a'.repeat(161),
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        'Alt pode ter no máximo 160 caracteres.',
+      );
+    }
+  });
+
+  it('aceita alt com exatamente 160 caracteres', () => {
+    const result = uploadWorkImageBodySchema.safeParse({
+      alt: 'a'.repeat(160),
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.alt).toHaveLength(160);
+    }
+  });
 });

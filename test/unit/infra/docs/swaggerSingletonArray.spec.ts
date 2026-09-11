@@ -113,7 +113,7 @@ describe('openApiDocument', () => {
     }
   });
 
-  it('documents the current 500 response for image alt values over 160 characters', () => {
+  it('documents the 400 response for image alt values over 160 characters (CARSHOP-127)', () => {
     const uploadImagePath = openApiDocument.paths[
       '/admin/works/{workId}/images'
     ] as unknown as {
@@ -122,7 +122,10 @@ describe('openApiDocument', () => {
       };
     };
 
-    expect(uploadImagePath.post.responses['500'].description).toContain(
+    expect(uploadImagePath.post.responses['400'].description).toContain(
+      'alt com mais de 160 caracteres',
+    );
+    expect(uploadImagePath.post.responses['500'].description).not.toContain(
       'alt com mais de 160 caracteres',
     );
   });

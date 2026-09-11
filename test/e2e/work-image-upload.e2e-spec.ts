@@ -306,6 +306,65 @@ describe('Work image upload and delete (e2e)', () => {
     expect(uploadSpy).not.toHaveBeenCalled();
   });
 
+  // CARSHOP-127 — FR-001/AC-001: alt over the 160-char limit is rejected
+  // with 400 at the HTTP validation layer, before reaching image storage.
+  it('rejects an authenticated upload whose alt exceeds 160 characters with 400, without reaching the image-storage provider (CARSHOP-127, AC-001)', async () => {
+    const accessToken = await getSharedAccessToken(app);
+    const workId = await createWork(
+      app,
+      accessToken,
+      `image-alt-too-long-${Date.now()}`,
+    );
+    const uploadSpy = jest.spyOn(imageStorage, 'upload');
+
+    const response = await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .field('alt', 'a'.repeat(161))
+      .attach('file', VALID_JPEG_BUFFER, {
+        filename: 'work-photo.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(400);
+
+    expect(uploadSpy).not.toHaveBeenCalled();
+    expect(JSON.stringify(response.body)).toMatch(/alt/i);
+  });
+
+  // CARSHOP-127 — FR-002/AC-002: alt within the 160-char limit is accepted
+  // and persisted normally, with no regression to the existing behavior.
+  it('accepts an authenticated upload with alt at exactly 160 characters and persists it (CARSHOP-127, AC-002)', async () => {
+    const accessToken = await getSharedAccessToken(app);
+    const workId = await createWork(
+      app,
+      accessToken,
+      `image-alt-at-limit-${Date.now()}`,
+    );
+    const altAtLimit = 'a'.repeat(160);
+
+    await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .field('alt', altAtLimit)
+      .attach('file', VALID_JPEG_BUFFER, {
+        filename: 'work-photo.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(201);
+
+    const listResponse = await request(app)
+      .get('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const works = listResponse.body as Array<{
+      id: string;
+      images: Array<{ alt?: string }>;
+    }>;
+    const work = works.find((candidate) => candidate.id === workId);
+
+    expect(work?.images[0]?.alt).toBe(altAtLimit);
+  });
+
   it('rejects DELETE /admin/works/:workId/images/:imageId without authentication with 401, and returns 404 for a non-existent image without reaching the image-storage provider (FR-019/AC-011)', async () => {
     const accessToken = await getSharedAccessToken(app);
     const workId = await createWork(
