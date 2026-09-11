@@ -127,91 +127,37 @@ describe('auth.cookies', () => {
     );
   });
 
-  // AC-002: JWT_REFRESH_COOKIE_MAX_AGE_MS is set to an empty string.
-  it('falls back to the default max age when env value is an empty string (AC-002)', () => {
-    process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS = '';
-    const response = createResponseMock();
+  it.each([
+    { envValue: '', description: 'an empty string', criterion: 'AC-002' },
+    {
+      envValue: 'not-a-number',
+      description: 'not numeric',
+      criterion: 'AC-003',
+    },
+    { envValue: '0', description: '"0"', criterion: 'AC-004' },
+    { envValue: '-1000', description: 'negative', criterion: 'AC-005' },
+  ])(
+    'falls back to the default max age when env value is $description ($criterion)',
+    ({ envValue }) => {
+      process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS = envValue;
+      const response = createResponseMock();
 
-    setAuthCookies(response, 'refresh-token', 'csrf-token');
+      setAuthCookies(response, 'refresh-token', 'csrf-token');
 
-    expect(response.cookie).toHaveBeenNthCalledWith(
-      1,
-      'refresh_token',
-      'refresh-token',
-      expect.objectContaining({ maxAge: defaultMaxAge }),
-    );
-    expect(response.cookie).toHaveBeenNthCalledWith(
-      2,
-      'csrf_token',
-      'csrf-token',
-      expect.objectContaining({ maxAge: defaultMaxAge }),
-    );
-  });
-
-  // AC-003: JWT_REFRESH_COOKIE_MAX_AGE_MS resolves to NaN (non-numeric string).
-  it('falls back to the default max age when env value is not numeric (AC-003)', () => {
-    process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS = 'not-a-number';
-    const response = createResponseMock();
-
-    setAuthCookies(response, 'refresh-token', 'csrf-token');
-
-    expect(response.cookie).toHaveBeenNthCalledWith(
-      1,
-      'refresh_token',
-      'refresh-token',
-      expect.objectContaining({ maxAge: defaultMaxAge }),
-    );
-    expect(response.cookie).toHaveBeenNthCalledWith(
-      2,
-      'csrf_token',
-      'csrf-token',
-      expect.objectContaining({ maxAge: defaultMaxAge }),
-    );
-  });
-
-  // AC-004: JWT_REFRESH_COOKIE_MAX_AGE_MS is set to "0" (zero is the sole
-  // trigger of the <= 0 branch; must not be confused with the NaN/empty branches).
-  it('falls back to the default max age when env value is "0" (AC-004)', () => {
-    process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS = '0';
-    const response = createResponseMock();
-
-    setAuthCookies(response, 'refresh-token', 'csrf-token');
-
-    expect(response.cookie).toHaveBeenNthCalledWith(
-      1,
-      'refresh_token',
-      'refresh-token',
-      expect.objectContaining({ maxAge: defaultMaxAge }),
-    );
-    expect(response.cookie).toHaveBeenNthCalledWith(
-      2,
-      'csrf_token',
-      'csrf-token',
-      expect.objectContaining({ maxAge: defaultMaxAge }),
-    );
-  });
-
-  // AC-005: JWT_REFRESH_COOKIE_MAX_AGE_MS is set to a negative number, the
-  // sole trigger being the "< 0" side of the <= 0 branch.
-  it('falls back to the default max age when env value is negative (AC-005)', () => {
-    process.env.JWT_REFRESH_COOKIE_MAX_AGE_MS = '-1000';
-    const response = createResponseMock();
-
-    setAuthCookies(response, 'refresh-token', 'csrf-token');
-
-    expect(response.cookie).toHaveBeenNthCalledWith(
-      1,
-      'refresh_token',
-      'refresh-token',
-      expect.objectContaining({ maxAge: defaultMaxAge }),
-    );
-    expect(response.cookie).toHaveBeenNthCalledWith(
-      2,
-      'csrf_token',
-      'csrf-token',
-      expect.objectContaining({ maxAge: defaultMaxAge }),
-    );
-  });
+      expect(response.cookie).toHaveBeenNthCalledWith(
+        1,
+        'refresh_token',
+        'refresh-token',
+        expect.objectContaining({ maxAge: defaultMaxAge }),
+      );
+      expect(response.cookie).toHaveBeenNthCalledWith(
+        2,
+        'csrf_token',
+        'csrf-token',
+        expect.objectContaining({ maxAge: defaultMaxAge }),
+      );
+    },
+  );
 
   // AC-006: a valid positive value must pass through unchanged, independent
   // of NODE_ENV, scoped strictly to the max-age computation (not conflated
