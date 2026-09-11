@@ -178,4 +178,68 @@ describe('Admin work hard-delete (e2e)', () => {
 
     expect(worksAfterDelete.some((work) => work.id === workId)).toBe(false);
   });
+
+  it('reports irreversible partial deletion and allows a safe retry (CARSHOP-129/AC-001/AC-002)', async () => {
+    const accessToken = await loginAsAdmin(app);
+    const slug = `hard-delete-partial-${Date.now()}`;
+    const workId = await createWork(app, accessToken, slug);
+
+    for (const filename of ['first-photo.jpg', 'second-photo.jpg']) {
+      await request(app)
+        .post(`/admin/works/${workId}/images`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .attach('file', VALID_JPEG_BUFFER, {
+          filename,
+          contentType: 'image/jpeg',
+        })
+        .expect(201);
+    }
+
+    const deleteImageSpy = jest
+      .spyOn(imageStorage, 'delete')
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Simulated upstream failure.'));
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    const partialFailureResponse = await request(app)
+      .delete(`/admin/works/${workId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(502);
+
+    consoleErrorSpy.mockRestore();
+
+    expect(partialFailureResponse.body).toEqual({
+      message:
+        'Falha parcial ao remover arquivos do armazenamento externo. Algumas imagens já foram removidas. Tente novamente para concluir a operação.',
+      details: {
+        code: 'PARTIAL_IMAGE_DELETION',
+        retryable: true,
+        removedImagesCount: 1,
+        remainingImagesCount: 1,
+      },
+    });
+
+    const afterPartialFailure = await request(app).get('/works').expect(200);
+    const worksAfterPartialFailure =
+      afterPartialFailure.body as WorkResponseBody[];
+
+    expect(worksAfterPartialFailure.some((work) => work.id === workId)).toBe(
+      true,
+    );
+
+    deleteImageSpy.mockReset();
+    deleteImageSpy.mockResolvedValue(undefined);
+
+    await request(app)
+      .delete(`/admin/works/${workId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200, { success: true });
+
+    const afterRetryResponse = await request(app).get('/works').expect(200);
+    const worksAfterRetry = afterRetryResponse.body as WorkResponseBody[];
+
+    expect(worksAfterRetry.some((work) => work.id === workId)).toBe(false);
+  });
 });

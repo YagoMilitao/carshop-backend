@@ -1,5 +1,4 @@
 import { HardDeleteWorkUseCase } from '../../../src/usecase/hard-delete-work.use-case';
-import { HttpError } from '../../../src/core/domain/application/ApplicationError/http-error';
 import type { WorkRepositoryPort } from '../../../src/core/domain/repositories/work.repository';
 import type { ImageStoragePort } from '../../../src/core/domain/application/Storage/image-storage.port';
 import type { Work } from '../../../src/core/domain/application/Work/work.types';
@@ -121,13 +120,54 @@ describe('HardDeleteWorkUseCase', () => {
 
     const useCase = new HardDeleteWorkUseCase(workRepository, imageStorage);
 
-    await expect(useCase.execute('work-1')).rejects.toBeInstanceOf(HttpError);
     await expect(useCase.execute('work-1')).rejects.toMatchObject({
+      name: 'HttpError',
       statusCode: 502,
+      message:
+        'Falha ao remover arquivos do armazenamento externo. Tente novamente.',
+      details: undefined,
     });
 
     expect(workRepository.hardDelete).not.toHaveBeenCalled();
     expect(workRepository.hardDeleteData).not.toHaveBeenCalled();
+  });
+
+  it('após falha parcial, uma nova tentativa completa o hard delete quando o storage se recupera (AC-007)', async () => {
+    const workRepository = buildWorkRepository({
+      findByIdIncludingDeleted: jest.fn().mockResolvedValue(workWithImages),
+    });
+    const imageStorage = buildImageStorage({
+      delete: jest
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('cloudinary unreachable')),
+    });
+
+    const useCase = new HardDeleteWorkUseCase(workRepository, imageStorage);
+
+    await expect(useCase.execute('work-1')).rejects.toMatchObject({
+      name: 'HttpError',
+      statusCode: 502,
+      message:
+        'Falha parcial ao remover arquivos do armazenamento externo. Algumas imagens já foram removidas. Tente novamente para concluir a operação.',
+      details: {
+        code: 'PARTIAL_IMAGE_DELETION',
+        retryable: true,
+        removedImagesCount: 1,
+        remainingImagesCount: 1,
+      },
+    });
+
+    expect(workRepository.hardDelete).not.toHaveBeenCalled();
+
+    imageStorage.delete.mockReset();
+    imageStorage.delete.mockResolvedValue(undefined);
+
+    const retryResult = await useCase.execute('work-1');
+
+    expect(retryResult).toEqual({ success: true });
+    expect(workRepository.hardDelete).toHaveBeenCalledTimes(1);
+    expect(workRepository.hardDelete).toHaveBeenCalledWith('work-1');
   });
 
   it('nunca utiliza hardDeleteData (que não remove comentários) para o hard delete', async () => {

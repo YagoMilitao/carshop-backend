@@ -363,8 +363,16 @@ mesmo prefixo `/admin/works`).
 - Remove definitivamente o trabalho: apaga todas as imagens no storage
   externo (Cloudinary), depois remove o trabalho e seus comentários no
   MongoDB. Se a remoção de qualquer arquivo no storage externo falhar, a
-  operação é abortada **antes** de alterar o MongoDB, evitando registros
-  órfãos.
+  operação é abortada **antes** de alterar o MongoDB.
+- Falha parcial: se a remoção de uma imagem falhar depois que outra(s)
+  imagem(ns) já tiverem sido removidas com sucesso do storage externo, o
+  trabalho permanece no MongoDB referenciando as imagens já removidas —
+  não há compensação/restauração automática das imagens já excluídas do
+  storage externo. É seguro repetir a mesma chamada `DELETE` para o mesmo
+  `workId`, pois o storage externo trata "não encontrado" como sucesso e as
+  imagens já removidas não causam erro na nova tentativa. A operação só é
+  concluída quando a remoção de todas as imagens restantes no storage
+  externo tiver sucesso.
 - Resposta `200`:
 
   ```json
@@ -375,7 +383,21 @@ mesmo prefixo `/admin/works`).
   - `401`: access token ausente/inválido/sessão expirada.
   - `404`: trabalho não encontrado.
   - `429`: rate limit global.
-  - `502`: falha ao remover arquivos do armazenamento externo.
+  - `502`: falha ao remover arquivos do armazenamento externo. Se nenhuma
+    imagem tiver sido removida, retorna a mensagem genérica. Se a falha for
+    parcial, o corpo torna os efeitos já produzidos explícitos:
+
+    ```json
+    {
+      "message": "Falha parcial ao remover arquivos do armazenamento externo. Algumas imagens já foram removidas. Tente novamente para concluir a operação.",
+      "details": {
+        "code": "PARTIAL_IMAGE_DELETION",
+        "retryable": true,
+        "removedImagesCount": 1,
+        "remainingImagesCount": 1
+      }
+    }
+    ```
 
 ### `POST /admin/works/{workId}/images`
 

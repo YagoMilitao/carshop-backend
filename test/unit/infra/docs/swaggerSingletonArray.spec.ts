@@ -130,6 +130,45 @@ describe('openApiDocument', () => {
     );
   });
 
+  it('documents the distinguishable 502 response for partial image deletion (CARSHOP-129)', () => {
+    const hardDeletePath = openApiDocument.paths[
+      '/admin/works/{workId}'
+    ] as unknown as {
+      delete: {
+        responses: Record<
+          string,
+          {
+            content: {
+              'application/json': { schema: { $ref: string } };
+            };
+          }
+        >;
+      };
+    };
+    const errorSchema = openApiDocument.components.schemas
+      .HardDeleteWorkStorageErrorResponse as unknown as {
+      properties: {
+        details: {
+          properties: {
+            code: { enum: string[] };
+            retryable: { enum: boolean[] };
+          };
+        };
+      };
+    };
+
+    expect(
+      hardDeletePath.delete.responses['502'].content['application/json'].schema
+        .$ref,
+    ).toBe('#/components/schemas/HardDeleteWorkStorageErrorResponse');
+    expect(errorSchema.properties.details.properties.code.enum).toEqual([
+      'PARTIAL_IMAGE_DELETION',
+    ]);
+    expect(errorSchema.properties.details.properties.retryable.enum).toEqual([
+      true,
+    ]);
+  });
+
   it('contains security schemes used by auth endpoints', () => {
     expect(openApiDocument.components.securitySchemes.bearerAuth).toMatchObject(
       {
