@@ -6,12 +6,23 @@ import type { WorkRepositoryPort } from '../core/domain/repositories/work.reposi
  * Remove definitivamente um Work, incluindo suas imagens no
  * storage externo e seus comentários (FR-006).
  *
- * Decisão arquitetural:
- * se qualquer exclusão no storage externo falhar de fato (não
- * "not found", que o adapter já trata como sucesso), abortamos
- * antes de tocar no Mongo, para não deixar registros órfãos sem
- * arquivo correspondente (NFR-002). A operação pode ser
- * reexecutada com segurança.
+ * Ordem de remoção: as imagens são removidas do storage externo
+ * (Cloudinary) sequencialmente antes de o Work ser removido do
+ * MongoDB. O adapter ativo de `ImageStoragePort` trata "not found"
+ * como sucesso (exclusão idempotente); qualquer outra falha real
+ * aborta a operação com `HttpError(502, ...)` antes de tocar no
+ * Mongo.
+ *
+ * Comportamento em falha parcial: se a remoção de uma imagem N
+ * falhar após as imagens `1..N-1` já terem sido removidas com
+ * sucesso do storage externo, o Work permanece no MongoDB
+ * referenciando imagens já removidas do storage externo até uma
+ * nova tentativa bem-sucedida — não há compensação/rollback
+ * automático das exclusões já realizadas. O cliente deve repetir a
+ * mesma chamada DELETE; como o adapter trata "not found" como
+ * sucesso, a nova tentativa reprocessa as imagens já removidas sem
+ * erro e conclui a exclusão restante, tornando o retry seguro e
+ * idempotente.
  */
 export class HardDeleteWorkUseCase {
   constructor(

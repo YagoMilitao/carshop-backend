@@ -130,6 +130,35 @@ describe('HardDeleteWorkUseCase', () => {
     expect(workRepository.hardDeleteData).not.toHaveBeenCalled();
   });
 
+  it('após falha parcial (imagem 2 falha), uma nova tentativa completa o hard delete com sucesso (AC-007)', async () => {
+    const workRepository = buildWorkRepository({
+      findByIdIncludingDeleted: jest.fn().mockResolvedValue(workWithImages),
+    });
+    const imageStorage = buildImageStorage({
+      delete: jest
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('cloudinary unreachable')),
+    });
+
+    const useCase = new HardDeleteWorkUseCase(workRepository, imageStorage);
+
+    await expect(useCase.execute('work-1')).rejects.toMatchObject({
+      statusCode: 502,
+    });
+
+    expect(workRepository.hardDelete).not.toHaveBeenCalled();
+
+    imageStorage.delete.mockReset();
+    imageStorage.delete.mockResolvedValue(undefined);
+
+    const retryResult = await useCase.execute('work-1');
+
+    expect(retryResult).toEqual({ success: true });
+    expect(workRepository.hardDelete).toHaveBeenCalledTimes(1);
+    expect(workRepository.hardDelete).toHaveBeenCalledWith('work-1');
+  });
+
   it('nunca utiliza hardDeleteData (que não remove comentários) para o hard delete', async () => {
     const workRepository = buildWorkRepository({
       findByIdIncludingDeleted: jest

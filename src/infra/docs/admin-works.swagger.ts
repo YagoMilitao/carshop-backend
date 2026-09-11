@@ -248,7 +248,9 @@ export const adminWorksPaths = {
       description: [
         'Remove todas as imagens do trabalho no storage externo, remove o trabalho e seus comentários do MongoDB.',
         '',
-        'Se a remoção de qualquer arquivo no storage externo falhar, a operação é abortada antes de alterar o MongoDB, para evitar registros órfãos.',
+        'Se a remoção de qualquer arquivo no storage externo falhar, a operação é abortada antes de alterar o MongoDB.',
+        '',
+        'Falha parcial: se a remoção de uma imagem falhar depois que outra(s) imagem(ns) já tiverem sido removidas com sucesso do storage externo, o trabalho permanece no MongoDB referenciando as imagens já removidas, sem compensação/restauração automática. Repetir a mesma chamada DELETE para o mesmo workId completa a operação de forma segura e idempotente, já que o storage externo trata "não encontrado" como sucesso.',
       ].join('\n'),
 
       security: bearerSecurity,

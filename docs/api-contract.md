@@ -363,8 +363,16 @@ mesmo prefixo `/admin/works`).
 - Remove definitivamente o trabalho: apaga todas as imagens no storage
   externo (Cloudinary), depois remove o trabalho e seus comentários no
   MongoDB. Se a remoção de qualquer arquivo no storage externo falhar, a
-  operação é abortada **antes** de alterar o MongoDB, evitando registros
-  órfãos.
+  operação é abortada **antes** de alterar o MongoDB.
+- Falha parcial: se a remoção de uma imagem falhar depois que outra(s)
+  imagem(ns) já tiverem sido removidas com sucesso do storage externo, o
+  trabalho permanece no MongoDB referenciando as imagens já removidas —
+  não há compensação/restauração automática das imagens já excluídas do
+  storage externo. Repetir a mesma chamada `DELETE` para o mesmo `workId`
+  resolve o estado: o storage externo trata "não encontrado" como sucesso,
+  então a nova tentativa reprocessa sem erro as imagens já removidas e
+  conclui a remoção das restantes, completando a operação de forma
+  idempotente.
 - Resposta `200`:
 
   ```json
