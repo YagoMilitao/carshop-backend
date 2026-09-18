@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 import {
   buildLoginRateLimitKey,
+  commentRateLimitKeyGenerator,
+  commentRateLimitMiddleware,
   globalRateLimitMiddleware,
   loginRateLimitKeyGenerator,
   loginRateLimitMiddleware,
@@ -18,6 +20,55 @@ describe('loginRateLimitMiddleware (CARSHOP-108, FR-001/FR-002/FR-003)', () => {
   it('exporta um middleware Express (função) configurado', () => {
     expect(typeof loginRateLimitMiddleware).toBe('function');
     expect(loginRateLimitMiddleware).toHaveLength(3);
+  });
+});
+
+describe('commentRateLimitMiddleware (CARSHOP-17, FR-001/FR-002/FR-003)', () => {
+  it('exporta um middleware Express (função) configurado', () => {
+    expect(typeof commentRateLimitMiddleware).toBe('function');
+    expect(commentRateLimitMiddleware).toHaveLength(3);
+  });
+
+  it('é uma instância distinta do rate limiter global (FR-001, FR-005)', () => {
+    expect(commentRateLimitMiddleware).not.toBe(globalRateLimitMiddleware);
+  });
+});
+
+describe('commentRateLimitKeyGenerator (CARSHOP-17, FR-002/NFR-004, AC-005)', () => {
+  const buildRequest = (ip: string): Request => ({ ip }) as unknown as Request;
+
+  it('não lança a validação estática do express-rate-limit (ERR_ERL_KEY_GEN_IPV6)', () => {
+    const source = commentRateLimitKeyGenerator.toString();
+
+    expect(source).toContain('ipKeyGenerator');
+  });
+
+  it('gera a mesma chave para o mesmo IP', () => {
+    const first = commentRateLimitKeyGenerator(buildRequest('127.0.0.1'));
+    const second = commentRateLimitKeyGenerator(buildRequest('127.0.0.1'));
+
+    expect(first).toBe(second);
+  });
+
+  it('gera chaves diferentes para IPs diferentes, isolando clientes distintos (AC-005)', () => {
+    const first = commentRateLimitKeyGenerator(buildRequest('127.0.0.1'));
+    const second = commentRateLimitKeyGenerator(buildRequest('10.0.0.1'));
+
+    expect(first).not.toBe(second);
+  });
+
+  it('nunca inclui dado sensível do requisitante na chave gerada além do IP normalizado (NFR-004)', () => {
+    const key = commentRateLimitKeyGenerator(buildRequest('127.0.0.1'));
+
+    expect(key).toBe('127.0.0.1');
+  });
+
+  it('usa string vazia como IP quando request.ip está ausente', () => {
+    const request = {} as Request;
+
+    expect(commentRateLimitKeyGenerator(request)).toBe(
+      commentRateLimitKeyGenerator(buildRequest('')),
+    );
   });
 });
 

@@ -12,6 +12,7 @@ import type { SessionStorePort } from '../../../core/domain/repositories/session
 import type { TokenServicePort } from '../../../core/domain/application/Auth/token-service.port';
 import { buildAuthMiddleware } from '../../presentation/middleware/auth.middleware';
 import { buildRequireAuthForDraftsMiddleware } from '../../presentation/middleware/require-auth-for-drafts.middleware';
+import { commentRateLimitMiddleware } from '../../presentation/middleware/rate-limit.middleware';
 
 export function buildWorkRouter(
   workRepository: WorkRepositoryPort,
@@ -61,8 +62,17 @@ export function buildWorkRouter(
 
   /**
    * Público: cria comentário pendente.
+   *
+   * Aplica o rate limiter dedicado de comentários (CARSHOP-17), além do
+   * rate limiter global já registrado no middleware da aplicação, para
+   * mitigar spam sem afetar a listagem de comentários nem qualquer outra
+   * rota de works.
    */
-  router.post('/:workId/comments', commentController.create);
+  router.post(
+    '/:workId/comments',
+    commentRateLimitMiddleware,
+    commentController.create,
+  );
 
   /**
    * Público: lista apenas comentários aprovados.

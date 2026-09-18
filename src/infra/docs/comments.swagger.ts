@@ -108,7 +108,9 @@ export const commentsPaths = {
         ),
         '400': errorResponse('Payload inválido'),
         '404': errorResponse('Trabalho não encontrado'),
-        '429': globalRateLimitResponse,
+        '429': errorResponse(
+          'Limite global (100 requisições por IP em 15 minutos) ou limite dedicado de comentários (10 requisições por IP em 10 minutos) excedido.',
+        ),
       },
     },
   },

@@ -152,3 +152,50 @@ export const loginRateLimitMiddleware: RateLimitRequestHandler =
     },
     keyGenerator: loginRateLimitKeyGenerator,
   });
+
+/**
+ * Rate limit dedicado à criação de comentários (CARSHOP-17).
+ *
+ * Estratégia escolhida:
+ * - janela de 10 minutos
+ * - até 10 requisições por IP nessa janela
+ *
+ * Motivo:
+ * - mais restritivo que o limitador global (15 min / 100 req), mitigando
+ *   automações que tentam submeter grandes volumes de comentários em
+ *   curto espaço de tempo (FR-001, NFR-001);
+ * - ainda permissivo o suficiente para não bloquear um visitante comum
+ *   que eventualmente envie mais de um comentário legítimo em janelas de
+ *   trabalho curtas (ex.: comentar em mais de um trabalho do portfólio),
+ *   diferente do limite mais severo aplicado ao login administrativo
+ *   (5 tentativas / 5 min), que protege um endpoint sensível de
+ *   autenticação;
+ * - conta tanto sucesso quanto erro (`skipSuccessfulRequests: false`),
+ *   consistente com os demais limiters do projeto (FR-006);
+ * - identifica o requisitante apenas pelo IP normalizado via
+ *   `ipKeyGenerator`, sem armazenar ou expor dado sensível do
+ *   requisitante em mensagens de erro ou logs (FR-002, NFR-004).
+ *
+ * `ipKeyGenerator` precisa ser chamado diretamente dentro desta função
+ * (e não apenas dentro de uma função auxiliar) pelo mesmo motivo já
+ * documentado em `loginRateLimitKeyGenerator`: a validação estática do
+ * `express-rate-limit` (ERR_ERL_KEY_GEN_IPV6) inspeciona apenas o
+ * código-fonte da função `keyGenerator` passada em `rateLimit(...)`.
+ */
+export function commentRateLimitKeyGenerator(request: Request): string {
+  return ipKeyGenerator(request.ip ?? '');
+}
+
+export const commentRateLimitMiddleware: RateLimitRequestHandler =
+  createRateLimiter({
+    windowMs: 10 * 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: false,
+    message: {
+      message:
+        'Muitas tentativas de comentário. Tente novamente em alguns minutos.',
+    },
+    keyGenerator: commentRateLimitKeyGenerator,
+  });
