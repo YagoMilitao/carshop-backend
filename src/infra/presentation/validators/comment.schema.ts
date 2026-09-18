@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { containsHtmlOrScriptMarkup } from './html-content.guard';
 
 /**
  * Schema de criação de comentário.
@@ -12,13 +13,19 @@ export const createCommentSchema = z
       .string()
       .trim()
       .min(2, 'Nome precisa ter pelo menos 2 caracteres.')
-      .max(80, 'Nome pode ter no máximo 80 caracteres.'),
+      .max(80, 'Nome pode ter no máximo 80 caracteres.')
+      .refine((value) => !containsHtmlOrScriptMarkup(value), {
+        message: 'Campo não pode conter marcação HTML ou conteúdo de script.',
+      }),
 
     content: z
       .string()
       .trim()
       .min(3, 'Comentário precisa ter pelo menos 3 caracteres.')
-      .max(1000, 'Comentário pode ter no máximo 1000 caracteres.'),
+      .max(1000, 'Comentário pode ter no máximo 1000 caracteres.')
+      .refine((value) => !containsHtmlOrScriptMarkup(value), {
+        message: 'Campo não pode conter marcação HTML ou conteúdo de script.',
+      }),
   })
   .strict();
 
