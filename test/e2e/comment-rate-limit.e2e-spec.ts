@@ -1,9 +1,11 @@
 import request from 'supertest';
+import { ipKeyGenerator } from 'express-rate-limit';
 import { createApp } from '../../src/infra/server';
 import {
   connectDatabase,
   disconnectDatabase,
 } from '../../src/infra/database/mongoose';
+import { commentRateLimitMiddleware } from '../../src/infra/presentation/middleware/rate-limit.middleware';
 import { FakeImageStorageAdapter } from './support/fake-image-storage.adapter';
 
 /**
@@ -33,6 +35,11 @@ interface WorkResponseBody {
 interface ErrorResponseBody {
   message: string;
 }
+
+const LOOPBACK_RATE_LIMIT_KEYS = [
+  ipKeyGenerator('127.0.0.1'),
+  ipKeyGenerator('::1'),
+];
 
 async function loginAsAdmin(
   app: ReturnType<typeof createApp>,
@@ -87,6 +94,10 @@ describe('POST /works/:workId/comments dedicated rate limiting (e2e, CARSHOP-17)
   });
 
   beforeEach(() => {
+    for (const key of LOOPBACK_RATE_LIMIT_KEYS) {
+      commentRateLimitMiddleware.resetKey(key);
+    }
+
     process.env.JWT_SECRET = 'e2e-secret';
     process.env.ADMIN_EMAIL = 'admin@carshop.com';
     process.env.ADMIN_PASSWORD = '123456';
