@@ -300,6 +300,9 @@ Resposta:
     dentro desses limites.
   - As mensagens de erro de validação referenciam apenas o nome da
     variável, nunca o valor configurado.
+- A origem, o mecanismo de comparação e a ausência de persistência da
+  credencial administrativa estão auditados e documentados em
+  [`docs/admin-credential-security.md`](docs/admin-credential-security.md).
 
 ## Testes
 
