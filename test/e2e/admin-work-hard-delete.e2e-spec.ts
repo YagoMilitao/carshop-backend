@@ -6,6 +6,7 @@ import {
 } from '../../src/infra/database/mongoose';
 import { FakeImageStorageAdapter } from './support/fake-image-storage.adapter';
 import { VALID_JPEG_BUFFER } from './support/valid-image-fixtures';
+import { AuthSessionModel } from '../../src/data/models/auth-session.model';
 
 interface AuthResponseBody {
   accessToken: string;
@@ -24,13 +25,20 @@ interface WorkResponseBody {
 async function loginAsAdmin(
   app: ReturnType<typeof createApp>,
 ): Promise<string> {
+  const loginBody = await loginAsAdminWithSession(app);
+
+  return loginBody.accessToken;
+}
+
+async function loginAsAdminWithSession(
+  app: ReturnType<typeof createApp>,
+): Promise<AuthResponseBody> {
   const loginResponse = await request(app)
     .post('/auth/login')
     .send({ email: 'admin@carshop.com', password: '123456' })
     .expect(200);
-  const loginBody = loginResponse.body as AuthResponseBody;
 
-  return loginBody.accessToken;
+  return loginResponse.body as AuthResponseBody;
 }
 
 function buildWorkPayload(slug: string) {
@@ -241,5 +249,30 @@ describe('Admin work hard-delete (e2e)', () => {
     const worksAfterRetry = afterRetryResponse.body as WorkResponseBody[];
 
     expect(worksAfterRetry.some((work) => work.id === workId)).toBe(false);
+  });
+
+  // CARSHOP-138 — FR-004/AC-002: a token bound to a session revoked in
+  // SessionStorePort must be rejected with 401 on DELETE
+  // /admin/works/:workId, without deleting the work.
+  it('rejects DELETE /admin/works/:workId with 401 when the session has been revoked, and does not delete the work (FR-004/AC-002)', async () => {
+    const login = await loginAsAdminWithSession(app);
+    const slug = `hard-delete-revoked-session-${Date.now()}`;
+    const workId = await createWork(app, login.accessToken, slug);
+
+    // Mirrors MongoSessionStoreRepository.revoke()'s own update shape.
+    await AuthSessionModel.findOneAndUpdate(
+      { id: login.sessionId },
+      { revokedAt: Date.now() },
+    );
+
+    await request(app)
+      .delete(`/admin/works/${workId}`)
+      .set('Authorization', `Bearer ${login.accessToken}`)
+      .expect(401);
+
+    const listResponse = await request(app).get('/works').expect(200);
+    const works = listResponse.body as WorkResponseBody[];
+
+    expect(works.some((work) => work.slug === slug)).toBe(true);
   });
 });

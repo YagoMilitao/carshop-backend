@@ -5,6 +5,7 @@ import {
   disconnectDatabase,
 } from '../../src/infra/database/mongoose';
 import { FakeImageStorageAdapter } from './support/fake-image-storage.adapter';
+import { AuthSessionModel } from '../../src/data/models/auth-session.model';
 
 interface AuthResponseBody {
   accessToken: string;
@@ -28,13 +29,20 @@ interface CommentResponseBody {
 async function loginAsAdmin(
   app: ReturnType<typeof createApp>,
 ): Promise<string> {
+  const loginBody = await loginAsAdminWithSession(app);
+
+  return loginBody.accessToken;
+}
+
+async function loginAsAdminWithSession(
+  app: ReturnType<typeof createApp>,
+): Promise<AuthResponseBody> {
   const loginResponse = await request(app)
     .post('/auth/login')
     .send({ email: 'admin@carshop.com', password: '123456' })
     .expect(200);
-  const loginBody = loginResponse.body as AuthResponseBody;
 
-  return loginBody.accessToken;
+  return loginResponse.body as AuthResponseBody;
 }
 
 async function createWork(
@@ -148,5 +156,44 @@ describe('Admin comment hard-delete (e2e)', () => {
     expect(commentsAfterDelete.some((entry) => entry.id === comment.id)).toBe(
       false,
     );
+  });
+
+  // CARSHOP-138 — FR-004/AC-002: a token bound to a session revoked in
+  // SessionStorePort must be rejected with 401 on DELETE
+  // /admin/comments/:commentId, without deleting the comment.
+  it('rejects DELETE /admin/comments/:commentId with 401 when the session has been revoked, and does not delete the comment (FR-004/AC-002)', async () => {
+    const login = await loginAsAdminWithSession(app);
+    const workId = await createWork(
+      app,
+      login.accessToken,
+      `comment-hard-delete-revoked-${Date.now()}`,
+    );
+    const comment = await createComment(app, workId);
+
+    await request(app)
+      .patch(`/admin/comments/${comment.id}/approve`)
+      .set('Authorization', `Bearer ${login.accessToken}`)
+      .expect(200);
+
+    // Mirrors MongoSessionStoreRepository.revoke()'s own update shape.
+    await AuthSessionModel.findOneAndUpdate(
+      { id: login.sessionId },
+      { revokedAt: Date.now() },
+    );
+
+    await request(app)
+      .delete(`/admin/comments/${comment.id}`)
+      .set('Authorization', `Bearer ${login.accessToken}`)
+      .expect(401);
+
+    const afterRevokedAttempt = await request(app)
+      .get(`/works/${workId}/comments`)
+      .expect(200);
+    const commentsAfterRevokedAttempt =
+      afterRevokedAttempt.body as CommentResponseBody[];
+
+    expect(
+      commentsAfterRevokedAttempt.some((entry) => entry.id === comment.id),
+    ).toBe(true);
   });
 });
