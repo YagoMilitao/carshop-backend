@@ -44,6 +44,24 @@ describe('AuthService', () => {
     );
   });
 
+  it('never exposes the attempted password or any hash in the rejection error (AC-004c)', () => {
+    const attemptedPassword = 'wrong';
+
+    try {
+      service.validateAdmin('admin@example.com', attemptedPassword);
+      throw new Error('validateAdmin should have thrown');
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(HttpError);
+      const httpError = error as HttpError;
+
+      expect(httpError.message).not.toContain(attemptedPassword);
+      expect(httpError.message).not.toContain(process.env.ADMIN_PASSWORD);
+      expect(JSON.stringify(httpError.details ?? {})).not.toContain(
+        attemptedPassword,
+      );
+    }
+  });
+
   it('creates an authenticated session on login', async () => {
     const result = await service.login('admin@example.com');
 
