@@ -108,6 +108,91 @@ describe('env — MONGO_URI shape validation (CARSHOP-36, FR-001, FR-002, AC-001
   });
 });
 
+describe('env — MONGO_URI TLS enforcement (CARSHOP-137, FR-003, AC-003)', () => {
+  const originalEnv = process.env;
+
+  const REQUIRED_ENV = {
+    MONGO_URI: 'mongodb://unit-test',
+    JWT_SECRET: 'unit-test-secret',
+    ADMIN_EMAIL: 'admin@example.com',
+    ADMIN_PASSWORD: 'unit-test-password',
+    NODE_ENV: 'test',
+  };
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, ...REQUIRED_ENV };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('falha ao startup quando MONGO_URI contém "tls=false" explícito', () => {
+    process.env.MONGO_URI = 'mongodb://unit-test/db?tls=false';
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain('MONGO_URI');
+    expect(error.message).not.toContain('mongodb://unit-test/db?tls=false');
+  });
+
+  it('falha ao startup quando MONGO_URI contém "ssl=false" explícito', () => {
+    process.env.MONGO_URI = 'mongodb+srv://unit-test/db?ssl=false';
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain('MONGO_URI');
+    expect(error.message).not.toContain('mongodb+srv://unit-test/db?ssl=false');
+  });
+
+  it('falha ao startup quando "tls=false" aparece como parâmetro adicional na query string', () => {
+    process.env.MONGO_URI =
+      'mongodb+srv://unit-test/db?retryWrites=true&tls=false';
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain('MONGO_URI');
+  });
+
+  it('aplica a validação de TLS de forma incondicional em NODE_ENV=development', () => {
+    process.env = {
+      ...originalEnv,
+      ...REQUIRED_ENV,
+      NODE_ENV: 'development',
+      MONGO_URI: 'mongodb://unit-test/db?tls=false',
+    };
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain('MONGO_URI');
+  });
+
+  it('aceita MONGO_URI sem parâmetros de TLS/SSL', () => {
+    process.env.MONGO_URI = 'mongodb://unit-test/db';
+
+    const loadedEnv = loadEnvModule();
+
+    expect(loadedEnv.mongoUri).toBe('mongodb://unit-test/db');
+  });
+
+  it('aceita MONGO_URI no formato "mongodb+srv://" sem parâmetros de TLS/SSL', () => {
+    process.env.MONGO_URI = 'mongodb+srv://unit-test/db';
+
+    const loadedEnv = loadEnvModule();
+
+    expect(loadedEnv.mongoUri).toBe('mongodb+srv://unit-test/db');
+  });
+
+  it('aceita MONGO_URI com "tls=true" explícito', () => {
+    process.env.MONGO_URI = 'mongodb+srv://unit-test/db?tls=true';
+
+    const loadedEnv = loadEnvModule();
+
+    expect(loadedEnv.mongoUri).toBe('mongodb+srv://unit-test/db?tls=true');
+  });
+});
+
 describe('env — WORK_HARD_DELETE_AFTER_DAYS (FR-005, AC-009, AC-010)', () => {
   const originalEnv = process.env;
 

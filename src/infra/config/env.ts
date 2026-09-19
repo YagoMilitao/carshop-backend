@@ -239,6 +239,29 @@ function assertMongoUriShape(mongoUri: string): void {
 }
 
 /**
+ * Garante que "MONGO_URI" não desabilite TLS explicitamente na query
+ * string (CARSHOP-137).
+ *
+ * Motivo:
+ * `mongodb+srv://` já implica TLS por padrão no driver Node, mas a query
+ * string de uma connection string `mongodb://`/`mongodb+srv://` pode
+ * conter `tls=false`/`ssl=false`, desabilitando TLS explicitamente em
+ * trânsito. Esta checagem apenas rejeita a presença explícita desses
+ * parâmetros com valor `false` — não exige `tls=true`, preservando
+ * compatibilidade com `mongodb://localhost:27017/test` (dev/test) e com
+ * connection strings sem esses parâmetros. Roda incondicionalmente em
+ * todo `NODE_ENV`, assim como `assertMongoUriShape`. A mensagem de erro
+ * nomeia apenas a variável, nunca o valor configurado.
+ */
+function assertMongoUriEnforcesTls(mongoUri: string): void {
+  if (/[?&](tls|ssl)=false\b/i.test(mongoUri)) {
+    throw new Error(
+      'A variável "MONGO_URI" não pode desabilitar TLS explicitamente (parâmetros "tls=false"/"ssl=false" não são permitidos).',
+    );
+  }
+}
+
+/**
  * Lê uma variável obrigatória do ambiente.
  *
  * Motivo:
@@ -357,6 +380,7 @@ assertProductionCorsOrigins(nodeEnv, corsOrigins);
 
 const mongoUri = getRequiredEnv('MONGO_URI');
 assertMongoUriShape(mongoUri);
+assertMongoUriEnforcesTls(mongoUri);
 
 const jwtSecret = getRequiredEnv('JWT_SECRET');
 assertJwtSecretStrength(nodeEnv, jwtSecret);

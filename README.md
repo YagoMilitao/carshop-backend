@@ -72,6 +72,14 @@ Este projeto persiste dados exclusivamente via Mongoose/MongoDB — não há
 Prisma, nenhum outro ORM, nem comandos de migração de schema em nenhuma
 etapa do build, start ou deploy.
 
+A postura de segurança do cluster Atlas e dos dados persistidos pela
+aplicação (network access, privilégio do database user, TLS em
+trânsito, criptografia em repouso e exposição de dados nos models
+Mongoose) está auditada e documentada em
+[`docs/mongodb-atlas-security-audit.md`](docs/mongodb-atlas-security-audit.md),
+com o checklist manual complementar do operador em
+[`specs/CARSHOP-137/operator-checklist.md`](specs/CARSHOP-137/operator-checklist.md).
+
 ### Verificação de índices e de leitura/escrita
 
 Dois scripts standalone, no mesmo padrão de `purge:expired-works`
