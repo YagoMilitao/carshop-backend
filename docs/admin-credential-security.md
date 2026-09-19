@@ -43,10 +43,14 @@ privado `safeEquals` (`auth.service.ts:303-312`), que:
 - usa `timingSafeEqual` de `node:crypto` para a comparação em tempo
   constante quando os tamanhos são iguais.
 
-Ou seja: é uma comparação de **texto puro em tempo constante**, feita
-inteiramente em memória contra o valor retornado pelo provider — nunca
-uma comparação de hash, e nunca uma comparação contra um documento
-persistido em banco.
+Ou seja: é uma comparação de **texto puro**, feita inteiramente em
+memória contra o valor retornado pelo provider — nunca uma comparação de
+hash, e nunca uma comparação contra um documento persistido em banco.
+A etapa final é executada em tempo constante somente quando os valores
+têm o mesmo tamanho em bytes. Para tamanhos diferentes, o retorno
+antecipado permite distinguir se o palpite tem o mesmo tamanho da
+credencial configurada; portanto, o método como um todo não oferece
+tempo constante para entradas de tamanho variável.
 
 ## Nenhuma senha reutilizável é persistida em texto puro (FR-003 / AC-002)
 
@@ -136,10 +140,14 @@ mensagem genérica (`'Credenciais inválidas.'`, definida em
 ## Nenhuma exposição de senha/hash em log (FR-007 / AC-006)
 
 - `registerBaseMiddlewares` (`src/infra/config/middleware.ts:54`) usa
-  `morgan('combined' | 'dev')`, que registra apenas metadados de
-  requisição HTTP (método, path, status, tamanho, etc.) — não loga o
-  corpo (`body`) da requisição, portanto nunca loga a senha enviada no
-  login.
+  `morgan('combined' | 'dev')`. Esses formatos não registram o corpo
+  (`body`) da requisição, portanto a senha enviada corretamente no JSON
+  de login não é incluída por esse middleware. Porém, ambos registram a
+  URL da requisição, inclusive a query string, e o formato `combined`
+  também registra o referrer. Assim, uma credencial enviada
+  incorretamente em uma URL (por exemplo, como parâmetro de query) ou
+  presente em um referrer pode chegar ao log; não há redaction desses
+  campos no código atual.
 - `errorHandlerMiddleware`
   (`src/infra/presentation/middleware/error-handler.middleware.ts:54`)
   só executa `console.error(error)` para erros **inesperados** (não
@@ -158,14 +166,15 @@ mensagem genérica (`'Credenciais inválidas.'`, definida em
 | Requisito | Estado |
 |---|---|
 | FR-001 (origem documentada) | Atendido — `ADMIN_EMAIL`/`ADMIN_PASSWORD` via `EnvAdminCredentialsProvider` |
-| FR-002 (comparação documentada) | Atendido — `safeEquals`/`timingSafeEqual`, texto puro em tempo constante |
+| FR-002 (comparação documentada) | Atendido — texto puro; tempo constante somente para valores com o mesmo tamanho em bytes |
 | FR-003 (nenhuma senha reutilizável em texto puro persistida) | Confirmado — nenhum caminho de escrita para `AdminUserModel` ou equivalente |
 | FR-004 (correção de trajeto em texto puro) | Não aplicável — nenhum trajeto de persistência em uso |
 | FR-005 (comparação via hash adaptativo quando houver persistência) | Não aplicável — nenhuma credencial persistida hoje |
 | FR-006 (nenhuma exposição em resposta de API) | Confirmado — ver `AuthController` |
-| FR-007 (nenhuma exposição em log) | Confirmado — ver `middleware.ts` e `error-handler.middleware.ts` |
+| FR-007 (nenhuma exposição em log) | Parcial — corpo e erros esperados não expõem a senha, mas URL/query string e referrer não são redigidos |
 | FR-008 (política de custo/rotação de hash) | Declarado explicitamente: não aplicável hoje; definição fica para task futura de migração |
 
-Nenhuma alteração de código foi necessária como resultado desta
-auditoria. O estado atual já está em conformidade com os requisitos de
-segurança da credencial administrativa.
+Nenhuma alteração de código de produção foi realizada como resultado
+desta auditoria. O fluxo normal de login não persiste nem retorna a
+credencial, mas a conformidade incondicional com FR-007 exige impedir ou
+redigir credenciais presentes em URL/query string e referrer.

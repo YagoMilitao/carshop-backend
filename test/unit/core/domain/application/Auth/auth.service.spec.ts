@@ -46,6 +46,7 @@ describe('AuthService', () => {
 
   it('never exposes the attempted password or any hash in the rejection error (AC-004c)', () => {
     const attemptedPassword = 'wrong';
+    const configuredPassword = process.env.ADMIN_PASSWORD as string;
 
     try {
       service.validateAdmin('admin@example.com', attemptedPassword);
@@ -53,12 +54,12 @@ describe('AuthService', () => {
     } catch (error: unknown) {
       expect(error).toBeInstanceOf(HttpError);
       const httpError = error as HttpError;
+      const serializedDetails = JSON.stringify(httpError.details ?? {});
 
       expect(httpError.message).not.toContain(attemptedPassword);
-      expect(httpError.message).not.toContain(process.env.ADMIN_PASSWORD);
-      expect(JSON.stringify(httpError.details ?? {})).not.toContain(
-        attemptedPassword,
-      );
+      expect(httpError.message.includes(configuredPassword)).toBe(false);
+      expect(serializedDetails).not.toContain(attemptedPassword);
+      expect(serializedDetails.includes(configuredPassword)).toBe(false);
     }
   });
 
