@@ -239,6 +239,46 @@ function assertMongoUriShape(mongoUri: string): void {
 }
 
 /**
+ * Garante que "MONGO_URI" mantenha TLS habilitado (CARSHOP-137).
+ *
+ * Motivo:
+ * `mongodb+srv://` já implica TLS por padrão no driver Node. Em produção,
+ * uma connection string `mongodb://` precisa habilitá-lo explicitamente
+ * com `tls=true` ou `ssl=true`; fora de produção, a ausência da opção é
+ * aceita para preservar o uso de MongoDB local.
+ *
+ * Os parâmetros são lidos com `URLSearchParams`, em vez de inspecionados
+ * como texto bruto, para que nomes e valores percent-encoded sejam
+ * decodificados antes da validação. A rejeição explícita de `false` roda
+ * em todos os ambientes. A mensagem de erro nomeia apenas a variável,
+ * nunca o valor configurado.
+ */
+function assertMongoUriEnforcesTls(
+  nodeEnv: Environment['nodeEnv'],
+  mongoUri: string,
+): void {
+  const queryStart = mongoUri.indexOf('?');
+  const rawQuery = queryStart === -1 ? '' : mongoUri.slice(queryStart + 1);
+  const tlsValues = Array.from(new URLSearchParams(rawQuery).entries())
+    .filter(([name]) => /^(tls|ssl)$/i.test(name))
+    .map(([, value]) => value.toLowerCase());
+
+  const explicitlyDisablesTls = tlsValues.includes('false');
+  const isSrvUri = mongoUri.startsWith('mongodb+srv://');
+  const explicitlyEnablesTls = tlsValues.includes('true');
+  const productionUriEnablesTls = isSrvUri || explicitlyEnablesTls;
+
+  if (
+    explicitlyDisablesTls ||
+    (nodeEnv === 'production' && !productionUriEnablesTls)
+  ) {
+    throw new Error(
+      'A variável "MONGO_URI" precisa manter TLS habilitado; em produção, URIs "mongodb://" exigem "tls=true" ou "ssl=true".',
+    );
+  }
+}
+
+/**
  * Lê uma variável obrigatória do ambiente.
  *
  * Motivo:
@@ -357,6 +397,7 @@ assertProductionCorsOrigins(nodeEnv, corsOrigins);
 
 const mongoUri = getRequiredEnv('MONGO_URI');
 assertMongoUriShape(mongoUri);
+assertMongoUriEnforcesTls(nodeEnv, mongoUri);
 
 const jwtSecret = getRequiredEnv('JWT_SECRET');
 assertJwtSecretStrength(nodeEnv, jwtSecret);
