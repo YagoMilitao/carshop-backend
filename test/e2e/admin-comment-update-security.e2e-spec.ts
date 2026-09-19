@@ -203,4 +203,20 @@ describe('Admin comment update security (e2e)', () => {
 
     expect(persisted?.content).toBe('Comentário atualizado legitimamente.');
   });
+
+  // CARSHOP-138 — FR-002/AC-001: PATCH /admin/comments/:commentId without an
+  // Authorization header must be rejected with 401 and must not mutate the
+  // target comment.
+  it('rejects PATCH /admin/comments/:commentId without authentication with 401 and does not mutate the comment (FR-002/AC-001)', async () => {
+    const { workId, comment } = await setupApprovedComment();
+
+    await request(app)
+      .patch(`/admin/comments/${comment.id}`)
+      .send({ content: 'Tentativa de atualização sem autenticação.' })
+      .expect(401);
+
+    const persisted = await findApprovedComment(app, workId, comment.id);
+
+    expect(persisted?.content).toBe(comment.content);
+  });
 });

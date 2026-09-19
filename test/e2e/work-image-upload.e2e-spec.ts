@@ -10,6 +10,7 @@ import {
   VALID_PNG_BUFFER,
   VALID_WEBP_BUFFER,
 } from './support/valid-image-fixtures';
+import { AuthSessionModel } from '../../src/data/models/auth-session.model';
 
 interface AuthResponseBody {
   accessToken: string;
@@ -30,13 +31,20 @@ interface WorkResponseBody {
 async function loginAsAdmin(
   app: ReturnType<typeof createApp>,
 ): Promise<string> {
+  const loginBody = await loginAsAdminWithSession(app);
+
+  return loginBody.accessToken;
+}
+
+async function loginAsAdminWithSession(
+  app: ReturnType<typeof createApp>,
+): Promise<AuthResponseBody> {
   const loginResponse = await request(app)
     .post('/auth/login')
     .send({ email: 'admin@carshop.com', password: '123456' })
     .expect(200);
-  const loginBody = loginResponse.body as AuthResponseBody;
 
-  return loginBody.accessToken;
+  return loginResponse.body as AuthResponseBody;
 }
 
 // Sessions are persisted in Mongo (MongoSessionStoreRepository), shared by
@@ -440,5 +448,36 @@ describe('Work image upload and delete (e2e)', () => {
 
     expect(workAfterDelete).toBeDefined();
     expect(workAfterDelete?.images.length).toBe(0);
+  });
+
+  // CARSHOP-138 — FR-004/AC-002: a token bound to a session revoked in
+  // SessionStorePort must be rejected with 401 on POST
+  // /admin/works/:workId/images, without reaching the image-storage
+  // provider.
+  it('rejects POST /admin/works/:workId/images with 401 when the session has been revoked, without reaching the image-storage provider (FR-004/AC-002)', async () => {
+    const login = await loginAsAdminWithSession(app);
+    const workId = await createWork(
+      app,
+      login.accessToken,
+      `image-revoked-session-${Date.now()}`,
+    );
+    const uploadSpy = jest.spyOn(imageStorage, 'upload');
+
+    // Mirrors MongoSessionStoreRepository.revoke()'s own update shape.
+    await AuthSessionModel.findOneAndUpdate(
+      { id: login.sessionId },
+      { revokedAt: Date.now() },
+    );
+
+    await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${login.accessToken}`)
+      .attach('file', VALID_JPEG_BUFFER, {
+        filename: 'work-photo.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(401);
+
+    expect(uploadSpy).not.toHaveBeenCalled();
   });
 });
