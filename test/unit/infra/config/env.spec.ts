@@ -119,6 +119,14 @@ describe('env — MONGO_URI TLS enforcement (CARSHOP-137, FR-003, AC-003)', () =
     NODE_ENV: 'test',
   };
 
+  const VALID_PRODUCTION_ENV = {
+    ...REQUIRED_ENV,
+    NODE_ENV: 'production',
+    CORS_ORIGIN: 'https://app.example.com',
+    JWT_SECRET: 'a'.repeat(32),
+    ADMIN_PASSWORD: 'Str0ng!Passw0rd',
+  };
+
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv, ...REQUIRED_ENV };
@@ -155,6 +163,34 @@ describe('env — MONGO_URI TLS enforcement (CARSHOP-137, FR-003, AC-003)', () =
     expect(error.message).toContain('MONGO_URI');
   });
 
+  it.each([
+    'mongodb://unit-test/db?t%6cs=false',
+    'mongodb://unit-test/db?tls=f%61lse',
+  ])(
+    'rejeita parâmetros de TLS percent-encoded antes de carregar o ambiente: %s',
+    (mongoUri) => {
+      process.env.MONGO_URI = mongoUri;
+
+      const error = captureEnvLoadError();
+
+      expect(error.message).toContain('MONGO_URI');
+      expect(error.message).not.toContain(mongoUri);
+    },
+  );
+
+  it('rejeita MONGO_URI mongodb:// sem TLS explícito em produção', () => {
+    process.env = {
+      ...originalEnv,
+      ...VALID_PRODUCTION_ENV,
+      MONGO_URI: 'mongodb://prod-unit-test/db',
+    };
+
+    const error = captureEnvLoadError();
+
+    expect(error.message).toContain('MONGO_URI');
+    expect(error.message).not.toContain('mongodb://prod-unit-test/db');
+  });
+
   it('aplica a validação de TLS de forma incondicional em NODE_ENV=development', () => {
     process.env = {
       ...originalEnv,
@@ -168,28 +204,37 @@ describe('env — MONGO_URI TLS enforcement (CARSHOP-137, FR-003, AC-003)', () =
     expect(error.message).toContain('MONGO_URI');
   });
 
-  it('aceita MONGO_URI sem parâmetros de TLS/SSL', () => {
-    process.env.MONGO_URI = 'mongodb://unit-test/db';
+  it.each([
+    {
+      scenario: 'mongodb:// sem parâmetros de TLS/SSL fora de produção',
+      environment: REQUIRED_ENV,
+      mongoUri: 'mongodb://unit-test/db',
+    },
+    {
+      scenario: 'mongodb+srv:// sem parâmetros de TLS/SSL em produção',
+      environment: VALID_PRODUCTION_ENV,
+      mongoUri: 'mongodb+srv://unit-test/db',
+    },
+    {
+      scenario: 'mongodb:// com "tls=true" explícito em produção',
+      environment: VALID_PRODUCTION_ENV,
+      mongoUri: 'mongodb://prod-unit-test/db?tls=true',
+    },
+    {
+      scenario: 'mongodb:// com "ssl=true" explícito em produção',
+      environment: VALID_PRODUCTION_ENV,
+      mongoUri: 'mongodb://prod-unit-test/db?ssl=true',
+    },
+  ])('aceita MONGO_URI $scenario', ({ environment, mongoUri }) => {
+    process.env = {
+      ...originalEnv,
+      ...environment,
+      MONGO_URI: mongoUri,
+    };
 
     const loadedEnv = loadEnvModule();
 
-    expect(loadedEnv.mongoUri).toBe('mongodb://unit-test/db');
-  });
-
-  it('aceita MONGO_URI no formato "mongodb+srv://" sem parâmetros de TLS/SSL', () => {
-    process.env.MONGO_URI = 'mongodb+srv://unit-test/db';
-
-    const loadedEnv = loadEnvModule();
-
-    expect(loadedEnv.mongoUri).toBe('mongodb+srv://unit-test/db');
-  });
-
-  it('aceita MONGO_URI com "tls=true" explícito', () => {
-    process.env.MONGO_URI = 'mongodb+srv://unit-test/db?tls=true';
-
-    const loadedEnv = loadEnvModule();
-
-    expect(loadedEnv.mongoUri).toBe('mongodb+srv://unit-test/db?tls=true');
+    expect(loadedEnv.mongoUri).toBe(mongoUri);
   });
 });
 
@@ -335,7 +380,7 @@ describe('env — JWT_SECRET strength in production (FR-001, AC-001, AC-002, AC-
    */
   const VALID_PRODUCTION_ENV = {
     NODE_ENV: 'production',
-    MONGO_URI: 'mongodb://prod-unit-test',
+    MONGO_URI: 'mongodb://prod-unit-test?tls=true',
     CORS_ORIGIN: 'https://app.example.com',
     JWT_SECRET: 'a'.repeat(32),
     JWT_EXPIRES_IN: '15m',
@@ -408,7 +453,7 @@ describe('env — ADMIN_PASSWORD policy in production (FR-002, AC-003, AC-005, A
 
   const VALID_PRODUCTION_ENV = {
     NODE_ENV: 'production',
-    MONGO_URI: 'mongodb://prod-unit-test',
+    MONGO_URI: 'mongodb://prod-unit-test?tls=true',
     CORS_ORIGIN: 'https://app.example.com',
     JWT_SECRET: 'a'.repeat(32),
     JWT_EXPIRES_IN: '15m',
@@ -476,7 +521,7 @@ describe('env — ADMIN_PASSWORD denylist in production (FR-003, AC-004, AC-011)
 
   const VALID_PRODUCTION_ENV = {
     NODE_ENV: 'production',
-    MONGO_URI: 'mongodb://prod-unit-test',
+    MONGO_URI: 'mongodb://prod-unit-test?tls=true',
     CORS_ORIGIN: 'https://app.example.com',
     JWT_SECRET: 'a'.repeat(32),
     JWT_EXPIRES_IN: '15m',
@@ -646,7 +691,7 @@ describe('env — CORS_ORIGIN validation in production (FR-005, AC-008, AC-009, 
 
   const VALID_PRODUCTION_ENV = {
     NODE_ENV: 'production',
-    MONGO_URI: 'mongodb://prod-unit-test',
+    MONGO_URI: 'mongodb://prod-unit-test?tls=true',
     CORS_ORIGIN: 'https://app.example.com',
     JWT_SECRET: 'a'.repeat(32),
     JWT_EXPIRES_IN: '15m',

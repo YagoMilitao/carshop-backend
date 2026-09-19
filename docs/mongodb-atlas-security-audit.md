@@ -21,41 +21,44 @@ equivalente já existente nesta arquitetura, quando houver.
 Grande parte da evidência necessária para os itens abaixo reside no
 painel de administração do MongoDB Atlas, fora do repositório de
 código. Para esses itens, este documento remete ao checklist manual do
-operador em `specs/CARSHOP-137/operator-checklist.md`. Nenhum valor
-sensível (connection string real, credencial real, IP interno real) é
-citado neste documento, apenas o nome da variável de ambiente
-`MONGO_URI`.
+operador em `specs/CARSHOP-137/operator-checklist.md`. Enquanto os
+resultados operacionais de FR-001 e FR-002 não forem preenchidos, esta
+auditoria permanece **incompleta** e não deve ser descrita como uma
+confirmação da postura real do cluster. Nenhum valor sensível
+(connection string real, credencial real, IP interno real) é citado
+neste documento, apenas o nome da variável de ambiente `MONGO_URI`.
 
 ## Acesso de rede — Network Access (FR-001)
 
 A configuração real de network access (IP allowlist restrita vs.
-`0.0.0.0/0` aberto) do cluster Atlas usado pela aplicação **não é
-verificável a partir deste repositório** — é uma configuração mantida
-exclusivamente no painel do MongoDB Atlas, fora do controle de versão.
+`0.0.0.0/0` aberto) do cluster Atlas usado pela aplicação **não foi
+registrada**. Ela não é verificável apenas a partir do código-fonte,
+pois é mantida no painel do MongoDB Atlas.
 
-Nenhum arquivo do repositório declara ou reflete a lista de IPs
-permitidos. A confirmação real desse item cabe ao operador humano, via
-`specs/CARSHOP-137/operator-checklist.md` (seção "Network Access"), que
-deve registrar se o acesso está restrito a uma lista de origens
-conhecidas ou aberto amplamente, sem citar nenhum IP ou hostname real
-neste ou em qualquer outro artefato versionado.
+**Resultado atual: PENDENTE DE VERIFICAÇÃO DO OPERADOR.** Portanto, não é
+possível afirmar se o acesso está restrito ou aberto. O operador deve
+registrar uma dessas duas classificações, sem IPs, CIDRs ou hostnames
+reais, na seção "Network Access" de
+`specs/CARSHOP-137/operator-checklist.md`; este documento deve então ser
+atualizado com a mesma conclusão antes de FR-001/AC-001 ser marcado como
+conforme.
 
 ## Privilégio do database user (FR-002)
 
 Os privilégios concedidos ao usuário de banco de dados usado pela
-aplicação para conectar-se via `MONGO_URI` **não são verificáveis a
-partir deste repositório** — são uma configuração mantida
-exclusivamente no painel do MongoDB Atlas (Database Access → Database
-Users), fora do controle de versão. O repositório não contém nenhuma
-credencial, nome de usuário real ou definição de papel (role) do
-usuário de banco.
+aplicação para conectar-se via `MONGO_URI` **não foram registrados**.
+Eles não são verificáveis apenas a partir do código-fonte, pois são
+mantidos no painel do MongoDB Atlas (Database Access → Database Users).
+O repositório não contém nenhuma credencial, nome de usuário real ou
+definição de papel (role) do usuário de banco.
 
-A confirmação real desse item cabe ao operador humano, via
-`specs/CARSHOP-137/operator-checklist.md` (seção "Database User"), que
-deve registrar se o papel concedido segue o princípio de menor
-privilégio (ex.: `readWrite` escopado ao(s) database(s) da aplicação)
-ou se excede esse escopo (ex.: `atlasAdmin`/`dbAdminAnyDatabase`), sem
-citar nenhuma credencial real.
+**Resultado atual: PENDENTE DE VERIFICAÇÃO DO OPERADOR.** Portanto, não é
+possível afirmar qual role foi concedida nem se ela segue o princípio de
+menor privilégio. O operador deve registrar o nome da role e seu escopo,
+sem usuário ou credencial real, na seção "Database User" de
+`specs/CARSHOP-137/operator-checklist.md`; este documento deve então ser
+atualizado com a mesma conclusão antes de FR-002/AC-002 ser marcado como
+conforme.
 
 ## TLS em trânsito (FR-003)
 
@@ -71,29 +74,27 @@ com evidência dupla:
      validava, antes desta auditoria, que `MONGO_URI` inicia com
      `mongodb://` ou `mongodb+srv://`, rodando incondicionalmente em
      todo `NODE_ENV`.
-   - **Gap identificado por esta auditoria**: `assertMongoUriShape()`
-     não rejeitava explicitamente uma connection string cuja query
-     string contivesse `tls=false`/`ssl=false`, o que desabilitaria TLS
-     em trânsito mesmo usando o formato `mongodb+srv://`.
+   - **Gaps identificados por esta auditoria**: uma URI `mongodb://`
+     sem opção de TLS era aceita em produção; além disso, a inspeção
+     textual de `tls=false`/`ssl=false` podia ser contornada com nomes
+     ou valores percent-encoded.
    - **Correção aplicada** (CARSHOP-137): nova função
      `assertMongoUriEnforcesTls()` (`src/infra/config/env.ts`, chamada
      logo após `assertMongoUriShape(mongoUri)` na inicialização do
-     módulo) rejeita explicitamente `MONGO_URI` cuja query string
-     contenha `tls=false` ou `ssl=false` (case-insensitive), lançando
-     `Error` que cita apenas o nome da variável (`MONGO_URI`), nunca o
-     valor configurado. A validação roda incondicionalmente em todo
-     `NODE_ENV`, no mesmo padrão de `assertMongoUriShape`. Ela **não**
-     exige a presença de `tls=true`, apenas rejeita a desabilitação
-     explícita — preservando compatibilidade com
-     `mongodb://localhost:27017/test` (dev/test) e com connection
-     strings sem esses parâmetros.
+     módulo) analisa a query string com `URLSearchParams`, após a
+     decodificação percent-encoded, e rejeita qualquer opção `tls` ou
+     `ssl` com valor `false` (case-insensitive) em todos os ambientes.
+     Em produção, uma URI `mongodb://` também precisa declarar
+     `tls=true` ou `ssl=true`; a exceção para URIs locais sem a opção é
+     mantida apenas em desenvolvimento/teste. O `Error` cita somente o
+     nome da variável (`MONGO_URI`), nunca o valor configurado.
    - Cobertura de teste: `test/unit/infra/config/env.spec.ts`, describe
      `env — MONGO_URI TLS enforcement (CARSHOP-137, FR-003, AC-003)`.
 
-Conclusão: TLS é obrigatório por padrão (`mongodb+srv://`) e a
-aplicação agora rejeita ativamente, no próprio startup, qualquer
-tentativa de desabilitá-lo explicitamente via query string —
-independentemente do que estiver configurado no lado do Atlas.
+Conclusão: a aplicação exige TLS em produção: `mongodb+srv://` usa o
+padrão seguro do driver, enquanto `mongodb://` exige habilitação
+explícita. Tentativas de desabilitá-lo, inclusive percent-encoded, são
+rejeitadas no startup em todos os ambientes.
 
 ## Criptografia em repouso — Encryption at Rest (FR-004)
 
@@ -115,23 +116,24 @@ a este item.
 
 Inventário dos 9 arquivos de model Mongoose em `src/data/models/`:
 
-| Model | Coleção | Dados sensíveis/PII | Classificação |
-|---|---|---|---|
-| `work.model.ts` (`WorkModel`) | works | Nenhum (dados de portfólio público: título, descrição, categoria, tags, imagens) | Sem exposição desnecessária |
-| `work-image.model.ts` | — (subdocumento/referência de `WorkModel`) | Nenhum | Sem exposição desnecessária |
-| `category.model.ts` | categories | Nenhum | Sem exposição desnecessária |
-| `tag.model.ts` | tags | Nenhum | Sem exposição desnecessária |
-| `comment.model.ts` (`CommentModel`) | comments | `authorName` (`comment.model.ts:21`) e `content` (`comment.model.ts:27`) são dados pessoais de visitante | Justificado — necessário para a funcionalidade de comentários públicos moderados; já passa por aprovação administrativa antes de ser exibido |
-| `auth-session.model.ts` (`AuthSessionModel`) | auth_sessions | `refreshTokenHash` é armazenado como hash (via `hashToken` em `auth.service.ts`), não em texto puro; `csrfToken` é armazenado em texto puro | `refreshTokenHash`: conforme (hash, não reversível). `csrfToken` em texto puro: aceitável — é o valor comparado no double-submit CSRF, sem valor de acesso isolado sem o cookie `refresh_token` `HttpOnly` correspondente |
-| `admin-user.model.ts` (`AdminUserModel`) | admin_users | Campo `passwordHash` | Scaffolding não conectado (unwired) — confirmado por `docs/admin-credential-security.md` que nenhum `.create()`/`.save()` grava este model fora do script `create-indexes.ts` (que não escreve documentos). Sem exposição ativa hoje |
-| `health-check-ping.model.ts` | health_check_pings | Nenhum | Sem exposição desnecessária — usado apenas pelo script `verify:read-write`, nunca exposto por rota |
-| `portfolio-work.ts` (`PortfolioWorkModel`) | portfolio_works | `metadata.clientName` (`portfolio-work.ts:40`) é um campo de PII (nome de cliente) que **não existe** no `WorkModel` ativo | **Achado desta auditoria — risco residual**: este model é scaffolding não conectado (unwired), referenciado apenas por `src/main/test-portfolio-model.ts`, executável manualmente via `npm run test:portfolio:model` (script registrado em `package.json:27`), mas não invocado por nenhum fluxo de build/start/deploy/CI automatizado. Não há caminho de código ativo que grave ou exponha `clientName` hoje. Registrado como risco residual a mitigar em tarefa futura (ex.: remoção do model não utilizado ou remoção do campo `clientName`), **não remediado nesta tarefa** — está fora de escopo alterar `src/data/models/*.ts` nesta auditoria |
+| Model                                        | Coleção            | Dados sensíveis/PII                                                                                                                                                                           | Classificação                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `work.model.ts` (`WorkModel`)                | works              | Nenhum (dados de portfólio público: título, descrição, categoria, tags, imagens)                                                                                                              | Sem exposição desnecessária                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `work-image.model.ts` (`WorkImageModel`)     | work_images        | Nenhum (`id`, `workId`, URL e texto alternativo da imagem)                                                                                                                                    | Model standalone declarado em coleção própria (`work-image.model.ts:44`), distinto do schema de imagem embutido localmente em `WorkModel`. Está unwired: fora de testes, é referenciado apenas pelo script aditivo `create-indexes.ts`, sem caminho ativo de escrita                                                                                                                                                                                                                                                                                                                                                                                 |
+| `category.model.ts`                          | categories         | Nenhum                                                                                                                                                                                        | Sem exposição desnecessária                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `tag.model.ts`                               | tags               | Nenhum                                                                                                                                                                                        | Sem exposição desnecessária                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `comment.model.ts` (`CommentModel`)          | comments           | `authorName` (`comment.model.ts:21`) e `content` (`comment.model.ts:27`) são dados pessoais de visitante                                                                                      | Justificado — necessário para a funcionalidade de comentários públicos moderados; já passa por aprovação administrativa antes de ser exibido                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `auth-session.model.ts` (`AuthSessionModel`) | auth_sessions      | `email` (`auth-session.model.ts:19`) é PII persistida em cada login; `refreshTokenHash` é armazenado como hash (via `hashToken` em `auth.service.ts`); `csrfToken` é armazenado em texto puro | **Achado ativo — retenção a mitigar**: `expiresAt` é um número com índice comum, não um índice TTL, e a revogação apenas preenche `revokedAt` (`mongo-session-store.repository.ts:80-85`). Não há expurgo de produção para sessões expiradas/revogadas, então email e artefatos de sessão podem permanecer indefinidamente. `refreshTokenHash` não é reversível e o `csrfToken` isolado não concede acesso sem o refresh cookie `HttpOnly`, mas isso não elimina o risco de minimização/retenção                                                                                                                                                     |
+| `admin-user.model.ts` (`AdminUserModel`)     | admin_users        | Campo `passwordHash`                                                                                                                                                                          | Scaffolding não conectado (unwired) — confirmado por `docs/admin-credential-security.md` que nenhum `.create()`/`.save()` grava este model fora do script `create-indexes.ts` (que não escreve documentos). Sem exposição ativa hoje                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `health-check-ping.model.ts`                 | health_check_pings | Nenhum                                                                                                                                                                                        | Sem exposição desnecessária — usado apenas pelo script `verify:read-write`, nunca exposto por rota                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `portfolio-work.ts` (`PortfolioWorkModel`)   | portfolio_works    | `metadata.clientName` (`portfolio-work.ts:40`) é um campo de PII (nome de cliente) que **não existe** no `WorkModel` ativo                                                                    | **Achado desta auditoria — risco residual**: este model é scaffolding não conectado (unwired), referenciado apenas por `src/main/test-portfolio-model.ts`, executável manualmente via `npm run test:portfolio:model` (script registrado em `package.json:27`), mas não invocado por nenhum fluxo de build/start/deploy/CI automatizado. Não há caminho de código ativo que grave ou exponha `clientName` hoje. Registrado como risco residual a mitigar em tarefa futura (ex.: remoção do model não utilizado ou remoção do campo `clientName`), **não remediado nesta tarefa** — está fora de escopo alterar `src/data/models/*.ts` nesta auditoria |
 
-Conclusão: nenhum caminho de código ativo expõe dados sensíveis além do
-necessário para a funcionalidade do produto hoje. O único achado é o
-campo `clientName` em um model de scaffolding não conectado
-(`PortfolioWorkModel`), registrado como risco residual e não como
-não-conformidade ativa.
+Conclusão: há dois achados de minimização de dados. O achado ativo é a
+retenção sem prazo de `email` e artefatos em `auth_sessions`; recomenda-se
+um índice TTL compatível ou uma rotina de expurgo para sessões
+expiradas/revogadas. O segundo é o campo `clientName` no scaffolding
+desconectado `PortfolioWorkModel`, registrado como risco residual sem
+exposição ativa hoje.
 
 ## Row-Level Security (RLS) — não aplicável (FR-006)
 
@@ -191,6 +193,10 @@ Justificativa, com base no inventário de FR-005:
 - `refreshTokenHash` (`auth-session.model.ts:30`) já é armazenado como
   hash, não em texto puro — não exige uma segunda camada de
   criptografia de campo.
+- O `email` de `auth_sessions` é PII, mas não é, isoladamente, dado de
+  alto risco que justifique a complexidade de field-level encryption. O
+  controle proporcional é limitar sua retenção por TTL ou expurgo, gap
+  registrado em FR-005.
 - O único achado de PII (`PortfolioWorkModel.metadata.clientName`) está
   em um model de scaffolding não conectado, sem caminho de escrita
   ativo (ver FR-005) — introduzir field-level encryption para um campo
@@ -202,27 +208,28 @@ escrita ativo, essa tarefa deve reavaliar a necessidade de field-level
 encryption (ou de simplesmente remover o campo `clientName`) como parte
 do seu próprio escopo — decisão de arquitetura não antecipada aqui.
 
-Conclusão: field-level encryption não é necessária hoje. Risco residual
-do campo `clientName` inerte registrado, mas a complexidade adicional
-de field-level encryption é desproporcional ao risco atual.
+Conclusão: field-level encryption não é necessária hoje. Os riscos de
+`auth_sessions.email` e do campo inerte `clientName` exigem minimização
+e retenção adequadas, não criptografia de campo como primeira medida.
 
 ## Resumo de conformidade (FR-009 / AC-009)
 
-| Item do DoD | Requisito | Estado | Observação |
-|---|---|---|---|
-| Network access (restrito vs. aberto) | FR-001 / AC-001 | Não verificável pelo repositório | Confirmação real depende de `specs/CARSHOP-137/operator-checklist.md` |
-| Privilégio do database user | FR-002 / AC-002 | Não verificável pelo repositório | Confirmação real depende de `specs/CARSHOP-137/operator-checklist.md` |
-| TLS obrigatório | FR-003 / AC-003 | Atendido | `mongodb+srv://` implica TLS por padrão; `assertMongoUriEnforcesTls()` (`src/infra/config/env.ts`) agora rejeita `tls=false`/`ssl=false` explícito, incondicionalmente, em todo `NODE_ENV` |
-| Encryption at rest | FR-004 / AC-004 | Atendido (oferta nativa do provedor) | Não configurável via código; tier real confirmado via checklist |
-| Exposição desnecessária de dados | FR-005 / AC-005 | Parcial — risco residual documentado | 8 de 9 models sem exposição desnecessária ativa; `PortfolioWorkModel.metadata.clientName` é PII em scaffolding unwired, registrado como risco residual, não remediado nesta tarefa |
-| RLS não aplicável | FR-006 / AC-006 | Não aplicável (constatação formal) | Equivalente funcional: `authMiddleware` + least-privilege do database user do Atlas |
-| "Public key" não aplicável | FR-007 / AC-007 | Não aplicável (constatação formal) | Único segredo de acesso ao banco é `MONGO_URI` |
-| Field-level encryption | FR-008 / AC-008 | Não necessária no momento (decisão explícita) | Nenhum dado de alto risco identificado; reavaliar se `PortfolioWorkModel` for conectado a um fluxo de escrita ativo |
-| Ausência de credencial/segredo real neste documento | NFR-001 / AC-010 | Atendido | Apenas nomes de variáveis (`MONGO_URI`) e placeholders; nenhum IP, hostname ou credencial real |
+| Item do DoD                                         | Requisito        | Estado                                        | Observação                                                                                                                                                |
+| --------------------------------------------------- | ---------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network access (restrito vs. aberto)                | FR-001 / AC-001  | Pendente — auditoria incompleta               | O operador ainda precisa registrar no artefato versionado se o acesso real está restrito ou aberto                                                        |
+| Privilégio do database user                         | FR-002 / AC-002  | Pendente — auditoria incompleta               | O operador ainda precisa registrar o nome/escopo da role e se segue menor privilégio                                                                      |
+| TLS obrigatório                                     | FR-003 / AC-003  | Atendido                                      | `mongodb+srv://` implica TLS por padrão; em produção, `mongodb://` exige `tls=true`/`ssl=true`; opções `false`, inclusive percent-encoded, são rejeitadas |
+| Encryption at rest                                  | FR-004 / AC-004  | Atendido (oferta nativa do provedor)          | Não configurável via código; tier real confirmado via checklist                                                                                           |
+| Exposição desnecessária de dados                    | FR-005 / AC-005  | Parcial — riscos documentados                 | `auth_sessions` retém email e artefatos sem TTL/expurgo; `PortfolioWorkModel.metadata.clientName` é PII em scaffolding unwired                            |
+| RLS não aplicável                                   | FR-006 / AC-006  | Não aplicável (constatação formal)            | Equivalente funcional: `authMiddleware` + least-privilege do database user do Atlas                                                                       |
+| "Public key" não aplicável                          | FR-007 / AC-007  | Não aplicável (constatação formal)            | Único segredo de acesso ao banco é `MONGO_URI`                                                                                                            |
+| Field-level encryption                              | FR-008 / AC-008  | Não necessária no momento (decisão explícita) | Nenhum dado de alto risco identificado; reavaliar se `PortfolioWorkModel` for conectado a um fluxo de escrita ativo                                       |
+| Ausência de credencial/segredo real neste documento | NFR-001 / AC-010 | Atendido                                      | Apenas nomes de variáveis (`MONGO_URI`) e placeholders; nenhum IP, hostname ou credencial real                                                            |
 
 Nenhuma alteração foi feita em `src/data/models/*.ts` como resultado
 desta auditoria — a recomendação sobre `PortfolioWorkModel.clientName`
-é um achado documentado, não uma implementação, alinhado ao "Out of
-Scope" de `specs/CARSHOP-137/spec.md`. A única alteração de código de
-produção desta tarefa foi o reforço da validação de TLS em
+e a recomendação de retenção para `auth_sessions` são achados
+documentados, não implementações, alinhados ao "Out of Scope" de
+`specs/CARSHOP-137/spec.md`. A única alteração de código de produção
+desta tarefa foi o reforço da validação de TLS em
 `src/infra/config/env.ts`, descrito na seção "TLS em trânsito" acima.

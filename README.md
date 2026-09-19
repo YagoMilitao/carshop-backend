@@ -66,19 +66,25 @@ No startup, a aplicação valida que `MONGO_URI` está definida e que começa
 com `mongodb://` ou `mongodb+srv://`; caso contrário, o processo falha
 antes de o servidor HTTP começar a aceitar requisições, com uma mensagem
 que referencia apenas o nome da variável (`MONGO_URI`), nunca o valor
-configurado.
+configurado. Em produção, URIs `mongodb://` também precisam declarar
+`tls=true` ou `ssl=true`; URIs `mongodb+srv://` já habilitam TLS por padrão.
+Parâmetros `tls=false`/`ssl=false`, inclusive percent-encoded, são rejeitados
+em todos os ambientes.
 
 Este projeto persiste dados exclusivamente via Mongoose/MongoDB — não há
 Prisma, nenhum outro ORM, nem comandos de migração de schema em nenhuma
 etapa do build, start ou deploy.
 
-A postura de segurança do cluster Atlas e dos dados persistidos pela
-aplicação (network access, privilégio do database user, TLS em
-trânsito, criptografia em repouso e exposição de dados nos models
-Mongoose) está auditada e documentada em
+A análise verificável pelo repositório sobre a postura de segurança do
+cluster Atlas e dos dados persistidos pela aplicação (TLS em trânsito,
+criptografia em repouso e exposição de dados nos models Mongoose) está
+documentada em
 [`docs/mongodb-atlas-security-audit.md`](docs/mongodb-atlas-security-audit.md),
 com o checklist manual complementar do operador em
 [`specs/CARSHOP-137/operator-checklist.md`](specs/CARSHOP-137/operator-checklist.md).
+Enquanto os resultados de Network Access e dos privilégios do database
+user não forem registrados nesses artefatos, a auditoria operacional do
+Atlas permanece incompleta.
 
 ### Verificação de índices e de leitura/escrita
 

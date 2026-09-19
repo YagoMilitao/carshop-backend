@@ -34,6 +34,11 @@ nenhum dos dois.
       cluster real — apenas a constatação (restrito/aberto) e a
       recomendação, se aplicável.
 
+**Resultado versionado:** PENDENTE — selecionar `restrito` ou `aberto
+amplamente` após a verificação, sem registrar IPs/CIDRs/hostnames reais.
+
+**Data da verificação:** PENDENTE.
+
 ## 2. Database User — Privilégio Mínimo (FR-002 / AC-002)
 
 - [ ] **2.1** No painel do Atlas (Database Access → Database Users),
@@ -50,6 +55,14 @@ nenhum dos dois.
 - [ ] **2.4** Não registrar, neste arquivo ou em qualquer artefato
       versionado, nenhum nome de usuário real, senha real ou
       credencial real — apenas o nome do papel (role) concedido.
+
+**Role e escopo verificados:** PENDENTE — registrar apenas o nome da role
+e o escopo lógico, sem nome de usuário ou credencial.
+
+**Menor privilégio:** PENDENTE — selecionar `sim` ou `não` após a
+verificação.
+
+**Data da verificação:** PENDENTE.
 
 ## 3. TLS (FR-003 / AC-003)
 
@@ -80,8 +93,8 @@ nenhum dos dois.
 ## Registro de Execução
 
 Este documento não é preenchido automaticamente. Ao concluir a
-conferência manual, o operador deve registrar, fora deste repositório
-(ex.: no sistema de gestão de tarefas, como comentário no Notion), a
-data da execução e o resultado de cada seção, sem copiar nenhum valor
-real de variável de ambiente, IP, hostname ou credencial para este
-arquivo ou para qualquer outro artefato versionado.
+conferência manual, o operador deve marcar os itens e substituir os
+campos `PENDENTE` acima pelos resultados não sensíveis. O documento de
+auditoria deve receber as mesmas conclusões. Nunca copiar valor real de
+variável de ambiente, IP, CIDR, hostname, nome de usuário ou credencial
+para este arquivo ou para qualquer outro artefato versionado.
