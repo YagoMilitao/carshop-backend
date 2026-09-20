@@ -141,6 +141,133 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     return value;
   }
 
+  private getValidatedUpdateRecord(
+    input: UpdateWorkRepositoryInput,
+  ): Record<string, unknown> {
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+      throw new HttpError(400, 'Dados de atualização inválidos.');
+    }
+
+    const prototype: unknown = Object.getPrototypeOf(input);
+
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new HttpError(400, 'Dados de atualização inválidos.');
+    }
+
+    const record = input as Record<string, unknown>;
+
+    if (Object.keys(record).some((key) => this.isDangerousKey(key))) {
+      throw new HttpError(
+        400,
+        'Dados de atualização contêm campos não permitidos.',
+      );
+    }
+
+    return record;
+  }
+
+  private normalizeRequiredString(
+    value: unknown,
+    fieldName: string,
+    requiredMessage: string,
+  ): string {
+    const normalized = this.assertPlainString(value, fieldName).trim();
+
+    if (normalized.length === 0) {
+      throw new HttpError(400, requiredMessage);
+    }
+
+    return normalized;
+  }
+
+  private addSlugUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'slug')) return;
+
+    set.slug = this.sanitizeSlugIdentifier(record.slug);
+  }
+
+  private addTitleUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'title')) return;
+
+    set.title = this.normalizeRequiredString(
+      record.title,
+      'title',
+      'Título é obrigatório.',
+    );
+  }
+
+  private addDescriptionUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'description')) return;
+
+    set.description = this.normalizeRequiredString(
+      record.description,
+      'description',
+      'Descrição é obrigatória.',
+    );
+  }
+
+  private addCategoryUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'category')) return;
+
+    const category = this.normalizeRequiredString(
+      record.category,
+      'category',
+      'Categoria é obrigatória.',
+    ).toLowerCase();
+
+    if (category.length > MAX_CATEGORY_LENGTH) {
+      throw new HttpError(
+        400,
+        `Categoria deve ter no máximo ${MAX_CATEGORY_LENGTH} caracteres.`,
+      );
+    }
+
+    set.category = category;
+  }
+
+  private addTagsUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'tags')) return;
+
+    if (!Array.isArray(record.tags)) {
+      throw new HttpError(400, 'tags deve ser uma lista de strings.');
+    }
+
+    set.tags = record.tags
+      .map((tag, index) =>
+        this.assertPlainString(tag, `tags[${index}]`).trim().toLowerCase(),
+      )
+      .filter((tag) => tag.length > 0);
+  }
+
+  private addStatusUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'status')) return;
+
+    if (record.status !== 'draft' && record.status !== 'published') {
+      throw new HttpError(400, 'status deve ser draft ou published.');
+    }
+
+    set.status = record.status;
+    set.publishedAt = record.status === 'published' ? new Date() : null;
+  }
+
   /**
    * Reconstrói o payload de atualização recebido em um documento `$set`
    * explícito, contendo apenas os campos permitidos.
@@ -155,95 +282,15 @@ export class MongoWorkRepository implements WorkRepositoryPort {
   private buildAllowlistedUpdate(input: UpdateWorkRepositoryInput): {
     $set: Record<string, unknown>;
   } {
-    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-      throw new HttpError(400, 'Dados de atualização inválidos.');
-    }
-
-    const prototype: unknown = Object.getPrototypeOf(input);
-
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new HttpError(400, 'Dados de atualização inválidos.');
-    }
-
-    const record = input as Record<string, unknown>;
-    const keys = Object.keys(record);
-    const hasOwn = (key: string): boolean => Object.hasOwn(record, key);
-
-    if (keys.some((key) => this.isDangerousKey(key))) {
-      throw new HttpError(
-        400,
-        'Dados de atualização contêm campos não permitidos.',
-      );
-    }
-
+    const record = this.getValidatedUpdateRecord(input);
     const set: Record<string, unknown> = {};
 
-    if (hasOwn('slug')) {
-      set.slug = this.sanitizeSlugIdentifier(record.slug);
-    }
-
-    if (hasOwn('title')) {
-      const title = this.assertPlainString(record.title, 'title').trim();
-
-      if (title.length === 0) {
-        throw new HttpError(400, 'Título é obrigatório.');
-      }
-
-      set.title = title;
-    }
-
-    if (hasOwn('description')) {
-      const description = this.assertPlainString(
-        record.description,
-        'description',
-      ).trim();
-
-      if (description.length === 0) {
-        throw new HttpError(400, 'Descrição é obrigatória.');
-      }
-
-      set.description = description;
-    }
-
-    if (hasOwn('category')) {
-      const category = this.assertPlainString(record.category, 'category')
-        .trim()
-        .toLowerCase();
-
-      if (category.length === 0) {
-        throw new HttpError(400, 'Categoria é obrigatória.');
-      }
-
-      if (category.length > MAX_CATEGORY_LENGTH) {
-        throw new HttpError(
-          400,
-          `Categoria deve ter no máximo ${MAX_CATEGORY_LENGTH} caracteres.`,
-        );
-      }
-
-      set.category = category;
-    }
-
-    if (hasOwn('tags')) {
-      if (!Array.isArray(record.tags)) {
-        throw new HttpError(400, 'tags deve ser uma lista de strings.');
-      }
-
-      set.tags = record.tags
-        .map((tag, index) =>
-          this.assertPlainString(tag, `tags[${index}]`).trim().toLowerCase(),
-        )
-        .filter((tag) => tag.length > 0);
-    }
-
-    if (hasOwn('status')) {
-      if (record.status !== 'draft' && record.status !== 'published') {
-        throw new HttpError(400, 'status deve ser draft ou published.');
-      }
-
-      set.status = record.status;
-      set.publishedAt = record.status === 'published' ? new Date() : null;
-    }
+    this.addSlugUpdate(record, set);
+    this.addTitleUpdate(record, set);
+    this.addDescriptionUpdate(record, set);
+    this.addCategoryUpdate(record, set);
+    this.addTagsUpdate(record, set);
+    this.addStatusUpdate(record, set);
 
     if (Object.keys(set).length === 0) {
       throw new HttpError(
