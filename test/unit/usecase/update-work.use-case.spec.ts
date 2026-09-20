@@ -70,7 +70,11 @@ describe('UpdateWorkUseCase', () => {
   });
 
   it('retorna 409 quando o slug informado já pertence a outro work (AC-004, FR-006)', async () => {
-    const otherWork: Work = { ...existingWork, id: 'work-2', slug: 'outro-slug' };
+    const otherWork: Work = {
+      ...existingWork,
+      id: 'work-2',
+      slug: 'outro-slug',
+    };
     const workRepository = buildWorkRepository({
       findById: jest.fn().mockResolvedValue(existingWork),
       findBySlug: jest.fn().mockResolvedValue(otherWork),

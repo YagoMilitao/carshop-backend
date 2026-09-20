@@ -293,8 +293,12 @@ describe('Work CRUD (e2e)', () => {
         .send({ slug: slugB })
         .expect(409);
 
-      const getAResponse = await request(app).get(`/works/${slugA}`).expect(200);
-      const getBResponse = await request(app).get(`/works/${slugB}`).expect(200);
+      const getAResponse = await request(app)
+        .get(`/works/${slugA}`)
+        .expect(200);
+      const getBResponse = await request(app)
+        .get(`/works/${slugB}`)
+        .expect(200);
       const fetchedA = getAResponse.body as WorkDetailResponseBody;
       const fetchedB = getBResponse.body as WorkDetailResponseBody;
 

@@ -527,7 +527,10 @@ describe('WorkController', () => {
         getWorkBySlugUseCase,
         updateWorkUseCase,
       } = createUseCaseMocks();
-      const conflictError = new HttpError(409, 'Já existe um trabalho com esse slug.');
+      const conflictError = new HttpError(
+        409,
+        'Já existe um trabalho com esse slug.',
+      );
       updateWorkUseCase.execute.mockRejectedValue(conflictError);
       const controller = new WorkController(
         createWorkUseCase,
