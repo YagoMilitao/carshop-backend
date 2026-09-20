@@ -15,7 +15,17 @@ import { HttpError } from '../../core/domain/application/ApplicationError/http-e
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_SLUG_LENGTH = 120;
+const MAX_CATEGORY_LENGTH = 120;
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 11000
+  );
+}
 
 type WorkPersistenceDocument = {
   id: string;
@@ -204,6 +214,13 @@ export class MongoWorkRepository implements WorkRepositoryPort {
         throw new HttpError(400, 'Categoria é obrigatória.');
       }
 
+      if (category.length > MAX_CATEGORY_LENGTH) {
+        throw new HttpError(
+          400,
+          `Categoria deve ter no máximo ${MAX_CATEGORY_LENGTH} caracteres.`,
+        );
+      }
+
       set.category = category;
     }
 
@@ -225,6 +242,7 @@ export class MongoWorkRepository implements WorkRepositoryPort {
       }
 
       set.status = record.status;
+      set.publishedAt = record.status === 'published' ? new Date() : null;
     }
 
     if (Object.keys(set).length === 0) {
@@ -326,9 +344,19 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     const validatedId = this.assertStringIdentifier(id, 'id');
     const update = this.buildAllowlistedUpdate(input);
     const filter = sanitizeFilter({ id: validatedId, deletedAt: null });
-    const updated = await WorkModel.findOneAndUpdate(filter, update, {
-      new: true,
-    }).lean();
+    let updated: WorkPersistenceDocument | null;
+
+    try {
+      updated = await WorkModel.findOneAndUpdate(filter, update, {
+        new: true,
+      }).lean();
+    } catch (error: unknown) {
+      if (isDuplicateKeyError(error)) {
+        throw new HttpError(409, 'Já existe um trabalho com esse slug.');
+      }
+
+      throw error;
+    }
 
     return updated ? toWork(updated) : undefined;
   }

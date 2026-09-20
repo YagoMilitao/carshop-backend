@@ -765,7 +765,7 @@ describe('MongoWorkRepository', () => {
       expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
     });
 
-    it('aceita status válido (published) e inclui no $set (AC-001, FR-008)', async () => {
+    it('publica o work e define publishedAt no mesmo $set (AC-001, FR-008)', async () => {
       mockFindOneAndUpdateResult({
         id: workId,
         slug: 'work-slug',
@@ -784,9 +784,65 @@ describe('MongoWorkRepository', () => {
 
       expect(workModel.WorkModel.findOneAndUpdate).toHaveBeenCalledWith(
         { id: workId, deletedAt: null },
-        { $set: { status: 'published' } },
+        {
+          $set: {
+            status: 'published',
+            publishedAt: expect.any(Date),
+          },
+        },
         { new: true },
       );
+    });
+
+    it('move o work para draft e limpa publishedAt no mesmo $set', async () => {
+      mockFindOneAndUpdateResult({
+        id: workId,
+        slug: 'work-slug',
+        title: 'Work title',
+        description: 'Work description',
+        category: 'bancos',
+        tags: [],
+        images: [],
+        status: 'draft',
+        deletedAt: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+      });
+
+      await repository.update(workId, { status: 'draft' });
+
+      expect(workModel.WorkModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { id: workId, deletedAt: null },
+        { $set: { status: 'draft', publishedAt: null } },
+        { new: true },
+      );
+    });
+
+    it('traduz colisão de índice único durante o update para HTTP 409', async () => {
+      const duplicateKeyError = Object.assign(new Error('E11000'), {
+        code: 11000,
+      });
+      workModel.WorkModel.findOneAndUpdate.mockReturnValue({
+        lean: () => Promise.reject(duplicateKeyError),
+      });
+
+      await expect(
+        repository.update(workId, { slug: 'slug-reservado' }),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: 'Já existe um trabalho com esse slug.',
+      });
+    });
+
+    it('não mascara falhas de persistência que não sejam colisão de índice único', async () => {
+      const persistenceError = new Error('Mongo indisponível');
+      workModel.WorkModel.findOneAndUpdate.mockReturnValue({
+        lean: () => Promise.reject(persistenceError),
+      });
+
+      await expect(
+        repository.update(workId, { title: 'Novo título' }),
+      ).rejects.toBe(persistenceError);
     });
 
     it('rejeita title não-string sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
@@ -864,6 +920,13 @@ describe('MongoWorkRepository', () => {
 
       await expect(
         repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita category acima de 120 caracteres sem chamar findOneAndUpdate', async () => {
+      await expect(
+        repository.update(workId, { category: 'a'.repeat(121) }),
       ).rejects.toMatchObject({ statusCode: 400 });
       expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
     });

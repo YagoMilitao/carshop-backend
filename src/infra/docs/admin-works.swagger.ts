@@ -47,6 +47,8 @@ export const adminWorksSchemas = {
 
   UpdateWorkRequest: {
     type: 'object',
+    minProperties: 1,
+    additionalProperties: false,
     description:
       'Todos os campos são opcionais; ao menos um deve ser informado.',
     properties: {
@@ -56,7 +58,11 @@ export const adminWorksSchemas = {
         type: 'string',
         example: 'Restauração completa do banco em couro.',
       },
-      category: { type: 'string', example: 'bancos' },
+      category: {
+        type: 'string',
+        maxLength: 120,
+        example: 'bancos',
+      },
       tags: {
         type: 'array',
         items: { type: 'string' },
