@@ -203,12 +203,13 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
     // RFC 5737 TEST-NET-2 — reserved for documentation/example use, unique
     // to this file to avoid bucket collisions with other spec files.
     const RATE_LIMIT_IP = '198.51.100.201';
+    const client = request(app);
 
     let lastResponse:
       | { body: unknown; text: string; status: number }
       | undefined;
     for (let attempt = 1; attempt <= 101; attempt += 1) {
-      lastResponse = await request(app)
+      lastResponse = await client
         .get('/')
         .set('X-Forwarded-For', RATE_LIMIT_IP);
     }

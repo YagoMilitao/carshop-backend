@@ -521,4 +521,95 @@ describe('MongoWorkRepository', () => {
       );
     });
   });
+
+  describe('rejeição de identificadores vazios/perigosos em formato de string (AC-002, AC-003, AC-004, AC-009, FR-002, FR-004, FR-009)', () => {
+    const maliciousIdentifiers: Array<[string, string]> = [
+      ['operador Mongo ($ne)', '$ne'],
+      ['chave com ponto (a.b)', 'a.b'],
+      ['prototype pollution (__proto__)', '__proto__'],
+      ['prototype pollution (constructor)', 'constructor'],
+      ['prototype pollution (prototype)', 'prototype'],
+      ['string vazia', ''],
+      ['string apenas com espaços', '   '],
+    ];
+
+    describe.each(maliciousIdentifiers)(
+      'valor malicioso: %s',
+      (_label, maliciousValue) => {
+        it('findById rejeita sem consultar o WorkModel', async () => {
+          await expect(repository.findById(maliciousValue)).rejects.toThrow(
+            HttpError,
+          );
+          expect(workModel.WorkModel.findOne).not.toHaveBeenCalled();
+        });
+
+        it('findByIdIncludingDeleted rejeita sem consultar o WorkModel', async () => {
+          await expect(
+            repository.findByIdIncludingDeleted(maliciousValue),
+          ).rejects.toThrow(HttpError);
+          expect(workModel.WorkModel.findOne).not.toHaveBeenCalled();
+        });
+
+        it('softDelete rejeita sem chamar updateOne', async () => {
+          await expect(repository.softDelete(maliciousValue)).rejects.toThrow(
+            HttpError,
+          );
+          expect(workModel.WorkModel.updateOne).not.toHaveBeenCalled();
+        });
+
+        it('hardDelete rejeita sem chamar deleteOne/deleteMany', async () => {
+          await expect(repository.hardDelete(maliciousValue)).rejects.toThrow(
+            HttpError,
+          );
+          expect(workModel.WorkModel.deleteOne).not.toHaveBeenCalled();
+          expect(commentModel.CommentModel.deleteMany).not.toHaveBeenCalled();
+        });
+
+        it('hardDeleteData rejeita sem chamar deleteOne', async () => {
+          await expect(
+            repository.hardDeleteData(maliciousValue),
+          ).rejects.toThrow(HttpError);
+          expect(workModel.WorkModel.deleteOne).not.toHaveBeenCalled();
+        });
+
+        it('addImage rejeita workId malicioso sem chamar updateOne', async () => {
+          const newImage = {
+            id: 'image-1',
+            url: 'https://cdn.example.com/image-1.png',
+            publicId: 'carshop/works/work-1/image-1',
+            alt: 'Imagem',
+            isCover: false,
+            order: 0,
+            createdAt: '',
+            updatedAt: '',
+          };
+
+          await expect(
+            repository.addImage(maliciousValue, newImage),
+          ).rejects.toThrow(HttpError);
+          expect(workModel.WorkModel.updateOne).not.toHaveBeenCalled();
+        });
+
+        it('removeImage rejeita workId malicioso sem chamar updateOne', async () => {
+          await expect(
+            repository.removeImage(maliciousValue, 'image-1'),
+          ).rejects.toThrow(HttpError);
+          expect(workModel.WorkModel.updateOne).not.toHaveBeenCalled();
+        });
+
+        it('removeImage rejeita imageId malicioso sem chamar updateOne', async () => {
+          await expect(
+            repository.removeImage('work-1', maliciousValue),
+          ).rejects.toThrow(HttpError);
+          expect(workModel.WorkModel.updateOne).not.toHaveBeenCalled();
+        });
+
+        it('as rejeições ocorrem com status HTTP 400', async () => {
+          await expect(
+            repository.findById(maliciousValue),
+          ).rejects.toMatchObject({ statusCode: 400 });
+        });
+      },
+    );
+  });
 });

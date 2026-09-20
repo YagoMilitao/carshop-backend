@@ -5,6 +5,7 @@ import type { ListWorksUseCase } from '../../../../src/usecase/list-works.use-ca
 import type { GetWorkBySlugUseCase } from '../../../../src/usecase/get-work-by-slug.use-case';
 import { WorkController } from '../../../../src/presentation/controllers/work.controller';
 import type { Work } from '../../../../src/core/domain/application/Work/work.types';
+import { toPublicWorkResponse } from '../../../../src/presentation/helpers/work-response.mapper';
 
 function createResponseMock() {
   return {
@@ -34,7 +35,18 @@ const work: Work = {
   description: 'Work description',
   category: 'bancos',
   tags: ['couro'],
-  images: [],
+  images: [
+    {
+      id: 'image-1',
+      url: 'https://cdn.example.com/image-1.png',
+      publicId: 'carshop/works/work-1/image-1',
+      alt: 'Imagem',
+      isCover: true,
+      order: 0,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    },
+  ],
   status: 'draft',
   deletedAt: null,
   createdAt: '2024-01-01T00:00:00.000Z',
@@ -188,7 +200,7 @@ describe('WorkController', () => {
   });
 
   describe('list', () => {
-    it('lista trabalhos publicados quando includeDrafts não é "true"', async () => {
+    it('lista trabalhos publicados quando includeDrafts não é "true" e retorna o formato público minimizado quando não autenticado (FR-006/FR-007)', async () => {
       const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
         createUseCaseMocks();
       listWorksUseCase.execute.mockResolvedValue([work]);
@@ -208,10 +220,13 @@ describe('WorkController', () => {
         includeDrafts: false,
       });
       expect(response.status).toHaveBeenCalledWith(200);
-      expect(response.json).toHaveBeenCalledWith([work]);
+      expect(response.json).toHaveBeenCalledWith([toPublicWorkResponse(work)]);
+      const [[responseBody]] = (response.json as jest.Mock).mock.calls;
+      expect(responseBody[0]).not.toHaveProperty('deletedAt');
+      expect(responseBody[0].images[0]).not.toHaveProperty('publicId');
     });
 
-    it('lista todos os trabalhos quando includeDrafts=true', async () => {
+    it('lista todos os trabalhos quando includeDrafts=true e retorna o formato completo quando autenticado (AC-007)', async () => {
       const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
         createUseCaseMocks();
       listWorksUseCase.execute.mockResolvedValue([work]);
@@ -225,6 +240,7 @@ describe('WorkController', () => {
       const next = jest.fn();
       const request = {
         query: { includeDrafts: 'true' },
+        auth: { sessionId: 'session-1' },
       } as unknown as Request;
 
       await controller.list(request, response, next);
@@ -232,6 +248,7 @@ describe('WorkController', () => {
       expect(listWorksUseCase.execute).toHaveBeenCalledWith({
         includeDrafts: true,
       });
+      expect(response.json).toHaveBeenCalledWith([work]);
     });
 
     it('encaminha erros do caso de uso para o next', async () => {
@@ -256,7 +273,7 @@ describe('WorkController', () => {
   });
 
   describe('getBySlug', () => {
-    it('responde 200 com o trabalho encontrado para um slug válido', async () => {
+    it('responde 200 com o formato público minimizado do trabalho encontrado para um slug válido (FR-006/FR-007)', async () => {
       const { createWorkUseCase, listWorksUseCase, getWorkBySlugUseCase } =
         createUseCaseMocks();
       getWorkBySlugUseCase.execute.mockResolvedValue(work);
@@ -276,7 +293,10 @@ describe('WorkController', () => {
 
       expect(getWorkBySlugUseCase.execute).toHaveBeenCalledWith('work-slug');
       expect(response.status).toHaveBeenCalledWith(200);
-      expect(response.json).toHaveBeenCalledWith(work);
+      expect(response.json).toHaveBeenCalledWith(toPublicWorkResponse(work));
+      const [[responseBody]] = (response.json as jest.Mock).mock.calls;
+      expect(responseBody).not.toHaveProperty('deletedAt');
+      expect(responseBody.images[0]).not.toHaveProperty('publicId');
       expect(next).not.toHaveBeenCalled();
     });
 

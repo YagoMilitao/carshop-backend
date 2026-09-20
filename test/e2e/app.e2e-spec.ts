@@ -157,6 +157,30 @@ describe('Auth flow (e2e)', () => {
     expect(extractCookie(setCookie, 'csrf_token')).toBeUndefined();
     expect(sessionCountAfter).toBe(sessionCountBefore);
   });
+
+  it('rejects a Mongo-operator-style login payload without creating a session or issuing cookies (CARSHOP-139 AC-008)', async () => {
+    const email = 'admin@carshop.com';
+    const sessionCountBefore = await AuthSessionModel.countDocuments({ email });
+
+    const loginResponse = await request(app)
+      .post('/auth/login')
+      .send({ email, password: '123456', $where: 'this.email != null' })
+      .expect(400)
+      .expect('Content-Type', /json/);
+
+    const sessionCountAfter = await AuthSessionModel.countDocuments({ email });
+    const rawSetCookie = loginResponse.headers['set-cookie'];
+    const setCookie = Array.isArray(rawSetCookie)
+      ? rawSetCookie
+      : rawSetCookie
+        ? [rawSetCookie]
+        : [];
+
+    expect(loginResponse.body).not.toHaveProperty('accessToken');
+    expect(extractCookie(setCookie, 'refresh_token')).toBeUndefined();
+    expect(extractCookie(setCookie, 'csrf_token')).toBeUndefined();
+    expect(sessionCountAfter).toBe(sessionCountBefore);
+  });
 });
 
 /**

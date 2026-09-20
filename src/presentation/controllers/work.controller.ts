@@ -8,6 +8,7 @@ import {
   CreateWorkSchemaInput,
   createWorkSchema,
 } from '../../infra/presentation/validators/create-work.schema';
+import { toPublicWorkResponse } from '../helpers/work-response.mapper';
 
 export class WorkController {
   constructor(
@@ -54,7 +55,11 @@ export class WorkController {
         includeDrafts,
       });
 
-      response.status(200).json(works);
+      const responseBody = request.auth
+        ? works
+        : works.map(toPublicWorkResponse);
+
+      response.status(200).json(responseBody);
     } catch (error: unknown) {
       next(error);
     }
@@ -70,7 +75,7 @@ export class WorkController {
 
       const work = await this.getWorkBySlugUseCase.execute(slug);
 
-      response.status(200).json(work);
+      response.status(200).json(toPublicWorkResponse(work));
     } catch (error: unknown) {
       next(error);
     }

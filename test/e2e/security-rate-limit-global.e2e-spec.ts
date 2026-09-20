@@ -65,12 +65,13 @@ describe('Global rate limiter (e2e, CARSHOP-111)', () => {
     // real routable address (avoids SonarQube's hardcoded-IP hotspot
     // S1313), unique to this file's own module registry.
     const RATE_LIMIT_IP = '198.51.100.202';
+    const client = request(app);
 
     let lastResponse:
       | { body: unknown; status: number; headers: Record<string, unknown> }
       | undefined;
     for (let attempt = 1; attempt <= 101; attempt += 1) {
-      lastResponse = await request(app)
+      lastResponse = await client
         .get('/')
         .set('X-Forwarded-For', RATE_LIMIT_IP);
     }

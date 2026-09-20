@@ -14,6 +14,7 @@ import { HttpError } from '../../core/domain/application/ApplicationError/http-e
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_SLUG_LENGTH = 120;
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 type WorkPersistenceDocument = {
   id: string;
@@ -79,11 +80,24 @@ export class MongoWorkRepository implements WorkRepositoryPort {
    * MongoDB.
    */
   private assertStringIdentifier(value: unknown, fieldName: string): string {
-    if (typeof value !== 'string') {
+    if (
+      typeof value !== 'string' ||
+      value.trim().length === 0 ||
+      this.isDangerousKey(value)
+    ) {
       throw new HttpError(400, `${fieldName} deve ser uma string válida.`);
     }
 
     return value;
+  }
+
+  /**
+   * Identifica chaves perigosas para um filtro/documento do Mongo:
+   * operadores do Mongo (`$...`), chaves com ponto (path aninhado) e
+   * chaves usadas em ataques de prototype pollution.
+   */
+  private isDangerousKey(key: string): boolean {
+    return key.startsWith('$') || key.includes('.') || DANGEROUS_KEYS.has(key);
   }
 
   /**
@@ -130,10 +144,11 @@ export class MongoWorkRepository implements WorkRepositoryPort {
    */
   async findById(id: string): Promise<Work | undefined> {
     const validatedId = this.assertStringIdentifier(id, 'id');
-    const work = await WorkModel.findOne({
+    const filter = sanitizeFilter({
       id: validatedId,
       deletedAt: null,
-    }).lean();
+    });
+    const work = await WorkModel.findOne(filter).lean();
     return work ? toWork(work) : undefined;
   }
 
@@ -142,7 +157,8 @@ export class MongoWorkRepository implements WorkRepositoryPort {
    */
   async findByIdIncludingDeleted(id: string): Promise<Work | undefined> {
     const validatedId = this.assertStringIdentifier(id, 'id');
-    const work = await WorkModel.findOne({ id: validatedId }).lean();
+    const filter = sanitizeFilter({ id: validatedId });
+    const work = await WorkModel.findOne(filter).lean();
 
     return work ? toWork(work) : undefined;
   }
@@ -181,21 +197,21 @@ export class MongoWorkRepository implements WorkRepositoryPort {
 
   async softDelete(id: string): Promise<void> {
     const validatedId = this.assertStringIdentifier(id, 'id');
-    await WorkModel.updateOne(
-      { id: validatedId, deletedAt: null },
-      { deletedAt: new Date() },
-    );
+    const filter = sanitizeFilter({ id: validatedId, deletedAt: null });
+    await WorkModel.updateOne(filter, { deletedAt: new Date() });
   }
 
   async hardDelete(id: string): Promise<void> {
     const validatedId = this.assertStringIdentifier(id, 'id');
-    await WorkModel.deleteOne({ id: validatedId });
+    const filter = sanitizeFilter({ id: validatedId });
+    await WorkModel.deleteOne(filter);
     await CommentModel.deleteMany({ workId: validatedId });
   }
 
   async hardDeleteData(id: string): Promise<boolean> {
     const validatedId = this.assertStringIdentifier(id, 'id');
-    const result = await WorkModel.deleteOne({ id: validatedId });
+    const filter = sanitizeFilter({ id: validatedId });
+    const result = await WorkModel.deleteOne(filter);
 
     return result.deletedCount > 0;
   }
@@ -209,24 +225,23 @@ export class MongoWorkRepository implements WorkRepositoryPort {
      * garantir que só exista uma imagem principal.
      */
     if (image.isCover) {
-      await WorkModel.updateOne(
-        { id: validatedWorkId },
-        {
-          $set: {
-            'images.$[].isCover': false,
-          },
+      const setCoverFilter = sanitizeFilter({ id: validatedWorkId });
+      await WorkModel.updateOne(setCoverFilter, {
+        $set: {
+          'images.$[].isCover': false,
         },
-      );
+      });
     }
 
-    await WorkModel.updateOne(
-      { id: validatedWorkId, deletedAt: null },
-      {
-        $push: {
-          images: image,
-        },
+    const pushImageFilter = sanitizeFilter({
+      id: validatedWorkId,
+      deletedAt: null,
+    });
+    await WorkModel.updateOne(pushImageFilter, {
+      $push: {
+        images: image,
       },
-    );
+    });
 
     return this.findById(validatedWorkId);
   }
@@ -234,14 +249,12 @@ export class MongoWorkRepository implements WorkRepositoryPort {
   async removeImage(workId: string, imageId: string): Promise<void> {
     const validatedWorkId = this.assertStringIdentifier(workId, 'workId');
     const validatedImageId = this.assertStringIdentifier(imageId, 'imageId');
-    await WorkModel.updateOne(
-      { id: validatedWorkId },
-      {
-        $pull: {
-          images: { id: validatedImageId },
-        },
+    const filter = sanitizeFilter({ id: validatedWorkId });
+    await WorkModel.updateOne(filter, {
+      $pull: {
+        images: { id: validatedImageId },
       },
-    );
+    });
   }
 
   /**

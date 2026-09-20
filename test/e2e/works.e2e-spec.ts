@@ -201,4 +201,61 @@ describe('Works listing authorization (e2e)', () => {
 
     expect(JSON.stringify(response.body)).not.toContain('Draft work title');
   });
+
+  // CARSHOP-139 — Gap B / FR-006/FR-007 / AC-005/AC-007: public responses
+  // must never expose images[].publicId or the top-level deletedAt marker,
+  // while the authenticated admin shape must remain unchanged (regression).
+  it('omits images[].publicId and deletedAt from unauthenticated GET /works and GET /works/:slug, and preserves them for authenticated admin GET /works?includeDrafts=true (CARSHOP-139 FR-006/FR-007/AC-005/AC-007)', async () => {
+    const accessToken = await loginAsAdmin(app);
+    const slug = `public-minimization-${Date.now()}`;
+
+    const createResponse = await request(app)
+      .post('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        slug,
+        title: 'Minimization work title',
+        description: 'Minimization work description',
+        category: 'bancos',
+        tags: ['couro'],
+        status: 'published',
+      })
+      .expect(201);
+
+    // POST /works (admin-only) keeps the full shape unchanged.
+    expect(createResponse.body).toHaveProperty('deletedAt');
+
+    const publicListResponse = await request(app).get('/works').expect(200);
+    const publicWorks = publicListResponse.body as Array<
+      Record<string, unknown>
+    >;
+    const publicWork = publicWorks.find(
+      (work) => (work as { slug: string }).slug === slug,
+    );
+
+    expect(publicWork).toBeDefined();
+    expect(publicWork).not.toHaveProperty('deletedAt');
+    expect(
+      (publicWork as { images: Array<Record<string, unknown>> }).images,
+    ).toEqual([]);
+
+    const publicBySlugResponse = await request(app)
+      .get(`/works/${slug}`)
+      .expect(200);
+
+    expect(publicBySlugResponse.body).not.toHaveProperty('deletedAt');
+
+    const adminListResponse = await request(app)
+      .get('/works')
+      .query({ includeDrafts: 'true' })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const adminWorks = adminListResponse.body as Array<Record<string, unknown>>;
+    const adminWork = adminWorks.find(
+      (work) => (work as { slug: string }).slug === slug,
+    );
+
+    expect(adminWork).toBeDefined();
+    expect(adminWork).toHaveProperty('deletedAt');
+  });
 });
