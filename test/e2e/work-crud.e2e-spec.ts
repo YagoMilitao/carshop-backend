@@ -24,7 +24,7 @@ async function loginAsAdmin(
 ): Promise<string> {
   const loginResponse = await request(app)
     .post('/auth/login')
-    .send({ email: 'admin@carshop.com', password: '123456' })
+    .send({ email: process.env.ADMIN_EMAIL, password: '123456' })
     .expect(200);
   const loginBody = loginResponse.body as AuthResponseBody;
 
@@ -49,6 +49,7 @@ function buildWorkPayload(slug: string) {
  */
 describe('Work CRUD (e2e)', () => {
   let app: ReturnType<typeof createApp>;
+  let testSequence = 0;
 
   beforeAll(async () => {
     if (!process.env.MONGO_URI) {
@@ -65,8 +66,9 @@ describe('Work CRUD (e2e)', () => {
   });
 
   beforeEach(() => {
+    testSequence += 1;
     process.env.JWT_SECRET = 'e2e-secret';
-    process.env.ADMIN_EMAIL = 'admin@carshop.com';
+    process.env.ADMIN_EMAIL = `admin-work-crud-${testSequence}@carshop.com`;
     process.env.ADMIN_PASSWORD = '123456';
     process.env.JWT_EXPIRES_IN = '15m';
     process.env.JWT_REFRESH_EXPIRES_IN = '7d';
@@ -171,21 +173,19 @@ describe('Work CRUD (e2e)', () => {
      * objeto usando sintaxe de literal ou atribuição por colchetes/ponto
      * (isso apenas alteraria o protótipo do objeto em memória via o
      * setter herdado de `Object.prototype`, sem nunca aparecer como uma
-     * propriedade enumerável no JSON serializado). Construímos a string
-     * JSON bruta diretamente e usamos `JSON.parse`, que cria uma
-     * propriedade própria normal chamada `__proto__` (via
-     * `CreateDataProperty`), reproduzindo fielmente o payload malicioso
-     * enviado por um cliente HTTP real.
+     * propriedade enumerável no JSON serializado). Construímos e enviamos
+     * a string JSON bruta diretamente; passar um objeto para
+     * `supertest.send()` faria a mesclagem interna consumir essa chave
+     * antes de ela chegar ao servidor.
      */
     const basePayloadJson = JSON.stringify(buildWorkPayload(slug)).slice(1);
-    const maliciousPayload: Record<string, unknown> = JSON.parse(
-      `{"__proto__":{"polluted":true},${basePayloadJson}`,
-    ) as Record<string, unknown>;
+    const maliciousPayloadJson = `{"__proto__":{"polluted":true},${basePayloadJson}`;
 
     await request(app)
       .post('/works')
       .set('Authorization', `Bearer ${accessToken}`)
-      .send(maliciousPayload)
+      .type('application/json')
+      .send(maliciousPayloadJson)
       .expect(400);
 
     const listResponse = await request(app).get('/works').expect(200);
