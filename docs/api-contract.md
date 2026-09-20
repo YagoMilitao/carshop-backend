@@ -358,6 +358,39 @@ Rotas montadas em `/admin/works`
 `src/infra/http/routes/work-image.routes.ts`, ambas registradas sob o
 mesmo prefixo `/admin/works`).
 
+### `PATCH /admin/works/{workId}`
+
+- Autenticação: `Authorization: Bearer <ACCESS_TOKEN>` (obrigatório).
+- Path param: `workId` (string, formato `uuid` no exemplo do Swagger).
+- Atualização parcial: apenas os campos enviados no body são alterados;
+  campos ausentes permanecem inalterados. `images`, `metadata` e `seo`
+  não são editáveis por este endpoint.
+- Body (`application/json`), todos os campos opcionais (ao menos um deve
+  ser informado):
+
+  ```json
+  {
+    "slug": "honda-civic-2020",
+    "title": "Honda Civic 2020",
+    "description": "Restauração completa do banco em couro.",
+    "category": "bancos",
+    "tags": ["couro", "restauração"],
+    "status": "draft"
+  }
+  ```
+
+  - `slug`, `title`, `category`: string, 1–120 caracteres.
+  - `description`: string, 1–5000 caracteres.
+  - `tags`: `string[]`.
+  - `status`: `"draft" | "published"`.
+- Resposta `200`: `WorkResponse` (mesmo formato de `POST /works`).
+- Erros:
+  - `400`: payload inválido, vazio ou contendo campos não permitidos.
+  - `401`: access token ausente/inválido/sessão expirada.
+  - `404`: trabalho não encontrado (inclusive se removido logicamente).
+  - `409`: já existe um trabalho com o `slug` informado.
+  - `429`: rate limit global.
+
 ### `DELETE /admin/works/{workId}`
 
 - Autenticação: `Authorization: Bearer <ACCESS_TOKEN>` (obrigatório).
@@ -525,6 +558,7 @@ router).
 | `GET /`, `GET /health` | `src/infra/config/routes.ts` | `HealthController` |
 | `/auth/*` | `src/infra/http/routes/auth.routes.ts` | `AuthController` |
 | `GET/POST /works`, `GET /works/{slug}`, `/works/{workId}/comments` | `src/infra/http/routes/work.routes.ts` | `WorkController`, `CommentController` |
+| `PATCH /admin/works/{workId}` | `src/infra/http/routes/admin-work.routes.ts` | `WorkController` |
 | `DELETE /admin/works/{workId}` | `src/infra/http/routes/admin-work.routes.ts` | `AdminWorkController` |
 | `/admin/works/{workId}/images*` | `src/infra/http/routes/work-image.routes.ts` | `WorkImageController` |
 | `/admin/comments/*` | `src/infra/http/routes/admin-comment.routes.ts` | `AdminCommentController` |

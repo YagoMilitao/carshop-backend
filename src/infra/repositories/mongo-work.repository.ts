@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { sanitizeFilter } from 'mongoose';
 import type {
   CreateWorkInput,
+  UpdateWorkRepositoryInput,
   WorkRepositoryPort,
 } from '../../core/domain/repositories/work.repository';
 import type {
@@ -122,6 +123,120 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     return slug;
   }
 
+  private assertPlainString(value: unknown, fieldName: string): string {
+    if (typeof value !== 'string') {
+      throw new HttpError(400, `${fieldName} deve ser uma string válida.`);
+    }
+
+    return value;
+  }
+
+  /**
+   * Reconstrói o payload de atualização recebido em um documento `$set`
+   * explícito, contendo apenas os campos permitidos.
+   *
+   * Motivo:
+   * nunca repassar o objeto recebido diretamente ao Mongoose; qualquer
+   * chave de operador, chave com ponto ou chave de prototype pollution
+   * rejeita a chamada inteira, sem mesclagem parcial. Também aplica as
+   * mesmas normalizações já feitas antes de `WorkModel.create()`, pois o
+   * hook `pre('save')` do model não roda em `findOneAndUpdate`.
+   */
+  private buildAllowlistedUpdate(input: UpdateWorkRepositoryInput): {
+    $set: Record<string, unknown>;
+  } {
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+      throw new HttpError(400, 'Dados de atualização inválidos.');
+    }
+
+    const prototype: unknown = Object.getPrototypeOf(input);
+
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new HttpError(400, 'Dados de atualização inválidos.');
+    }
+
+    const record = input as Record<string, unknown>;
+    const keys = Object.keys(record);
+    const hasOwn = (key: string): boolean => Object.hasOwn(record, key);
+
+    if (keys.some((key) => this.isDangerousKey(key))) {
+      throw new HttpError(
+        400,
+        'Dados de atualização contêm campos não permitidos.',
+      );
+    }
+
+    const set: Record<string, unknown> = {};
+
+    if (hasOwn('slug')) {
+      set.slug = this.sanitizeSlugIdentifier(record.slug);
+    }
+
+    if (hasOwn('title')) {
+      const title = this.assertPlainString(record.title, 'title').trim();
+
+      if (title.length === 0) {
+        throw new HttpError(400, 'Título é obrigatório.');
+      }
+
+      set.title = title;
+    }
+
+    if (hasOwn('description')) {
+      const description = this.assertPlainString(
+        record.description,
+        'description',
+      ).trim();
+
+      if (description.length === 0) {
+        throw new HttpError(400, 'Descrição é obrigatória.');
+      }
+
+      set.description = description;
+    }
+
+    if (hasOwn('category')) {
+      const category = this.assertPlainString(record.category, 'category')
+        .trim()
+        .toLowerCase();
+
+      if (category.length === 0) {
+        throw new HttpError(400, 'Categoria é obrigatória.');
+      }
+
+      set.category = category;
+    }
+
+    if (hasOwn('tags')) {
+      if (!Array.isArray(record.tags)) {
+        throw new HttpError(400, 'tags deve ser uma lista de strings.');
+      }
+
+      set.tags = record.tags
+        .map((tag, index) =>
+          this.assertPlainString(tag, `tags[${index}]`).trim().toLowerCase(),
+        )
+        .filter((tag) => tag.length > 0);
+    }
+
+    if (hasOwn('status')) {
+      if (record.status !== 'draft' && record.status !== 'published') {
+        throw new HttpError(400, 'status deve ser draft ou published.');
+      }
+
+      set.status = record.status;
+    }
+
+    if (Object.keys(set).length === 0) {
+      throw new HttpError(
+        400,
+        'Nenhum campo válido informado para atualização.',
+      );
+    }
+
+    return { $set: set };
+  }
+
   async create(input: CreateWorkInput): Promise<Work> {
     const created = await WorkModel.create({
       id: randomUUID(),
@@ -199,6 +314,23 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     const validatedId = this.assertStringIdentifier(id, 'id');
     const filter = sanitizeFilter({ id: validatedId, deletedAt: null });
     await WorkModel.updateOne(filter, { deletedAt: new Date() });
+  }
+
+  /**
+   * Atualiza parcialmente um work ativo.
+   */
+  async update(
+    id: string,
+    input: UpdateWorkRepositoryInput,
+  ): Promise<Work | undefined> {
+    const validatedId = this.assertStringIdentifier(id, 'id');
+    const update = this.buildAllowlistedUpdate(input);
+    const filter = sanitizeFilter({ id: validatedId, deletedAt: null });
+    const updated = await WorkModel.findOneAndUpdate(filter, update, {
+      new: true,
+    }).lean();
+
+    return updated ? toWork(updated) : undefined;
   }
 
   async hardDelete(id: string): Promise<void> {

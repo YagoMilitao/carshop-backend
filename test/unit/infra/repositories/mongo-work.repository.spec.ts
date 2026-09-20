@@ -12,6 +12,7 @@ jest.mock('../../../../src/data/models/work.model', () => ({
     find: jest.fn(),
     updateOne: jest.fn(),
     deleteOne: jest.fn(),
+    findOneAndUpdate: jest.fn(),
   },
 }));
 
@@ -28,6 +29,7 @@ interface MockedWorkModel {
     find: jest.Mock;
     updateOne: jest.Mock;
     deleteOne: jest.Mock;
+    findOneAndUpdate: jest.Mock;
   };
 }
 
@@ -611,5 +613,292 @@ describe('MongoWorkRepository', () => {
         });
       },
     );
+  });
+
+  describe('update (CARSHOP-135 AC-001, AC-003, AC-004, AC-005, FR-003, FR-005, FR-006, FR-007, FR-008)', () => {
+    const workId = 'work-1';
+
+    function mockFindOneAndUpdateResult(document: unknown) {
+      workModel.WorkModel.findOneAndUpdate.mockReturnValue({
+        lean: () => Promise.resolve(document),
+      });
+    }
+
+    it('constrói um $set allowlisted apenas com os campos reconhecidos e aplica o filtro deletedAt: null (AC-001, FR-007)', async () => {
+      mockFindOneAndUpdateResult({
+        id: workId,
+        slug: 'work-slug',
+        title: 'Novo título',
+        description: 'Work description',
+        category: 'bancos',
+        tags: ['couro'],
+        images: [],
+        status: 'draft',
+        deletedAt: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+      });
+
+      const result = await repository.update(workId, { title: 'Novo título' });
+
+      expect(workModel.WorkModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { id: workId, deletedAt: null },
+        { $set: { title: 'Novo título' } },
+        { new: true },
+      );
+      expect(result?.title).toBe('Novo título');
+    });
+
+    it('normaliza slug/category/tags (trim/lowercase, filtra tags vazias) antes de montar o $set (AC-001, FR-008)', async () => {
+      mockFindOneAndUpdateResult({
+        id: workId,
+        slug: 'novo-slug',
+        title: 'Work title',
+        description: 'Work description',
+        category: 'estofados',
+        tags: ['couro', 'bmw'],
+        images: [],
+        status: 'draft',
+        deletedAt: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+      });
+
+      await repository.update(workId, {
+        slug: '  Novo-Slug  ',
+        category: '  Estofados  ',
+        tags: [' Couro ', 'BMW', '   '],
+      });
+
+      expect(workModel.WorkModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { id: workId, deletedAt: null },
+        {
+          $set: {
+            slug: 'novo-slug',
+            category: 'estofados',
+            tags: ['couro', 'bmw'],
+          },
+        },
+        { new: true },
+      );
+    });
+
+    it('retorna undefined quando o WorkModel não encontra/atualiza nenhum documento (soft-deleted ou inexistente)', async () => {
+      mockFindOneAndUpdateResult(null);
+
+      const result = await repository.update(workId, { title: 'Novo título' });
+
+      expect(result).toBeUndefined();
+    });
+
+    it('rejeita id não-string sem chamar findOneAndUpdate (FR-003)', async () => {
+      const unsafeIdentifier = { $ne: null } as unknown as string;
+
+      await expect(
+        repository.update(unsafeIdentifier, { title: 'Novo título' }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita chave de operador Mongo ($where) no payload sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const maliciousInput = {
+        $where: 'this.status == "published"',
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, maliciousInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each(['__proto__', 'constructor', 'prototype'])(
+      'rejeita chave de prototype pollution (%s) no payload sem chamar findOneAndUpdate (AC-005, FR-003)',
+      async (dangerousKey) => {
+        const maliciousInput = {
+          [dangerousKey]: { polluted: true },
+        } as unknown as Parameters<typeof repository.update>[1];
+
+        await expect(
+          repository.update(workId, maliciousInput),
+        ).rejects.toMatchObject({ statusCode: 400 });
+        expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejeita chave com ponto (path aninhado) no payload sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const maliciousInput = {
+        'images.0.url': 'https://malicious.example.com',
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, maliciousInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita payload vazio/sem campo reconhecido sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      await expect(repository.update(workId, {})).rejects.toMatchObject({
+        statusCode: 400,
+      });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita tags que não seja um array sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const invalidInput = {
+        tags: 'couro',
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita status fora do enum permitido sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const invalidInput = {
+        status: 'archived',
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('aceita status válido (published) e inclui no $set (AC-001, FR-008)', async () => {
+      mockFindOneAndUpdateResult({
+        id: workId,
+        slug: 'work-slug',
+        title: 'Work title',
+        description: 'Work description',
+        category: 'bancos',
+        tags: [],
+        images: [],
+        status: 'published',
+        deletedAt: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+      });
+
+      await repository.update(workId, { status: 'published' });
+
+      expect(workModel.WorkModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { id: workId, deletedAt: null },
+        { $set: { status: 'published' } },
+        { new: true },
+      );
+    });
+
+    it('rejeita title não-string sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const invalidInput = {
+        title: 123,
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita title composto apenas por espaços sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const invalidInput = {
+        title: '   ',
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita description não-string sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const invalidInput = {
+        description: 123,
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita description composta apenas por espaços sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const invalidInput = {
+        description: '   ',
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('aceita description válida e a inclui, normalizada, no $set (AC-001, FR-008)', async () => {
+      mockFindOneAndUpdateResult({
+        id: workId,
+        slug: 'work-slug',
+        title: 'Work title',
+        description: 'Descrição nova',
+        category: 'bancos',
+        tags: [],
+        images: [],
+        status: 'draft',
+        deletedAt: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+      });
+
+      await repository.update(workId, { description: '  Descrição nova  ' });
+
+      expect(workModel.WorkModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { id: workId, deletedAt: null },
+        { $set: { description: 'Descrição nova' } },
+        { new: true },
+      );
+    });
+
+    it('rejeita category composta apenas por espaços sem chamar findOneAndUpdate (AC-005, FR-003)', async () => {
+      const invalidInput = {
+        category: '   ',
+      } as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita payload que não é um objeto plano (ex.: array) sem chamar findOneAndUpdate (defesa contra payload malformado)', async () => {
+      const invalidInput = [] as unknown as Parameters<
+        typeof repository.update
+      >[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita payload null sem chamar findOneAndUpdate (defesa contra payload malformado)', async () => {
+      const invalidInput = null as unknown as Parameters<
+        typeof repository.update
+      >[1];
+
+      await expect(
+        repository.update(workId, invalidInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejeita payload com prototype customizado (não Object.prototype nem null) sem chamar findOneAndUpdate (defesa contra prototype pollution)', async () => {
+      const maliciousInput = Object.assign(Object.create({ evil: true }), {
+        title: 'Novo título',
+      }) as unknown as Parameters<typeof repository.update>[1];
+
+      await expect(
+        repository.update(workId, maliciousInput),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      expect(workModel.WorkModel.findOneAndUpdate).not.toHaveBeenCalled();
+    });
   });
 });

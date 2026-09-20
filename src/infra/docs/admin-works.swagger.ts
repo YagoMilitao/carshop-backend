@@ -45,6 +45,30 @@ export const adminWorksSchemas = {
     },
   },
 
+  UpdateWorkRequest: {
+    type: 'object',
+    description:
+      'Todos os campos são opcionais; ao menos um deve ser informado.',
+    properties: {
+      slug: { type: 'string', example: 'honda-civic-2020' },
+      title: { type: 'string', example: 'Honda Civic 2020' },
+      description: {
+        type: 'string',
+        example: 'Restauração completa do banco em couro.',
+      },
+      category: { type: 'string', example: 'bancos' },
+      tags: {
+        type: 'array',
+        items: { type: 'string' },
+        example: ['couro', 'restauração'],
+      },
+      status: {
+        type: 'string',
+        enum: ['draft', 'published'],
+      },
+    },
+  },
+
   HardDeleteWorkResponse: {
     type: 'object',
     required: ['success'],
@@ -280,6 +304,64 @@ export const adminWorksPaths = {
   },
 
   '/admin/works/{workId}': {
+    patch: {
+      tags: ['Admin Works'],
+
+      summary: 'Atualiza parcialmente um trabalho',
+
+      description: [
+        'Atualiza somente os campos enviados no payload. Campos ausentes',
+        'permanecem inalterados. `images`, `metadata` e `seo` não são',
+        'editáveis por este endpoint.',
+      ].join(' '),
+
+      security: bearerSecurity,
+
+      parameters: [
+        {
+          in: 'path',
+          name: 'workId',
+          required: true,
+          description: 'Identificador do trabalho a ser atualizado.',
+          schema: {
+            type: 'string',
+            format: 'uuid',
+          },
+          example: 'cf357670-d168-48b4-a5de-c57dff7858fe',
+        },
+      ],
+
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/UpdateWorkRequest' },
+          },
+        },
+      },
+
+      responses: {
+        '200': successResponse(
+          'Trabalho atualizado com sucesso.',
+          '#/components/schemas/WorkResponse',
+        ),
+
+        '400': errorResponse(
+          'Payload inválido, vazio ou contendo campos não permitidos.',
+        ),
+
+        '401': errorResponse(
+          'Access token ausente, inválido ou sessão expirada.',
+        ),
+
+        '404': errorResponse('Trabalho não encontrado.'),
+
+        '409': errorResponse('Já existe um trabalho com o slug informado.'),
+
+        '429': globalRateLimitResponse,
+      },
+    },
+
     delete: {
       tags: ['Admin Works'],
 

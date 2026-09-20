@@ -4,6 +4,7 @@ import { CommentController } from '../../../presentation/controllers/comment.con
 import { CreateWorkUseCase } from '../../../usecase/create-work.use-case';
 import { ListWorksUseCase } from '../../../usecase/list-works.use-case';
 import { GetWorkBySlugUseCase } from '../../../usecase/get-work-by-slug.use-case';
+import { UpdateWorkUseCase } from '../../../usecase/update-work.use-case';
 import { CreateCommentUseCase } from '../../../usecase/create-comment.use-case';
 import { ListApprovedCommentsUseCase } from '../../../usecase/list-approved-comments.use-case';
 import type { WorkRepositoryPort } from '../../../core/domain/repositories/work.repository';
@@ -25,6 +26,7 @@ export function buildWorkRouter(
   const createWorkUseCase = new CreateWorkUseCase(workRepository);
   const listWorksUseCase = new ListWorksUseCase(workRepository);
   const getWorkBySlugUseCase = new GetWorkBySlugUseCase(workRepository);
+  const updateWorkUseCase = new UpdateWorkUseCase(workRepository);
 
   const createCommentUseCase = new CreateCommentUseCase(
     commentRepository,
@@ -39,6 +41,7 @@ export function buildWorkRouter(
     createWorkUseCase,
     listWorksUseCase,
     getWorkBySlugUseCase,
+    updateWorkUseCase,
   );
 
   const commentController = new CommentController(
