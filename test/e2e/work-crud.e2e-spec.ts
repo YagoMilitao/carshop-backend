@@ -129,4 +129,68 @@ describe('Work CRUD (e2e)', () => {
       })
       .expect(400);
   });
+
+  it('rejects POST /works with an extra, undocumented field and does not persist it (CARSHOP-139 FR-001/FR-005/AC-001)', async () => {
+    const accessToken = await loginAsAdmin(app);
+    const slug = `work-crud-mass-assignment-${Date.now()}`;
+
+    await request(app)
+      .post('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ ...buildWorkPayload(slug), isAdminOnlyFlag: true })
+      .expect(400);
+
+    const listResponse = await request(app).get('/works').expect(200);
+    const works = listResponse.body as WorkResponseBody[];
+
+    expect(works.some((work) => work.slug === slug)).toBe(false);
+  });
+
+  it('rejects POST /works with a Mongo-operator-style field name and does not mutate any document (CARSHOP-139 FR-004/AC-002)', async () => {
+    const accessToken = await loginAsAdmin(app);
+    const slug = `work-crud-operator-key-${Date.now()}`;
+
+    await request(app)
+      .post('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ ...buildWorkPayload(slug), $where: 'this.status == "published"' })
+      .expect(400);
+
+    const listResponse = await request(app).get('/works').expect(200);
+    const works = listResponse.body as WorkResponseBody[];
+
+    expect(works.some((work) => work.slug === slug)).toBe(false);
+  });
+
+  it('rejects POST /works with a prototype-pollution-style field name and does not mutate any document (CARSHOP-139 FR-004/AC-003)', async () => {
+    const accessToken = await loginAsAdmin(app);
+    const slug = `work-crud-proto-pollution-${Date.now()}`;
+
+    /**
+     * `__proto__` não pode ser incluído como propriedade própria de um
+     * objeto usando sintaxe de literal ou atribuição por colchetes/ponto
+     * (isso apenas alteraria o protótipo do objeto em memória via o
+     * setter herdado de `Object.prototype`, sem nunca aparecer como uma
+     * propriedade enumerável no JSON serializado). Construímos a string
+     * JSON bruta diretamente e usamos `JSON.parse`, que cria uma
+     * propriedade própria normal chamada `__proto__` (via
+     * `CreateDataProperty`), reproduzindo fielmente o payload malicioso
+     * enviado por um cliente HTTP real.
+     */
+    const basePayloadJson = JSON.stringify(buildWorkPayload(slug)).slice(1);
+    const maliciousPayload: Record<string, unknown> = JSON.parse(
+      `{"__proto__":{"polluted":true},${basePayloadJson}`,
+    ) as Record<string, unknown>;
+
+    await request(app)
+      .post('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send(maliciousPayload)
+      .expect(400);
+
+    const listResponse = await request(app).get('/works').expect(200);
+    const works = listResponse.body as WorkResponseBody[];
+
+    expect(works.some((work) => work.slug === slug)).toBe(false);
+  });
 });

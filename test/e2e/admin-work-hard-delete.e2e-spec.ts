@@ -275,4 +275,30 @@ describe('Admin work hard-delete (e2e)', () => {
 
     expect(works.some((work) => work.slug === slug)).toBe(true);
   });
+
+  // CARSHOP-139 — Gap A / FR-002/FR-004/FR-009 / AC-004/AC-009: a Mongo
+  // operator-style or prototype-pollution-style workId route param must be
+  // rejected before any query reaches MongoDB.
+  it.each([
+    ['operador Mongo ($ne)', '$ne'],
+    ['chave com ponto (a.b)', 'a.b'],
+    ['prototype pollution (__proto__)', '__proto__'],
+  ])(
+    'rejects DELETE /admin/works/:workId with 400 for a malicious identifier (%s) and does not mutate any document (CARSHOP-139 FR-002/FR-004/FR-009/AC-004/AC-009)',
+    async (_label, maliciousWorkId) => {
+      const accessToken = await loginAsAdmin(app);
+      const slug = `hard-delete-malicious-id-${Date.now()}`;
+      const workId = await createWork(app, accessToken, slug);
+
+      await request(app)
+        .delete(`/admin/works/${encodeURIComponent(maliciousWorkId)}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400);
+
+      const listResponse = await request(app).get('/works').expect(200);
+      const works = listResponse.body as WorkResponseBody[];
+
+      expect(works.some((work) => work.id === workId)).toBe(true);
+    },
+  );
 });

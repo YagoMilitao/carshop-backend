@@ -74,6 +74,44 @@ export const worksSchemas = {
       },
     },
   },
+
+  PublicWorkResponse: {
+    type: 'object',
+    description:
+      'Formato minimizado de WorkResponse exposto em respostas públicas, sem os campos images[].publicId e deletedAt.',
+    properties: {
+      id: { type: 'string' },
+      slug: { type: 'string' },
+      title: { type: 'string' },
+      description: { type: 'string' },
+      category: { type: 'string' },
+      tags: {
+        type: 'array',
+        items: { type: 'string' },
+      },
+      images: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            url: { type: 'string' },
+            alt: { type: 'string' },
+            isCover: { type: 'boolean' },
+            order: { type: 'number' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+      status: {
+        type: 'string',
+        enum: ['draft', 'published'],
+      },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
 } as const;
 
 export const worksPaths = {
@@ -82,7 +120,7 @@ export const worksPaths = {
       tags: ['Works'],
       summary: 'Lista trabalhos publicados do portfólio',
       description:
-        'Por padrão retorna apenas trabalhos publicados, sem exigir autenticação. Quando includeDrafts=true é informado, exige um access token Bearer válido vinculado a uma sessão ativa e passa a incluir também os trabalhos em rascunho.',
+        'Por padrão retorna apenas trabalhos publicados, sem exigir autenticação, no formato minimizado PublicWorkResponse (sem images[].publicId e sem deletedAt). Quando includeDrafts=true é informado por um administrador autenticado (access token Bearer válido vinculado a uma sessão ativa), passa a incluir também os trabalhos em rascunho e retorna o formato completo WorkResponse, incluindo images[].publicId e deletedAt.',
       /**
        * Alternativa dupla: sem autenticação (comportamento padrão) ou
        * com bearerAuth (necessário quando includeDrafts=true).
@@ -100,12 +138,13 @@ export const worksPaths = {
       ],
       responses: {
         '200': {
-          description: 'Lista de trabalhos publicados',
+          description:
+            'Lista de trabalhos publicados no formato minimizado PublicWorkResponse. Quando includeDrafts=true é solicitado por um administrador autenticado, a resposta usa o formato completo WorkResponse (incluindo images[].publicId e deletedAt).',
           content: {
             'application/json': {
               schema: {
                 type: 'array',
-                items: { $ref: '#/components/schemas/WorkResponse' },
+                items: { $ref: '#/components/schemas/PublicWorkResponse' },
               },
             },
           },
@@ -163,7 +202,7 @@ export const worksPaths = {
       responses: {
         '200': successResponse(
           'Trabalho encontrado',
-          '#/components/schemas/WorkResponse',
+          '#/components/schemas/PublicWorkResponse',
         ),
         '404': errorResponse(
           'Nenhum trabalho publicado e não removido foi encontrado para o slug informado.',
