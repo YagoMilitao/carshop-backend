@@ -1,6 +1,8 @@
 const mockDelete = jest.fn();
+const mockPatch = jest.fn();
 const mockRouterInstance = {
   delete: mockDelete,
+  patch: mockPatch,
 };
 const mockRouterFactory = jest.fn(() => mockRouterInstance);
 
@@ -51,6 +53,26 @@ describe('buildAdminWorkRouter', () => {
       tokenService,
     );
     expect(mockDelete).toHaveBeenCalledWith(
+      '/:workId',
+      'auth-middleware',
+      expect.any(Function),
+    );
+  });
+
+  it('registers the update route behind authMiddleware', () => {
+    const workRepository = {} as WorkRepositoryPort;
+    const imageStorage = {} as ImageStoragePort;
+    const sessionStore = { name: 'session-store' } as never;
+    const tokenService = { name: 'token-service' } as never;
+
+    buildAdminWorkRouter(
+      workRepository,
+      imageStorage,
+      sessionStore,
+      tokenService,
+    );
+
+    expect(mockPatch).toHaveBeenCalledWith(
       '/:workId',
       'auth-middleware',
       expect.any(Function),

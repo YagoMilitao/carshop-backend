@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { sanitizeFilter } from 'mongoose';
 import type {
   CreateWorkInput,
+  UpdateWorkRepositoryInput,
   WorkRepositoryPort,
 } from '../../core/domain/repositories/work.repository';
 import type {
@@ -14,7 +15,17 @@ import { HttpError } from '../../core/domain/application/ApplicationError/http-e
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_SLUG_LENGTH = 120;
+const MAX_CATEGORY_LENGTH = 120;
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 11000
+  );
+}
 
 type WorkPersistenceDocument = {
   id: string;
@@ -122,6 +133,175 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     return slug;
   }
 
+  private assertPlainString(value: unknown, fieldName: string): string {
+    if (typeof value !== 'string') {
+      throw new HttpError(400, `${fieldName} deve ser uma string válida.`);
+    }
+
+    return value;
+  }
+
+  private getValidatedUpdateRecord(
+    input: UpdateWorkRepositoryInput,
+  ): Record<string, unknown> {
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+      throw new HttpError(400, 'Dados de atualização inválidos.');
+    }
+
+    const prototype: unknown = Object.getPrototypeOf(input);
+
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new HttpError(400, 'Dados de atualização inválidos.');
+    }
+
+    const record = input as Record<string, unknown>;
+
+    if (Object.keys(record).some((key) => this.isDangerousKey(key))) {
+      throw new HttpError(
+        400,
+        'Dados de atualização contêm campos não permitidos.',
+      );
+    }
+
+    return record;
+  }
+
+  private normalizeRequiredString(
+    value: unknown,
+    fieldName: string,
+    requiredMessage: string,
+  ): string {
+    const normalized = this.assertPlainString(value, fieldName).trim();
+
+    if (normalized.length === 0) {
+      throw new HttpError(400, requiredMessage);
+    }
+
+    return normalized;
+  }
+
+  private addSlugUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'slug')) return;
+
+    set.slug = this.sanitizeSlugIdentifier(record.slug);
+  }
+
+  private addTitleUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'title')) return;
+
+    set.title = this.normalizeRequiredString(
+      record.title,
+      'title',
+      'Título é obrigatório.',
+    );
+  }
+
+  private addDescriptionUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'description')) return;
+
+    set.description = this.normalizeRequiredString(
+      record.description,
+      'description',
+      'Descrição é obrigatória.',
+    );
+  }
+
+  private addCategoryUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'category')) return;
+
+    const category = this.normalizeRequiredString(
+      record.category,
+      'category',
+      'Categoria é obrigatória.',
+    ).toLowerCase();
+
+    if (category.length > MAX_CATEGORY_LENGTH) {
+      throw new HttpError(
+        400,
+        `Categoria deve ter no máximo ${MAX_CATEGORY_LENGTH} caracteres.`,
+      );
+    }
+
+    set.category = category;
+  }
+
+  private addTagsUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'tags')) return;
+
+    if (!Array.isArray(record.tags)) {
+      throw new HttpError(400, 'tags deve ser uma lista de strings.');
+    }
+
+    set.tags = record.tags
+      .map((tag, index) =>
+        this.assertPlainString(tag, `tags[${index}]`).trim().toLowerCase(),
+      )
+      .filter((tag) => tag.length > 0);
+  }
+
+  private addStatusUpdate(
+    record: Record<string, unknown>,
+    set: Record<string, unknown>,
+  ): void {
+    if (!Object.hasOwn(record, 'status')) return;
+
+    if (record.status !== 'draft' && record.status !== 'published') {
+      throw new HttpError(400, 'status deve ser draft ou published.');
+    }
+
+    set.status = record.status;
+    set.publishedAt = record.status === 'published' ? new Date() : null;
+  }
+
+  /**
+   * Reconstrói o payload de atualização recebido em um documento `$set`
+   * explícito, contendo apenas os campos permitidos.
+   *
+   * Motivo:
+   * nunca repassar o objeto recebido diretamente ao Mongoose; qualquer
+   * chave de operador, chave com ponto ou chave de prototype pollution
+   * rejeita a chamada inteira, sem mesclagem parcial. Também aplica as
+   * mesmas normalizações já feitas antes de `WorkModel.create()`, pois o
+   * hook `pre('save')` do model não roda em `findOneAndUpdate`.
+   */
+  private buildAllowlistedUpdate(input: UpdateWorkRepositoryInput): {
+    $set: Record<string, unknown>;
+  } {
+    const record = this.getValidatedUpdateRecord(input);
+    const set: Record<string, unknown> = {};
+
+    this.addSlugUpdate(record, set);
+    this.addTitleUpdate(record, set);
+    this.addDescriptionUpdate(record, set);
+    this.addCategoryUpdate(record, set);
+    this.addTagsUpdate(record, set);
+    this.addStatusUpdate(record, set);
+
+    if (Object.keys(set).length === 0) {
+      throw new HttpError(
+        400,
+        'Nenhum campo válido informado para atualização.',
+      );
+    }
+
+    return { $set: set };
+  }
+
   async create(input: CreateWorkInput): Promise<Work> {
     const created = await WorkModel.create({
       id: randomUUID(),
@@ -199,6 +379,33 @@ export class MongoWorkRepository implements WorkRepositoryPort {
     const validatedId = this.assertStringIdentifier(id, 'id');
     const filter = sanitizeFilter({ id: validatedId, deletedAt: null });
     await WorkModel.updateOne(filter, { deletedAt: new Date() });
+  }
+
+  /**
+   * Atualiza parcialmente um work ativo.
+   */
+  async update(
+    id: string,
+    input: UpdateWorkRepositoryInput,
+  ): Promise<Work | undefined> {
+    const validatedId = this.assertStringIdentifier(id, 'id');
+    const update = this.buildAllowlistedUpdate(input);
+    const filter = sanitizeFilter({ id: validatedId, deletedAt: null });
+    let updated: WorkPersistenceDocument | null;
+
+    try {
+      updated = await WorkModel.findOneAndUpdate(filter, update, {
+        new: true,
+      }).lean();
+    } catch (error: unknown) {
+      if (isDuplicateKeyError(error)) {
+        throw new HttpError(409, 'Já existe um trabalho com esse slug.');
+      }
+
+      throw error;
+    }
+
+    return updated ? toWork(updated) : undefined;
   }
 
   async hardDelete(id: string): Promise<void> {

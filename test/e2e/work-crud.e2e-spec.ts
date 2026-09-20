@@ -195,4 +195,234 @@ describe('Work CRUD (e2e)', () => {
 
     expect(works.some((work) => work.slug === slug)).toBe(false);
   });
+
+  /**
+   * CARSHOP-135 — FR-001–FR-009 / AC-001–AC-007: cobertura E2E de
+   * `PATCH /admin/works/{workId}` (atualização parcial de um work).
+   */
+  describe('PATCH /admin/works/:workId (CARSHOP-135)', () => {
+    interface WorkDetailResponseBody extends WorkResponseBody {
+      description: string;
+      category: string;
+      tags: string[];
+    }
+
+    it('applies a successful partial update, leaving unspecified fields unchanged (AC-001)', async () => {
+      const accessToken = await loginAsAdmin(app);
+      const slug = `work-patch-success-${Date.now()}`;
+
+      const createResponse = await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slug))
+        .expect(201);
+      const created = createResponse.body as WorkDetailResponseBody;
+
+      const patchResponse = await request(app)
+        .patch(`/admin/works/${created.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 'Título atualizado via PATCH' })
+        .expect(200);
+      const patched = patchResponse.body as WorkDetailResponseBody;
+
+      expect(patched.title).toBe('Título atualizado via PATCH');
+      expect(patched.slug).toBe(slug);
+      expect(patched.category).toBe('bancos');
+
+      const getResponse = await request(app).get(`/works/${slug}`).expect(200);
+      const fetched = getResponse.body as WorkDetailResponseBody;
+
+      expect(fetched.title).toBe('Título atualizado via PATCH');
+      expect(fetched.slug).toBe(slug);
+      expect(fetched.category).toBe('bancos');
+    });
+
+    it('rejects PATCH without an Authorization header with 401 and does not modify the work (AC-002)', async () => {
+      const accessToken = await loginAsAdmin(app);
+      const slug = `work-patch-no-auth-${Date.now()}`;
+
+      const createResponse = await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slug))
+        .expect(201);
+      const created = createResponse.body as WorkDetailResponseBody;
+
+      await request(app)
+        .patch(`/admin/works/${created.id}`)
+        .send({ title: 'Não deveria aplicar' })
+        .expect(401);
+
+      const getResponse = await request(app).get(`/works/${slug}`).expect(200);
+      const fetched = getResponse.body as WorkDetailResponseBody;
+
+      expect(fetched.title).toBe(buildWorkPayload(slug).title);
+    });
+
+    it('rejects PATCH for a nonexistent workId with 404 (AC-003)', async () => {
+      const accessToken = await loginAsAdmin(app);
+
+      await request(app)
+        .patch('/admin/works/does-not-exist-workid')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 'Não deveria existir' })
+        .expect(404);
+    });
+
+    it('rejects a slug update that collides with another existing work with 409, leaving both works unchanged (AC-004)', async () => {
+      const accessToken = await loginAsAdmin(app);
+      const slugA = `work-patch-conflict-a-${Date.now()}`;
+      const slugB = `work-patch-conflict-b-${Date.now()}`;
+
+      const createAResponse = await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slugA))
+        .expect(201);
+      const workA = createAResponse.body as WorkDetailResponseBody;
+
+      await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slugB))
+        .expect(201);
+
+      await request(app)
+        .patch(`/admin/works/${workA.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ slug: slugB })
+        .expect(409);
+
+      const getAResponse = await request(app)
+        .get(`/works/${slugA}`)
+        .expect(200);
+      const getBResponse = await request(app)
+        .get(`/works/${slugB}`)
+        .expect(200);
+      const fetchedA = getAResponse.body as WorkDetailResponseBody;
+      const fetchedB = getBResponse.body as WorkDetailResponseBody;
+
+      expect(fetchedA.slug).toBe(slugA);
+      expect(fetchedB.slug).toBe(slugB);
+    });
+
+    it('rejects a payload with an invalid field type and does not partially persist it (AC-005)', async () => {
+      const accessToken = await loginAsAdmin(app);
+      const slug = `work-patch-invalid-type-${Date.now()}`;
+
+      const createResponse = await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slug))
+        .expect(201);
+      const created = createResponse.body as WorkDetailResponseBody;
+
+      await request(app)
+        .patch(`/admin/works/${created.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ tags: 'couro-e-tecido' })
+        .expect(400);
+
+      const getResponse = await request(app).get(`/works/${slug}`).expect(200);
+      const fetched = getResponse.body as WorkDetailResponseBody;
+
+      expect(fetched.tags).toEqual(buildWorkPayload(slug).tags);
+    });
+
+    it('rejects a payload with an oversized title and does not partially persist it (AC-005)', async () => {
+      const accessToken = await loginAsAdmin(app);
+      const slug = `work-patch-oversized-${Date.now()}`;
+
+      const createResponse = await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slug))
+        .expect(201);
+      const created = createResponse.body as WorkDetailResponseBody;
+
+      await request(app)
+        .patch(`/admin/works/${created.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 'a'.repeat(121) })
+        .expect(400);
+
+      const getResponse = await request(app).get(`/works/${slug}`).expect(200);
+      const fetched = getResponse.body as WorkDetailResponseBody;
+
+      expect(fetched.title).toBe(buildWorkPayload(slug).title);
+    });
+
+    it('rejects an extra, undocumented field and does not persist it (AC-007, mirrors CARSHOP-139)', async () => {
+      const accessToken = await loginAsAdmin(app);
+      const slug = `work-patch-mass-assignment-${Date.now()}`;
+
+      const createResponse = await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slug))
+        .expect(201);
+      const created = createResponse.body as WorkDetailResponseBody;
+
+      await request(app)
+        .patch(`/admin/works/${created.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ title: 'Novo título', isAdminOnlyFlag: true })
+        .expect(400);
+
+      const getResponse = await request(app).get(`/works/${slug}`).expect(200);
+      const fetched = getResponse.body as WorkDetailResponseBody;
+
+      expect(fetched.title).toBe(buildWorkPayload(slug).title);
+    });
+
+    it('rejects a Mongo-operator-style field name and does not mutate any document (AC-007, mirrors CARSHOP-139)', async () => {
+      const accessToken = await loginAsAdmin(app);
+      const slug = `work-patch-operator-key-${Date.now()}`;
+
+      const createResponse = await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slug))
+        .expect(201);
+      const created = createResponse.body as WorkDetailResponseBody;
+
+      await request(app)
+        .patch(`/admin/works/${created.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ $where: 'this.status == "published"' })
+        .expect(400);
+
+      const getResponse = await request(app).get(`/works/${slug}`).expect(200);
+      const fetched = getResponse.body as WorkDetailResponseBody;
+
+      expect(fetched.title).toBe(buildWorkPayload(slug).title);
+    });
+
+    it('rejects a prototype-pollution-style field name and does not mutate any document (AC-007, mirrors CARSHOP-139)', async () => {
+      const accessToken = await loginAsAdmin(app);
+      const slug = `work-patch-proto-pollution-${Date.now()}`;
+
+      const createResponse = await request(app)
+        .post('/works')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(buildWorkPayload(slug))
+        .expect(201);
+      const created = createResponse.body as WorkDetailResponseBody;
+
+      const maliciousPayloadJson =
+        '{"__proto__":{"polluted":true},"title":"Título malicioso"}';
+
+      await request(app)
+        .patch(`/admin/works/${created.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .type('application/json')
+        .send(maliciousPayloadJson)
+        .expect(400);
+
+      const getResponse = await request(app).get(`/works/${slug}`).expect(200);
+      const fetched = getResponse.body as WorkDetailResponseBody;
+
+      expect(fetched.title).toBe(buildWorkPayload(slug).title);
+    });
+  });
 });

@@ -6,7 +6,12 @@ import type { TokenServicePort } from '../../../core/domain/application/Auth/tok
 import { buildAuthMiddleware } from '../../presentation/middleware/auth.middleware';
 
 import { HardDeleteWorkUseCase } from '../../../usecase/hard-delete-work.use-case';
+import { CreateWorkUseCase } from '../../../usecase/create-work.use-case';
+import { ListWorksUseCase } from '../../../usecase/list-works.use-case';
+import { GetWorkBySlugUseCase } from '../../../usecase/get-work-by-slug.use-case';
+import { UpdateWorkUseCase } from '../../../usecase/update-work.use-case';
 import { AdminWorkController } from '../../../presentation/controllers/admin-work.controller';
+import { WorkController } from '../../../presentation/controllers/work.controller';
 
 /**
  * Rotas administrativas de Works.
@@ -25,9 +30,17 @@ export function buildAdminWorkRouter(
     workRepository,
     imageStorage,
   );
+  const updateWorkUseCase = new UpdateWorkUseCase(workRepository);
 
   const controller = new AdminWorkController(hardDeleteWorkUseCase);
+  const workController = new WorkController(
+    new CreateWorkUseCase(workRepository),
+    new ListWorksUseCase(workRepository),
+    new GetWorkBySlugUseCase(workRepository),
+    updateWorkUseCase,
+  );
 
+  router.patch('/:workId', authMiddleware, workController.update);
   router.delete('/:workId', authMiddleware, controller.hardDelete);
 
   return router;

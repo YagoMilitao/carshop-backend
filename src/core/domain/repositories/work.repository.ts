@@ -20,6 +20,15 @@ export interface CreateWorkInput {
   };
 }
 
+export interface UpdateWorkRepositoryInput {
+  slug?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  status?: WorkStatus;
+}
+
 export interface WorkRepositoryPort {
   create(input: CreateWorkInput): Promise<Work>;
   findById(id: string): Promise<Work | undefined>;
@@ -28,6 +37,18 @@ export interface WorkRepositoryPort {
   listAll(): Promise<Work[]>;
   softDelete(id: string): Promise<void>;
   hardDelete(id: string): Promise<void>;
+
+  /**
+   * Atualiza parcialmente um work ativo.
+   *
+   * Somente os campos presentes em `input` são alterados. Retorna
+   * `undefined` quando o work não existe ou já foi removido logicamente
+   * (`deletedAt` não nulo).
+   */
+  update(
+    id: string,
+    input: UpdateWorkRepositoryInput,
+  ): Promise<Work | undefined>;
 
   /**
    * Também retorna works removidos logicamente.
