@@ -80,6 +80,43 @@ describe('openApiDocument', () => {
     expect(workResponseSchema.properties.deletedAt.nullable).toBe(true);
   });
 
+  it('documents both public and authenticated variants of GET /works', () => {
+    const worksPath = openApiDocument.paths['/works'] as unknown as {
+      get: {
+        responses: {
+          '200': {
+            content: {
+              'application/json': {
+                schema: {
+                  anyOf: Array<{
+                    type: string;
+                    items: { $ref: string };
+                  }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+
+    const responseVariants =
+      worksPath.get.responses['200'].content['application/json'].schema.anyOf;
+
+    expect(responseVariants).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'array',
+          items: { $ref: '#/components/schemas/PublicWorkResponse' },
+        }),
+        expect.objectContaining({
+          type: 'array',
+          items: { $ref: '#/components/schemas/WorkResponse' },
+        }),
+      ]),
+    );
+  });
+
   it('documents CommentResponse timestamps as required date-time fields', () => {
     const commentResponseSchema = openApiDocument.components.schemas
       .CommentResponse as unknown as {

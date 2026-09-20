@@ -49,6 +49,8 @@ function buildWorkPayload(slug: string) {
  */
 describe('Work CRUD (e2e)', () => {
   let app: ReturnType<typeof createApp>;
+  // The login limiter is a module-level singleton keyed by IP + email.
+  // A distinct admin email per test keeps each case in an isolated bucket.
   let testSequence = 0;
 
   beforeAll(async () => {

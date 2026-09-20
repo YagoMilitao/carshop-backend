@@ -19,7 +19,7 @@ interface WorkResponseBody {
   slug: string;
   title: string;
   status: 'draft' | 'published';
-  images: Array<{ id: string }>;
+  images: Array<{ id: string; publicId: string }>;
 }
 
 async function loginAsAdmin(
@@ -76,6 +76,8 @@ async function createWork(
 describe('Admin work hard-delete (e2e)', () => {
   let app: ReturnType<typeof createApp>;
   let imageStorage: FakeImageStorageAdapter;
+  // The login limiter is a module-level singleton keyed by IP + email.
+  // A distinct admin email per test keeps each case in an isolated bucket.
   let testSequence = 0;
 
   beforeAll(async () => {
@@ -152,7 +154,6 @@ describe('Admin work hard-delete (e2e)', () => {
     const accessToken = await loginAsAdmin(app);
     const slug = `hard-delete-with-image-${Date.now()}`;
     const workId = await createWork(app, accessToken, slug);
-    const uploadImageSpy = jest.spyOn(imageStorage, 'upload');
 
     await request(app)
       .post(`/admin/works/${workId}/images`)
@@ -163,18 +164,17 @@ describe('Admin work hard-delete (e2e)', () => {
       })
       .expect(201);
 
-    expect(uploadImageSpy).toHaveBeenCalledTimes(1);
-    const uploadedImage = await uploadImageSpy.mock.results[0].value;
-
     const withImageResponse = await request(app)
       .get('/works')
+      .query({ includeDrafts: 'true' })
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
     const worksWithImage = withImageResponse.body as WorkResponseBody[];
     const workWithImage = worksWithImage.find((work) => work.id === workId);
+    const uploadedImagePublicId = workWithImage?.images[0]?.publicId;
 
     expect(workWithImage?.images.length).toBeGreaterThan(0);
-    expect(uploadedImage.publicId).toEqual(expect.any(String));
+    expect(uploadedImagePublicId).toEqual(expect.any(String));
 
     const deleteImageSpy = jest.spyOn(imageStorage, 'delete');
 
@@ -184,7 +184,7 @@ describe('Admin work hard-delete (e2e)', () => {
       .expect(200);
 
     expect(deleteImageSpy).toHaveBeenCalledTimes(1);
-    expect(deleteImageSpy).toHaveBeenCalledWith(uploadedImage.publicId);
+    expect(deleteImageSpy).toHaveBeenCalledWith(uploadedImagePublicId);
 
     const afterDeleteResponse = await request(app).get('/works').expect(200);
     const worksAfterDelete = afterDeleteResponse.body as WorkResponseBody[];

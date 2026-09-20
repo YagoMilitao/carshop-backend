@@ -143,8 +143,20 @@ export const worksPaths = {
           content: {
             'application/json': {
               schema: {
-                type: 'array',
-                items: { $ref: '#/components/schemas/PublicWorkResponse' },
+                anyOf: [
+                  {
+                    title: 'PublicWorksList',
+                    type: 'array',
+                    items: {
+                      $ref: '#/components/schemas/PublicWorkResponse',
+                    },
+                  },
+                  {
+                    title: 'AdminWorksList',
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/WorkResponse' },
+                  },
+                ],
               },
             },
           },
