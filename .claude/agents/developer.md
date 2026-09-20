@@ -77,6 +77,7 @@ Return `BLOCKED`.
 - Preserve existing contracts that weren't explicitly changed.
 - Reuse project patterns and helpers. Do not add speculative dependencies or refactors.
 - Do not read secrets, do not modify `.env`, do not commit/push, and do not run destructive commands.
+- `git push` is never this agent's responsibility. If it were ever attempted, it would still be blocked unless `npm run lint:check`, `npm test`, and `npm run test:e2e` all pass — see `.claude/rules/push-gate.md`. That gate is not a substitute for running validation yourself before handing work back.
 
 ## Testability
 

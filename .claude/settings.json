@@ -22,14 +22,28 @@
       "Read(./.env.development.local)",
       "Read(./.env.test.local)",
       "Read(./.env.production.local)",
-      "Bash(git push)",
-      "Bash(git push *)",
       "Bash(git reset --hard)",
       "Bash(git reset --hard *)",
       "Bash(git clean *)",
       "Bash(rm -rf *)",
       "Bash(npm publish)",
       "Bash(npm publish *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/push-gate.sh",
+            "if": "Bash(git push*)",
+            "timeout": 600,
+            "statusMessage": "Push gate: running lint:check + npm test + npm run test:e2e before allowing git push..."
+          }
+        ]
+      }
     ]
   }
 }

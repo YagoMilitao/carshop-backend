@@ -15,6 +15,7 @@ Before implementing anything, read and follow:
 @.claude/rules/spec-security.md
 @.claude/rules/branching.md
 @.claude/rules/language-policy.md
+@.claude/rules/push-gate.md
 
 Also use these documents as sources of truth:
 
