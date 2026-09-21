@@ -8,6 +8,7 @@ jest.mock('../../../../src/data/models/comment.model', () => ({
     findOne: jest.fn(),
     findOneAndUpdate: jest.fn(),
     deleteOne: jest.fn(),
+    countDocuments: jest.fn(),
   },
 }));
 
@@ -18,6 +19,7 @@ interface MockedCommentModel {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
     deleteOne: jest.Mock;
+    countDocuments: jest.Mock;
   };
 }
 
@@ -374,6 +376,165 @@ describe('MongoCommentRepository', () => {
         } as unknown as string),
       ).rejects.toThrow(HttpError);
       expect(commentModel.CommentModel.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listForModeration (CARSHOP-136)', () => {
+    function mockFindChain(documents: unknown[]) {
+      const sort = jest.fn().mockReturnThis();
+      const skip = jest.fn().mockReturnThis();
+      const limit = jest.fn().mockReturnThis();
+      const lean = jest.fn().mockResolvedValue(documents);
+      commentModel.CommentModel.find.mockReturnValue({
+        sort,
+        skip,
+        limit,
+        lean,
+      });
+      return { sort, skip, limit, lean };
+    }
+
+    function buildDocument(
+      overrides: Partial<{
+        id: string;
+        status: 'PENDING' | 'APPROVED' | 'HIDDEN';
+      }> = {},
+    ) {
+      return {
+        id: overrides.id ?? 'comment-1',
+        workId: 'work-1',
+        authorName: 'Yago',
+        content: 'Comentário',
+        status: overrides.status ?? 'PENDING',
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+      };
+    }
+
+    it.each(['PENDING', 'APPROVED', 'HIDDEN'] as const)(
+      'filtra por status %s repassando o filtro ao CommentModel.find/countDocuments (AC-003, AC-004, AC-005)',
+      async (status) => {
+        const document = buildDocument({ status });
+        mockFindChain([document]);
+        commentModel.CommentModel.countDocuments.mockResolvedValue(1);
+
+        const result = await repository.listForModeration({
+          status,
+          page: 1,
+          limit: 20,
+        });
+
+        expect(commentModel.CommentModel.find).toHaveBeenCalledWith({
+          status,
+        });
+        expect(commentModel.CommentModel.countDocuments).toHaveBeenCalledWith({
+          status,
+        });
+        expect(result.items).toHaveLength(1);
+        expect(result.items[0].status).toBe(status);
+        expect(result.total).toBe(1);
+      },
+    );
+
+    it('sempre retorna items: [] para HIDDEN quando não há comentários persistidos com esse status (AC-005)', async () => {
+      mockFindChain([]);
+      commentModel.CommentModel.countDocuments.mockResolvedValue(0);
+
+      const result = await repository.listForModeration({
+        status: 'HIDDEN',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+
+    it('lista sem filtro de status quando não informado (AC-002, FR-003)', async () => {
+      const documents = [buildDocument({ id: 'a', status: 'PENDING' })];
+      mockFindChain(documents);
+      commentModel.CommentModel.countDocuments.mockResolvedValue(1);
+
+      await repository.listForModeration({ page: 1, limit: 20 });
+
+      expect(commentModel.CommentModel.find).toHaveBeenCalledWith({});
+      expect(commentModel.CommentModel.countDocuments).toHaveBeenCalledWith({});
+    });
+
+    it('ordena por createdAt desc e _id desc como desempate (AC-007, FR-005)', async () => {
+      const { sort } = mockFindChain([]);
+      commentModel.CommentModel.countDocuments.mockResolvedValue(0);
+
+      await repository.listForModeration({ page: 1, limit: 20 });
+
+      expect(sort).toHaveBeenCalledWith({ createdAt: -1, _id: -1 });
+    });
+
+    it('calcula o offset de paginação (skip) a partir de page/limit', async () => {
+      const { skip, limit } = mockFindChain([]);
+      commentModel.CommentModel.countDocuments.mockResolvedValue(0);
+
+      await repository.listForModeration({ page: 3, limit: 10 });
+
+      expect(skip).toHaveBeenCalledWith(20);
+      expect(limit).toHaveBeenCalledWith(10);
+    });
+
+    it('calcula totalPages com arredondamento para cima (ceiling)', async () => {
+      mockFindChain([]);
+      commentModel.CommentModel.countDocuments.mockResolvedValue(21);
+
+      const result = await repository.listForModeration({ page: 1, limit: 20 });
+
+      expect(result.totalPages).toBe(2);
+    });
+
+    it('retorna totalPages mínimo de 1 quando não há resultados', async () => {
+      mockFindChain([]);
+      commentModel.CommentModel.countDocuments.mockResolvedValue(0);
+
+      const result = await repository.listForModeration({ page: 1, limit: 20 });
+
+      expect(result.totalPages).toBe(1);
+    });
+
+    it('rejeita status de filtro fora do conjunto permitido sem consultar o CommentModel (AC-006, FR-004)', async () => {
+      await expect(
+        repository.listForModeration({
+          status: 'INVALID' as never,
+          page: 1,
+          limit: 20,
+        }),
+      ).rejects.toThrow(HttpError);
+      expect(commentModel.CommentModel.find).not.toHaveBeenCalled();
+      expect(commentModel.CommentModel.countDocuments).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['page', { page: 0, limit: 20 }],
+      ['page negativo', { page: -1, limit: 20 }],
+      ['page não inteiro', { page: 1.5, limit: 20 }],
+      ['limit', { page: 1, limit: 0 }],
+      ['limit negativo', { page: 1, limit: -5 }],
+    ])(
+      'rejeita %s inválido sem consultar o CommentModel',
+      async (_label, input) => {
+        await expect(
+          repository.listForModeration(input as never),
+        ).rejects.toThrow(HttpError);
+        expect(commentModel.CommentModel.find).not.toHaveBeenCalled();
+        expect(commentModel.CommentModel.countDocuments).not.toHaveBeenCalled();
+      },
+    );
+
+    it('as rejeições de listForModeration ocorrem com status HTTP 400', async () => {
+      await expect(
+        repository.listForModeration({
+          status: 'INVALID' as never,
+          page: 1,
+          limit: 20,
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
     });
   });
 });

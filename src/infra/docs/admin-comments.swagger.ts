@@ -20,6 +20,31 @@ export const adminCommentsTags = [
  * Schemas específicos da moderação.
  */
 export const adminCommentsSchemas = {
+  AdminCommentResponse: {
+    type: 'object',
+    required: [
+      'id',
+      'workId',
+      'authorName',
+      'content',
+      'status',
+      'createdAt',
+      'updatedAt',
+    ],
+    properties: {
+      id: { type: 'string' },
+      workId: { type: 'string' },
+      authorName: { type: 'string' },
+      content: { type: 'string' },
+      status: {
+        type: 'string',
+        enum: ['PENDING', 'APPROVED', 'HIDDEN'],
+      },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+
   UpdateCommentRequest: {
     type: 'object',
     minProperties: 1,
@@ -54,6 +79,21 @@ export const adminCommentsSchemas = {
       },
     },
   },
+
+  AdminCommentListResponse: {
+    type: 'object',
+    required: ['items', 'page', 'limit', 'total', 'totalPages'],
+    properties: {
+      items: {
+        type: 'array',
+        items: { $ref: '#/components/schemas/AdminCommentResponse' },
+      },
+      page: { type: 'integer', minimum: 1, example: 1 },
+      limit: { type: 'integer', minimum: 1, maximum: 100, example: 20 },
+      total: { type: 'integer', minimum: 0, example: 1 },
+      totalPages: { type: 'integer', minimum: 1, example: 1 },
+    },
+  },
 } as const;
 
 /**
@@ -63,6 +103,52 @@ export const adminCommentsSchemas = {
  * de access token JWT válido.
  */
 export const adminCommentsPaths = {
+  '/admin/comments': {
+    get: {
+      tags: ['Admin Comments'],
+      summary: 'Lista comentários para moderação',
+      description:
+        'Lista comentários para a tela de moderação administrativa, com filtro opcional por status, ordenação determinística (mais recente primeiro) e paginação.',
+      security: bearerSecurity,
+      parameters: [
+        {
+          in: 'query',
+          name: 'status',
+          required: false,
+          description:
+            'Filtra comentários pelo status. Quando omitido, lista comentários independentemente do status.',
+          schema: {
+            type: 'string',
+            enum: ['PENDING', 'APPROVED', 'HIDDEN'],
+          },
+        },
+        {
+          in: 'query',
+          name: 'page',
+          required: false,
+          description: 'Número da página (padrão: 1).',
+          schema: { type: 'integer', minimum: 1, default: 1 },
+        },
+        {
+          in: 'query',
+          name: 'limit',
+          required: false,
+          description: 'Itens por página (padrão: 20, máximo: 100).',
+          schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+        },
+      ],
+      responses: {
+        '200': successResponse(
+          'Lista paginada de comentários para moderação.',
+          '#/components/schemas/AdminCommentListResponse',
+        ),
+        '400': errorResponse('Parâmetro de status ou paginação inválido.'),
+        '401': errorResponse('Token ausente, inválido ou sessão expirada.'),
+        '429': globalRateLimitResponse,
+      },
+    },
+  },
+
   '/admin/comments/{commentId}/approve': {
     patch: {
       tags: ['Admin Comments'],

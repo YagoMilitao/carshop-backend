@@ -53,4 +53,15 @@ describe('CommentModel', () => {
 
     expect(idPath.options?.unique).toBe(true);
   });
+
+  it('deve definir índices compatíveis com a ordenação da moderação', () => {
+    const indexes = CommentModel.schema.indexes().map(([fields]) => fields);
+
+    expect(indexes).toEqual(
+      expect.arrayContaining([
+        { createdAt: -1, _id: -1 },
+        { status: 1, createdAt: -1, _id: -1 },
+      ]),
+    );
+  });
 });

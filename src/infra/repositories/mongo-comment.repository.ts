@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { sanitizeFilter } from 'mongoose';
 import type {
+  AdminCommentStatusFilter,
   CommentRepositoryPort,
   CreateCommentRepositoryInput,
+  ListCommentsForModerationInput,
+  PaginatedComments,
   UpdateCommentRepositoryInput,
 } from '../../core/domain/repositories/comment.repository';
 import type { Comment } from '../../core/domain/application/Work/work.types';
@@ -75,6 +78,41 @@ export class MongoCommentRepository implements CommentRepositoryPort {
    */
   private isDangerousKey(key: string): boolean {
     return key.startsWith('$') || key.includes('.') || DANGEROUS_KEYS.has(key);
+  }
+
+  /**
+   * Valida o filtro opcional de status recebido pela listagem de
+   * moderação.
+   *
+   * Motivo:
+   * defesa em profundidade — o Zod já restringe o valor na camada de
+   * apresentação, mas o repositório não deve confiar apenas nisso antes
+   * de montar um filtro do Mongo.
+   */
+  private assertValidStatusFilter(
+    value: unknown,
+  ): AdminCommentStatusFilter | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value !== 'PENDING' && value !== 'APPROVED' && value !== 'HIDDEN') {
+      throw new HttpError(400, 'status deve ser PENDING, APPROVED ou HIDDEN.');
+    }
+
+    return value;
+  }
+
+  /**
+   * Garante que um valor de paginação é um inteiro positivo antes de ser
+   * usado em `skip`/`limit`.
+   */
+  private assertPositiveInteger(value: unknown, fieldName: string): number {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+      throw new HttpError(400, `${fieldName} deve ser um inteiro positivo.`);
+    }
+
+    return value;
   }
 
   private assertPlainString(value: unknown, fieldName: string): string {
@@ -217,5 +255,38 @@ export class MongoCommentRepository implements CommentRepositoryPort {
    */
   async deleteById(id: string): Promise<void> {
     await CommentModel.deleteOne(this.buildSanitizedIdFilter(id));
+  }
+
+  /**
+   * Lista comentários para moderação administrativa, com filtro opcional
+   * por status, ordenação determinística (`createdAt` desc, `_id` desc
+   * como desempate) e paginação.
+   */
+  async listForModeration(
+    input: ListCommentsForModerationInput,
+  ): Promise<PaginatedComments> {
+    const status = this.assertValidStatusFilter(input.status);
+    const page = this.assertPositiveInteger(input.page, 'page');
+    const limit = this.assertPositiveInteger(input.limit, 'limit');
+
+    const filter = sanitizeFilter(status ? { status } : {});
+    const skip = (page - 1) * limit;
+
+    const [documents, total] = await Promise.all([
+      CommentModel.find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      CommentModel.countDocuments(filter),
+    ]);
+
+    return {
+      items: documents.map(toComment),
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
   }
 }
