@@ -7,6 +7,7 @@ import { AdminCommentController } from '../../../presentation/controllers/admin-
 import { ApproveCommentUseCase } from '../../../usecase/approve-comment.use-case';
 import { UpdateCommentUseCase } from '../../../usecase/update-comment.use-case';
 import { DeleteCommentUseCase } from '../../../usecase/delete-comment.use-case';
+import { ListCommentsForModerationUseCase } from '../../../usecase/list-comments-for-moderation.use-case';
 
 /**
  * Rotas administrativas de moderação de comentários.
@@ -25,11 +26,15 @@ export function buildAdminCommentRouter(
   const approveCommentUseCase = new ApproveCommentUseCase(commentRepository);
   const updateCommentUseCase = new UpdateCommentUseCase(commentRepository);
   const deleteCommentUseCase = new DeleteCommentUseCase(commentRepository);
+  const listCommentsForModerationUseCase = new ListCommentsForModerationUseCase(
+    commentRepository,
+  );
 
   const controller = new AdminCommentController(
     approveCommentUseCase,
     updateCommentUseCase,
     deleteCommentUseCase,
+    listCommentsForModerationUseCase,
   );
 
   /**
@@ -37,6 +42,7 @@ export function buildAdminCommentRouter(
    */
   router.use(authMiddleware);
 
+  router.get('/', controller.list);
   router.patch('/:commentId/approve', controller.approve);
   router.patch('/:commentId', controller.update);
   router.delete('/:commentId', controller.delete);

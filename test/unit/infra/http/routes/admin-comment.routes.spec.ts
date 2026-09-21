@@ -1,8 +1,10 @@
 const mockUse = jest.fn();
+const mockGet = jest.fn();
 const mockPatch = jest.fn();
 const mockDelete = jest.fn();
 const mockRouterInstance = {
   use: mockUse,
+  get: mockGet,
   patch: mockPatch,
   delete: mockDelete,
 };
@@ -52,6 +54,7 @@ describe('buildAdminCommentRouter', () => {
       tokenService,
     );
     expect(mockUse).toHaveBeenCalledWith('auth-middleware');
+    expect(mockGet).toHaveBeenCalledWith('/', expect.any(Function));
     expect(mockPatch).toHaveBeenCalledWith(
       '/:commentId/approve',
       expect.any(Function),

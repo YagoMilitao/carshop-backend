@@ -3,8 +3,10 @@ import { HttpError } from '../../../../src/core/domain/application/ApplicationEr
 import type { ApproveCommentUseCase } from '../../../../src/usecase/approve-comment.use-case';
 import type { UpdateCommentUseCase } from '../../../../src/usecase/update-comment.use-case';
 import type { DeleteCommentUseCase } from '../../../../src/usecase/delete-comment.use-case';
+import type { ListCommentsForModerationUseCase } from '../../../../src/usecase/list-comments-for-moderation.use-case';
 import { AdminCommentController } from '../../../../src/presentation/controllers/admin-comment.controller';
 import type { Comment } from '../../../../src/core/domain/application/Work/work.types';
+import type { PaginatedComments } from '../../../../src/core/domain/repositories/comment.repository';
 
 function createResponseMock() {
   return {
@@ -24,6 +26,9 @@ function createUseCaseMocks() {
     deleteCommentUseCase: {
       execute: jest.fn(),
     } as unknown as jest.Mocked<DeleteCommentUseCase>,
+    listCommentsForModerationUseCase: {
+      execute: jest.fn(),
+    } as unknown as jest.Mocked<ListCommentsForModerationUseCase>,
   };
 }
 
@@ -44,12 +49,14 @@ describe('AdminCommentController', () => {
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       } = createUseCaseMocks();
       approveCommentUseCase.execute.mockResolvedValue(comment);
       const controller = new AdminCommentController(
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       );
 
       const response = createResponseMock();
@@ -71,11 +78,13 @@ describe('AdminCommentController', () => {
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       } = createUseCaseMocks();
       const controller = new AdminCommentController(
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       );
 
       const response = createResponseMock();
@@ -95,12 +104,14 @@ describe('AdminCommentController', () => {
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       } = createUseCaseMocks();
       updateCommentUseCase.execute.mockResolvedValue(comment);
       const controller = new AdminCommentController(
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       );
 
       const response = createResponseMock();
@@ -125,11 +136,13 @@ describe('AdminCommentController', () => {
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       } = createUseCaseMocks();
       const controller = new AdminCommentController(
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       );
 
       const response = createResponseMock();
@@ -152,12 +165,14 @@ describe('AdminCommentController', () => {
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       } = createUseCaseMocks();
       deleteCommentUseCase.execute.mockResolvedValue({ success: true });
       const controller = new AdminCommentController(
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       );
 
       const response = createResponseMock();
@@ -179,6 +194,7 @@ describe('AdminCommentController', () => {
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       } = createUseCaseMocks();
       deleteCommentUseCase.execute.mockRejectedValue(
         new HttpError(404, 'Comentário não encontrado.'),
@@ -187,6 +203,7 @@ describe('AdminCommentController', () => {
         approveCommentUseCase,
         updateCommentUseCase,
         deleteCommentUseCase,
+        listCommentsForModerationUseCase,
       );
 
       const response = createResponseMock();
@@ -197,6 +214,108 @@ describe('AdminCommentController', () => {
 
       await controller.delete(request, response, next);
 
+      expect(next).toHaveBeenCalledWith(expect.any(HttpError));
+      expect(response.status).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('list', () => {
+    const paginatedComments: PaginatedComments = {
+      items: [comment],
+      page: 1,
+      limit: 20,
+      total: 1,
+      totalPages: 1,
+    };
+
+    it('valida a query, chama o use case e responde 200 com o envelope (AC-002)', async () => {
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+        listCommentsForModerationUseCase,
+      } = createUseCaseMocks();
+      listCommentsForModerationUseCase.execute.mockResolvedValue(
+        paginatedComments,
+      );
+      const controller = new AdminCommentController(
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+        listCommentsForModerationUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = {
+        query: { status: 'PENDING', page: '2', limit: '10' },
+      } as unknown as Request;
+
+      await controller.list(request, response, next);
+
+      expect(listCommentsForModerationUseCase.execute).toHaveBeenCalledWith({
+        status: 'PENDING',
+        page: 2,
+        limit: 10,
+      });
+      expect(response.status).toHaveBeenCalledWith(200);
+      expect(response.json).toHaveBeenCalledWith(paginatedComments);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('aplica page/limit padrão quando não informados (AC-002)', async () => {
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+        listCommentsForModerationUseCase,
+      } = createUseCaseMocks();
+      listCommentsForModerationUseCase.execute.mockResolvedValue(
+        paginatedComments,
+      );
+      const controller = new AdminCommentController(
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+        listCommentsForModerationUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = { query: {} } as unknown as Request;
+
+      await controller.list(request, response, next);
+
+      expect(listCommentsForModerationUseCase.execute).toHaveBeenCalledWith({
+        page: 1,
+        limit: 20,
+      });
+      expect(response.status).toHaveBeenCalledWith(200);
+    });
+
+    it('encaminha 400 para o next quando status é inválido, sem chamar o use case (AC-006)', async () => {
+      const {
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+        listCommentsForModerationUseCase,
+      } = createUseCaseMocks();
+      const controller = new AdminCommentController(
+        approveCommentUseCase,
+        updateCommentUseCase,
+        deleteCommentUseCase,
+        listCommentsForModerationUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = {
+        query: { status: 'INVALID' },
+      } as unknown as Request;
+
+      await controller.list(request, response, next);
+
+      expect(listCommentsForModerationUseCase.execute).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(expect.any(HttpError));
       expect(response.status).not.toHaveBeenCalled();
     });

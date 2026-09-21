@@ -496,6 +496,49 @@ Rotas montadas em `/admin/comments`
 autenticação (`router.use(authMiddleware)` aplicado a todas as rotas do
 router).
 
+### `GET /admin/comments`
+
+- Autenticação: `Authorization: Bearer <ACCESS_TOKEN>` (obrigatório).
+- Query params (validados via `listAdminCommentsQuerySchema`):
+  - `status` (opcional): `"PENDING" | "APPROVED" | "HIDDEN"`. Quando
+    omitido, lista comentários independentemente do status.
+  - `page` (opcional, padrão `1`, mínimo `1`).
+  - `limit` (opcional, padrão `20`, mínimo `1`, máximo `100`).
+- Lista comentários para a tela de moderação administrativa, ordenados por
+  `createdAt` decrescente (mais recente primeiro), com `_id` do Mongo como
+  desempate para garantir ordenação determinística entre requisições
+  equivalentes.
+- Resposta `200`:
+
+  ```json
+  {
+    "items": [
+      {
+        "id": "uuid-do-comentario",
+        "workId": "uuid-do-trabalho",
+        "authorName": "Visitante",
+        "content": "Ficou muito bom esse trabalho.",
+        "status": "PENDING",
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "updatedAt": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1
+  }
+  ```
+
+- Nota: o valor de filtro `status=HIDDEN` é aceito pela validação, mas
+  hoje sempre retorna `items: []`, pois nenhum caminho de escrita
+  existente permite que um comentário assuma o status `HIDDEN`.
+- Erros:
+  - `400`: `status` fora do conjunto permitido, ou `page`/`limit` fora dos
+    limites aceitos.
+  - `401`: token ausente/inválido/sessão expirada.
+  - `429`: rate limit global.
+
 ### `PATCH /admin/comments/{commentId}/approve`
 
 - Autenticação: `Authorization: Bearer <ACCESS_TOKEN>` (obrigatório).

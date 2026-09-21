@@ -2,11 +2,16 @@ import type { NextFunction, Request, Response } from 'express';
 import { ApproveCommentUseCase } from '../../usecase/approve-comment.use-case';
 import { UpdateCommentUseCase } from '../../usecase/update-comment.use-case';
 import { DeleteCommentUseCase } from '../../usecase/delete-comment.use-case';
+import { ListCommentsForModerationUseCase } from '../../usecase/list-comments-for-moderation.use-case';
 import { validateWithSchema } from '../../infra/presentation/helpers/zod-validation.helper';
 import {
   UpdateCommentInput,
   updateCommentSchema,
 } from '../../infra/presentation/validators/update-comment.schema';
+import {
+  ListAdminCommentsQueryInput,
+  listAdminCommentsQuerySchema,
+} from '../../infra/presentation/validators/list-admin-comments-query.schema';
 import { requireStringRouteParam } from '../helpers/route-param.helper';
 
 /**
@@ -20,6 +25,7 @@ export class AdminCommentController {
     private readonly approveCommentUseCase: ApproveCommentUseCase,
     private readonly updateCommentUseCase: UpdateCommentUseCase,
     private readonly deleteCommentUseCase: DeleteCommentUseCase,
+    private readonly listCommentsForModerationUseCase: ListCommentsForModerationUseCase,
   ) {}
 
   approve = async (
@@ -77,6 +83,25 @@ export class AdminCommentController {
       );
 
       const result = await this.deleteCommentUseCase.execute(commentId);
+
+      response.status(200).json(result);
+    } catch (error: unknown) {
+      next(error);
+    }
+  };
+
+  list = async (
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const query = validateWithSchema<ListAdminCommentsQueryInput>(
+        listAdminCommentsQuerySchema,
+        request.query,
+      );
+
+      const result = await this.listCommentsForModerationUseCase.execute(query);
 
       response.status(200).json(result);
     } catch (error: unknown) {
