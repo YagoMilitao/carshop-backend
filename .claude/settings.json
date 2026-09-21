@@ -37,9 +37,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/push-gate.sh",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\"; if [ -z \"$root\" ]; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"push gate: could not resolve repository root\"}}'; else bash \"$root/.claude/hooks/push-gate.sh\"; fi",
             "if": "Bash(git push*)",
-            "timeout": 600,
+            "timeout": 900,
             "statusMessage": "Push gate: running lint:check + npm test + npm run test:e2e before allowing git push..."
           }
         ]
