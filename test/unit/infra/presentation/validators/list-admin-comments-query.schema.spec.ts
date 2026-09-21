@@ -57,20 +57,8 @@ describe('listAdminCommentsQuerySchema (CARSHOP-136)', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejeita page menor que 1', () => {
-    const result = listAdminCommentsQuerySchema.safeParse({ page: '0' });
-
-    expect(result.success).toBe(false);
-  });
-
-  it('rejeita page negativo', () => {
-    const result = listAdminCommentsQuerySchema.safeParse({ page: '-1' });
-
-    expect(result.success).toBe(false);
-  });
-
-  it('rejeita page não inteiro', () => {
-    const result = listAdminCommentsQuerySchema.safeParse({ page: '1.5' });
+  it.each(['0', '-1', '1.5'])('rejeita page inválido: %s', (page) => {
+    const result = listAdminCommentsQuerySchema.safeParse({ page });
 
     expect(result.success).toBe(false);
   });

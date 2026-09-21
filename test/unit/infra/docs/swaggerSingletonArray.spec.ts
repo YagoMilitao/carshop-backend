@@ -137,6 +137,26 @@ describe('openApiDocument', () => {
     });
   });
 
+  it('documents HIDDEN as a valid admin moderation list item status', () => {
+    const adminCommentSchema = openApiDocument.components.schemas
+      .AdminCommentResponse as unknown as {
+      properties: { status: { enum: string[] } };
+    };
+    const adminListSchema = openApiDocument.components.schemas
+      .AdminCommentListResponse as unknown as {
+      properties: { items: { items: { $ref: string } } };
+    };
+
+    expect(adminCommentSchema.properties.status.enum).toEqual([
+      'PENDING',
+      'APPROVED',
+      'HIDDEN',
+    ]);
+    expect(adminListSchema.properties.items.items.$ref).toBe(
+      '#/components/schemas/AdminCommentResponse',
+    );
+  });
+
   it('documents the global 429 response for every operation', () => {
     const paths = openApiDocument.paths as unknown as Record<
       string,

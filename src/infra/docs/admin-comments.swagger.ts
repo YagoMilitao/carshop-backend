@@ -20,6 +20,31 @@ export const adminCommentsTags = [
  * Schemas específicos da moderação.
  */
 export const adminCommentsSchemas = {
+  AdminCommentResponse: {
+    type: 'object',
+    required: [
+      'id',
+      'workId',
+      'authorName',
+      'content',
+      'status',
+      'createdAt',
+      'updatedAt',
+    ],
+    properties: {
+      id: { type: 'string' },
+      workId: { type: 'string' },
+      authorName: { type: 'string' },
+      content: { type: 'string' },
+      status: {
+        type: 'string',
+        enum: ['PENDING', 'APPROVED', 'HIDDEN'],
+      },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+  },
+
   UpdateCommentRequest: {
     type: 'object',
     minProperties: 1,
@@ -61,7 +86,7 @@ export const adminCommentsSchemas = {
     properties: {
       items: {
         type: 'array',
-        items: { $ref: '#/components/schemas/CommentResponse' },
+        items: { $ref: '#/components/schemas/AdminCommentResponse' },
       },
       page: { type: 'integer', minimum: 1, example: 1 },
       limit: { type: 'integer', minimum: 1, maximum: 100, example: 20 },
