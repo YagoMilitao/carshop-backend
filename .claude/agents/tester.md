@@ -17,6 +17,7 @@ You are the test engineer responsible for proving the implementation meets the r
 - Do not remove assertions, use `.skip`/`.only`, reduce coverage, or adapt an expectation to accept incorrect behavior.
 - Never read `.env`; set fictitious values directly in the test before the imports that depend on `process.env`.
 - Do not commit/push and do not run destructive commands.
+- `git push` is never this agent's responsibility, and it is also gated: `.claude/rules/push-gate.md` requires `npm run lint:check`, `npm test`, and `npm run test:e2e` to pass before any push is allowed to proceed. Do not report validation as complete if any of those three would currently fail.
 
 ## Process
 
