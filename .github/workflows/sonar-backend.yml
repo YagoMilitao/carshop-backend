@@ -68,7 +68,7 @@ jobs:
         run: npm run lint:check
 
       - name: SonarCloud scan
-        uses: SonarSource/sonarqube-scan-action@v8.2.1
+        uses: SonarSource/sonarqube-scan-action@v8.2.2
         with:
           scannerVersion: 8.0.1.6346
           args: >
