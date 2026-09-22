@@ -36,6 +36,10 @@ function getRefreshTokenMaxAgeMs(): number {
  * csrf_token:
  * - participa da validação double-submit enviada automaticamente pelo browser
  * - o frontend cross-origin recebe o mesmo valor no corpo da resposta de auth
+ *
+ * path:
+ * - '/' (CARSHOP-153): '/auth' impedia o browser de enviar os cookies em
+ *   rotas como /admin/*, quebrando a verificação de sessão do frontend.
  */
 export function setAuthCookies(
   response: Response,
@@ -54,7 +58,7 @@ export function setAuthCookies(
     httpOnly: true,
     sameSite,
     secure,
-    path: '/auth',
+    path: '/',
     maxAge,
   });
 
@@ -62,7 +66,7 @@ export function setAuthCookies(
     httpOnly: false,
     sameSite,
     secure,
-    path: '/auth',
+    path: '/',
     maxAge,
   });
 }
@@ -73,6 +77,8 @@ export function setAuthCookies(
 export function clearAuthCookies(response: Response): void {
   // Mesmo motivo de setAuthCookies: SameSite=None exige Secure sempre,
   // independentemente de NODE_ENV, para o navegador aceitar o cookie.
+  // path também precisa ser o mesmo '/' usado no set (CARSHOP-153), senão
+  // o clearCookie não sobrescreve o cookie original e ele sobrevive ao logout.
   const secure = true;
   const sameSite = 'none' as const;
 
@@ -80,14 +86,14 @@ export function clearAuthCookies(response: Response): void {
     httpOnly: true,
     sameSite,
     secure,
-    path: '/auth',
+    path: '/',
   });
 
   response.clearCookie(getCsrfCookieName(), {
     httpOnly: false,
     sameSite,
     secure,
-    path: '/auth',
+    path: '/',
   });
 }
 

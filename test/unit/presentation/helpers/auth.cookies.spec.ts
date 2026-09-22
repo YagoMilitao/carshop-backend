@@ -39,7 +39,7 @@ describe('auth.cookies', () => {
         httpOnly: true,
         sameSite: 'none',
         secure: true,
-        path: '/auth',
+        path: '/',
         maxAge: defaultMaxAge,
       }),
     );
@@ -51,7 +51,7 @@ describe('auth.cookies', () => {
         httpOnly: false,
         sameSite: 'none',
         secure: true,
-        path: '/auth',
+        path: '/',
         maxAge: defaultMaxAge,
       }),
     );
@@ -195,7 +195,7 @@ describe('auth.cookies', () => {
         httpOnly: true,
         sameSite: 'none',
         secure: true,
-        path: '/auth',
+        path: '/',
       }),
     );
     expect(response.clearCookie).toHaveBeenNthCalledWith(
@@ -205,7 +205,7 @@ describe('auth.cookies', () => {
         httpOnly: false,
         sameSite: 'none',
         secure: true,
-        path: '/auth',
+        path: '/',
       }),
     );
   });
@@ -225,6 +225,64 @@ describe('auth.cookies', () => {
       2,
       'csrf_token',
       expect.objectContaining({ secure: true, sameSite: 'none' }),
+    );
+  });
+
+  // CARSHOP-153 / AC-001: refresh_token and csrf_token must be issued with
+  // Path=/, not Path=/auth, so that they are attached by the browser on
+  // /admin/* requests too. Without the fix, `path` was '/auth' for both
+  // set and clear, and this assertion would fail.
+  it('sets and clears both auth cookies with path "/" so /admin routes receive them (CARSHOP-153/AC-001)', () => {
+    const setResponse = createResponseMock();
+    setAuthCookies(setResponse, 'refresh-token', 'csrf-token');
+
+    expect(setResponse.cookie).toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      'refresh-token',
+      expect.objectContaining({ path: '/' }),
+    );
+    expect(setResponse.cookie).toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      'csrf-token',
+      expect.objectContaining({ path: '/' }),
+    );
+    expect(setResponse.cookie).not.toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      'refresh-token',
+      expect.objectContaining({ path: '/auth' }),
+    );
+    expect(setResponse.cookie).not.toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      'csrf-token',
+      expect.objectContaining({ path: '/auth' }),
+    );
+
+    const clearResponse = createResponseMock();
+    clearAuthCookies(clearResponse);
+
+    expect(clearResponse.clearCookie).toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      expect.objectContaining({ path: '/' }),
+    );
+    expect(clearResponse.clearCookie).toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      expect.objectContaining({ path: '/' }),
+    );
+    expect(clearResponse.clearCookie).not.toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      expect.objectContaining({ path: '/auth' }),
+    );
+    expect(clearResponse.clearCookie).not.toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      expect.objectContaining({ path: '/auth' }),
     );
   });
 
