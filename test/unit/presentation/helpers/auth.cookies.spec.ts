@@ -39,7 +39,7 @@ describe('auth.cookies', () => {
         httpOnly: true,
         sameSite: 'none',
         secure: true,
-        path: '/auth',
+        path: '/',
         maxAge: defaultMaxAge,
       }),
     );
@@ -51,10 +51,12 @@ describe('auth.cookies', () => {
         httpOnly: false,
         sameSite: 'none',
         secure: true,
-        path: '/auth',
+        path: '/',
         maxAge: defaultMaxAge,
       }),
     );
+    expect(response.cookie).toHaveBeenCalledTimes(2);
+    expect(response.clearCookie).toHaveBeenCalledTimes(2);
   });
 
   it('keeps secure true even outside production (SameSite=None requires Secure)', () => {
@@ -195,7 +197,7 @@ describe('auth.cookies', () => {
         httpOnly: true,
         sameSite: 'none',
         secure: true,
-        path: '/auth',
+        path: '/',
       }),
     );
     expect(response.clearCookie).toHaveBeenNthCalledWith(
@@ -205,9 +207,30 @@ describe('auth.cookies', () => {
         httpOnly: false,
         sameSite: 'none',
         secure: true,
+        path: '/',
+      }),
+    );
+    expect(response.clearCookie).toHaveBeenNthCalledWith(
+      3,
+      'refresh_token',
+      expect.objectContaining({
+        httpOnly: true,
+        sameSite: 'none',
+        secure: true,
         path: '/auth',
       }),
     );
+    expect(response.clearCookie).toHaveBeenNthCalledWith(
+      4,
+      'csrf_token',
+      expect.objectContaining({
+        httpOnly: false,
+        sameSite: 'none',
+        secure: true,
+        path: '/auth',
+      }),
+    );
+    expect(response.clearCookie).toHaveBeenCalledTimes(4);
   });
 
   it('keeps secure true when clearing cookies even outside production', () => {
@@ -226,6 +249,65 @@ describe('auth.cookies', () => {
       'csrf_token',
       expect.objectContaining({ secure: true, sameSite: 'none' }),
     );
+  });
+
+  // CARSHOP-153 / AC-001: refresh_token and csrf_token must be issued with
+  // Path=/, not Path=/auth, so that they are attached by the browser on
+  // /admin/* requests too. Without the fix, `path` was '/auth' for both
+  // set, and this assertion would fail. The legacy Path=/auth variants are
+  // only expired during the migration and are never emitted with new values.
+  it('sets auth cookies at "/" and expires both "/" and legacy "/auth" variants (CARSHOP-153/AC-001)', () => {
+    const setResponse = createResponseMock();
+    setAuthCookies(setResponse, 'refresh-token', 'csrf-token');
+
+    expect(setResponse.cookie).toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      'refresh-token',
+      expect.objectContaining({ path: '/' }),
+    );
+    expect(setResponse.cookie).toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      'csrf-token',
+      expect.objectContaining({ path: '/' }),
+    );
+    expect(setResponse.cookie).toHaveBeenCalledTimes(2);
+    expect(setResponse.clearCookie).toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      expect.objectContaining({ path: '/auth' }),
+    );
+    expect(setResponse.clearCookie).toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      expect.objectContaining({ path: '/auth' }),
+    );
+
+    const clearResponse = createResponseMock();
+    clearAuthCookies(clearResponse);
+
+    expect(clearResponse.clearCookie).toHaveBeenNthCalledWith(
+      1,
+      'refresh_token',
+      expect.objectContaining({ path: '/' }),
+    );
+    expect(clearResponse.clearCookie).toHaveBeenNthCalledWith(
+      2,
+      'csrf_token',
+      expect.objectContaining({ path: '/' }),
+    );
+    expect(clearResponse.clearCookie).toHaveBeenNthCalledWith(
+      3,
+      'refresh_token',
+      expect.objectContaining({ path: '/auth' }),
+    );
+    expect(clearResponse.clearCookie).toHaveBeenNthCalledWith(
+      4,
+      'csrf_token',
+      expect.objectContaining({ path: '/auth' }),
+    );
+    expect(clearResponse.clearCookie).toHaveBeenCalledTimes(4);
   });
 
   it('parses cookies and decodes url-encoded values', () => {

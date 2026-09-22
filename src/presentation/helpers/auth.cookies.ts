@@ -36,6 +36,10 @@ function getRefreshTokenMaxAgeMs(): number {
  * csrf_token:
  * - participa da validação double-submit enviada automaticamente pelo browser
  * - o frontend cross-origin recebe o mesmo valor no corpo da resposta de auth
+ *
+ * path:
+ * - '/' (CARSHOP-153): '/auth' impedia o browser de enviar os cookies em
+ *   rotas como /admin/*, quebrando a verificação de sessão do frontend.
  */
 export function setAuthCookies(
   response: Response,
@@ -54,7 +58,7 @@ export function setAuthCookies(
     httpOnly: true,
     sameSite,
     secure,
-    path: '/auth',
+    path: '/',
     maxAge,
   });
 
@@ -62,8 +66,24 @@ export function setAuthCookies(
     httpOnly: false,
     sameSite,
     secure,
-    path: '/auth',
+    path: '/',
     maxAge,
+  });
+
+  // Remove as variantes antigas com Path=/auth. Como o path faz parte da
+  // identidade do cookie, emitir a nova variante em / não substitui a antiga.
+  response.clearCookie(getRefreshCookieName(), {
+    httpOnly: true,
+    sameSite,
+    secure,
+    path: '/auth',
+  });
+
+  response.clearCookie(getCsrfCookieName(), {
+    httpOnly: false,
+    sameSite,
+    secure,
+    path: '/auth',
   });
 }
 
@@ -73,9 +93,27 @@ export function setAuthCookies(
 export function clearAuthCookies(response: Response): void {
   // Mesmo motivo de setAuthCookies: SameSite=None exige Secure sempre,
   // independentemente de NODE_ENV, para o navegador aceitar o cookie.
+  // path também precisa ser o mesmo '/' usado no set (CARSHOP-153), senão
+  // o clearCookie não sobrescreve o cookie original e ele sobrevive ao logout.
   const secure = true;
   const sameSite = 'none' as const;
 
+  response.clearCookie(getRefreshCookieName(), {
+    httpOnly: true,
+    sameSite,
+    secure,
+    path: '/',
+  });
+
+  response.clearCookie(getCsrfCookieName(), {
+    httpOnly: false,
+    sameSite,
+    secure,
+    path: '/',
+  });
+
+  // Compatibilidade de migração: cookies emitidos antes da CARSHOP-153 usam
+  // Path=/auth e precisam ser expirados separadamente.
   response.clearCookie(getRefreshCookieName(), {
     httpOnly: true,
     sameSite,

@@ -203,7 +203,7 @@ describe('AuthController', () => {
       csrfCookieToken: 'csrf-token',
       csrfHeaderToken: 'csrf-token',
     });
-    expect(response.clearCookie).toHaveBeenCalledTimes(2);
+    expect(response.clearCookie).toHaveBeenCalledTimes(4);
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith({ success: true });
   });

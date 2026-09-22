@@ -64,8 +64,10 @@
 
 - **Cookies de autenticação** (definidos por `POST /auth/login` e
   rotacionados por `POST /auth/refresh`; removidos por `POST /auth/logout`):
-  - `refresh_token`: `HttpOnly`, `Secure`, `SameSite=None`, `Path=/auth`.
-  - `csrf_token`: **não** `HttpOnly`, `Secure`, `SameSite=None`, `Path=/auth`.
+  - `refresh_token`: `HttpOnly`, `Secure`, `SameSite=None`, `Path=/`.
+  - `csrf_token`: **não** `HttpOnly`, `Secure`, `SameSite=None`, `Path=/`.
+  - Durante a migração da CARSHOP-153, login, refresh e logout também expiram
+    as variantes legadas desses cookies com `Path=/auth`.
   - `Secure` e `SameSite=None` são aplicados sempre (independentemente de
     `NODE_ENV`), para suportar um frontend hospedado em origem diferente
     da API.
