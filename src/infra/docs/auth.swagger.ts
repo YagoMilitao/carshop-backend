@@ -76,13 +76,14 @@ export const authPaths = {
       summary: 'Autentica o administrador e cria sessão',
       description:
         'Em caso de sucesso, define os cookies refresh_token (HttpOnly, ' +
-        'Secure, SameSite=None, Path=/auth) e csrf_token (Secure, ' +
-        'SameSite=None, Path=/auth, não HttpOnly). ' +
+        'Secure, SameSite=None, Path=/) e csrf_token (Secure, ' +
+        'SameSite=None, Path=/, não HttpOnly). ' +
         'SameSite=None e Secure são aplicados sempre, independentemente ' +
         'do ambiente, para suportar um frontend hospedado em origem ' +
         'diferente da do backend. O corpo da resposta também inclui o ' +
         'csrfToken, pois JavaScript em outra origem não pode ler o cookie ' +
-        'definido para o domínio da API.',
+        'definido para o domínio da API. As variantes legadas com ' +
+        'Path=/auth são expiradas durante a migração da CARSHOP-153.',
       requestBody: loginRequestBody,
       responses: {
         '200': successResponse(
@@ -104,11 +105,12 @@ export const authPaths = {
       summary: 'Rotaciona access token, refresh token e csrf token',
       description:
         'Em caso de sucesso, rotaciona e redefine os cookies ' +
-        'refresh_token (HttpOnly, Secure, SameSite=None, Path=/auth) e ' +
-        'csrf_token (Secure, SameSite=None, Path=/auth) a cada chamada, ' +
+        'refresh_token (HttpOnly, Secure, SameSite=None, Path=/) e ' +
+        'csrf_token (Secure, SameSite=None, Path=/) a cada chamada, ' +
         'invalidando os valores anteriores. Exige o cookie refresh_token ' +
         'e o header X-CSRF-Token correspondente ao csrf_token. O novo ' +
-        'csrfToken é retornado no corpo para uso na próxima requisição.',
+        'csrfToken é retornado no corpo para uso na próxima requisição. ' +
+        'As variantes legadas com Path=/auth também são expiradas.',
       security: refreshCsrfSecurity,
       parameters: [csrfHeaderParameter],
       responses: {
@@ -129,8 +131,9 @@ export const authPaths = {
       summary: 'Revoga a sessão autenticada e remove cookies',
       description:
         'Revoga a sessão no servidor e remove os cookies refresh_token e ' +
-        'csrf_token (ambos com Path=/auth, Secure e SameSite=None), ' +
-        'exigindo o header X-CSRF-Token correspondente ao csrf_token.',
+        'csrf_token (ambos com Path=/, Secure e SameSite=None), ' +
+        'além das variantes legadas com Path=/auth, exigindo o header ' +
+        'X-CSRF-Token correspondente ao csrf_token.',
       security: refreshCsrfSecurity,
       parameters: [csrfHeaderParameter],
       responses: {

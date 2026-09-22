@@ -69,6 +69,22 @@ export function setAuthCookies(
     path: '/',
     maxAge,
   });
+
+  // Remove as variantes antigas com Path=/auth. Como o path faz parte da
+  // identidade do cookie, emitir a nova variante em / não substitui a antiga.
+  response.clearCookie(getRefreshCookieName(), {
+    httpOnly: true,
+    sameSite,
+    secure,
+    path: '/auth',
+  });
+
+  response.clearCookie(getCsrfCookieName(), {
+    httpOnly: false,
+    sameSite,
+    secure,
+    path: '/auth',
+  });
 }
 
 /**
@@ -94,6 +110,22 @@ export function clearAuthCookies(response: Response): void {
     sameSite,
     secure,
     path: '/',
+  });
+
+  // Compatibilidade de migração: cookies emitidos antes da CARSHOP-153 usam
+  // Path=/auth e precisam ser expirados separadamente.
+  response.clearCookie(getRefreshCookieName(), {
+    httpOnly: true,
+    sameSite,
+    secure,
+    path: '/auth',
+  });
+
+  response.clearCookie(getCsrfCookieName(), {
+    httpOnly: false,
+    sameSite,
+    secure,
+    path: '/auth',
   });
 }
 

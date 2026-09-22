@@ -246,3 +246,84 @@ do cookie, portanto nenhuma alteração de fragmento OpenAPI é necessária.
   `/admin` e `/auth`) foi deixado a critério do arquiteto pela
   especificação; resolvido nesta decisão como `path: '/'` (ver
   "Technical Decisions").
+
+## Addendum — Legacy Path=/auth Cookie Cleanup (post-Done Codex review)
+
+### Context
+
+Após o CARSHOP-153 ter sido marcado como `Done` (commit `c1e115e`, que
+alterou o path dos cookies de `/auth` para `/`), um bot externo de code
+review (Codex) sinalizou duas questões na PR:
+
+- **P1**: `Path` é parte da identidade de um cookie (RFC 6265). Browsers
+  que já possuíam cookies antigos com `Path=/auth` (emitidos antes do
+  fix) não são migrados automaticamente pelos novos cookies com
+  `Path=/`; o resultado é a coexistência de dois cookies de mesmo nome em
+  paths diferentes. O `clearAuthCookies` original limpava apenas a
+  variante `Path=/`, deixando viva a variante legada `Path=/auth`
+  (potencialmente com um `refresh_token` ainda válido) após o logout.
+- **P2**: `src/infra/docs/auth.swagger.ts` e `docs/api-contract.md`
+  continuavam descrevendo, em texto narrativo, `Path=/auth` mesmo depois
+  do fix — algo que a checagem original de Swagger (um grep estrutural
+  por chave) não capturou, pois as menções estavam em texto livre, não em
+  uma chave `path`.
+
+### Decision (architect-confirmed READY FOR IMPLEMENTATION)
+
+- Tanto `setAuthCookies` quanto `clearAuthCookies` em
+  `src/presentation/helpers/auth.cookies.ts` agora também chamam
+  `response.clearCookie(name, { ...mesmos atributos httpOnly/secure/sameSite
+  do cookie vivo, path: '/auth' })` para `refresh_token` e `csrf_token`,
+  expirando ativamente a variante de path legado.
+- Fazer essa limpeza em `setAuthCookies` (não apenas em
+  `clearAuthCookies`) é necessário, não é excesso de zelo: nem toda
+  sessão termina via logout explícito (fechamento de aba, expiração de
+  sessão), então a limpeza oportunista a cada resposta de login/refresh
+  garante que o cookie legado não permaneça vivo pelo `maxAge` completo
+  (até 7 dias).
+- Nenhum atributo `httpOnly`/`secure`/`sameSite` foi enfraquecido; apenas
+  as chamadas de limpeza de migração usam `path: '/auth'`, alinhadas aos
+  atributos de segurança do cookie vivo.
+- `src/infra/docs/auth.swagger.ts` (descrições de login/refresh/logout) e
+  `docs/api-contract.md` foram atualizados para declarar `Path=/` para o
+  cookie vivo e mencionar a expiração da variante legada `Path=/auth`
+  durante a migração.
+
+### Compliance Confirmation
+
+Não contradiz FR-002 (`clearAuthCookies` deve usar o mesmo `Path` que
+`setAuthCookies` para o cookie vivo — continua verdadeiro, ambos usam
+`/`), é consistente com NFR-001 (path não mais amplo que o necessário) e
+com a seção "Risks" já existente em `spec.md` sobre cookies antigos.
+
+### Files Touched (already implemented and verified by architect)
+
+Nenhuma mudança de código adicional é necessária; os arquivos abaixo já
+foram implementados e verificados pelo arquiteto:
+
+1. `src/presentation/helpers/auth.cookies.ts`
+2. `src/infra/docs/auth.swagger.ts`
+3. `docs/api-contract.md`
+4. `test/unit/presentation/controllers/auth.controller.spec.ts` (teste de
+   logout atualizado: `clearCookie` chamado 4 vezes em vez de 2)
+5. `test/unit/presentation/helpers/auth.cookies.spec.ts` (novas
+   asserções para as 4 chamadas de `clearCookie` em cada função)
+
+### Validation Plan
+
+- `npx jest test/unit/presentation/helpers/auth.cookies.spec.ts`
+- `npx jest test/unit/presentation/controllers/auth.controller.spec.ts`
+- `npm test`
+- `npm run build`
+- `npm run test:e2e` — atenção especial: os specs e2e de login/refresh
+  usam `extractCookie`, que faz
+  `setCookie.find(entry => entry.startsWith('refresh_token='))`. Como
+  `response.cookie` para o valor real é chamado antes de
+  `response.clearCookie` para o path legado dentro de `setAuthCookies`, o
+  header `Set-Cookie` do cookie real é emitido primeiro, então `.find()`
+  continua retornando o cookie real correto. O arquiteto confirmou que
+  nenhum spec e2e faz asserção sobre a contagem de headers `Set-Cookie`.
+
+### Verdict
+
+`READY FOR IMPLEMENTATION` (architect, nesta revisão de follow-up).
