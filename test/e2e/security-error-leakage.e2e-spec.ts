@@ -114,11 +114,11 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
   });
 
   // Uses the upload flow's Multer file-size limit (correctly translated to
-  // 413 by `normalizeUploadError`) as the representative 413 source. The
+  // 413 by `translateUploadError`) as the representative 413 source. The
   // JSON body-size limit also now correctly returns 413 as of the
   // CARSHOP-111 `errorHandlerMiddleware` fix (see
   // `security-body-size-limit.e2e-spec.ts`), but this scenario keeps using
-  // the upload path to also exercise `normalizeUploadError`'s translation.
+  // the upload path to also exercise `translateUploadError`'s translation.
   it('does not leak internals on a 413 (oversized upload file) (FR-013/AC-006)', async () => {
     const imageStorage = new FailingImageStorageAdapter();
     app = createApp({ imageStorage });
@@ -158,7 +158,7 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
     assertNoLeakage(response);
   });
 
-  it('does not leak internals on a 500 (unexpected image-storage failure) (FR-013/AC-006)', async () => {
+  it('does not leak internals on a 502 (image-storage provider failure) (FR-013/AC-006, CARSHOP-156 AC-007/AC-008)', async () => {
     const imageStorage = new FailingImageStorageAdapter();
     app = createApp({ imageStorage });
 
@@ -186,10 +186,13 @@ describe('Error response leakage prevention (e2e, CARSHOP-111)', () => {
         filename: 'work-photo.jpg',
         contentType: 'image/jpeg',
       })
-      .expect(500);
+      .expect(502);
 
     assertNoLeakage(response);
-    expect(response.body).toEqual({ message: 'Erro interno no servidor.' });
+    expect(response.body).toEqual({
+      message:
+        'Falha ao enviar a imagem para o armazenamento externo. Tente novamente.',
+    });
   });
 
   // Ordered last: `globalRateLimitMiddleware` is a module-level singleton

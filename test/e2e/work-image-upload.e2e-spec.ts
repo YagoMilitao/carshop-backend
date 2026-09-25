@@ -11,6 +11,7 @@ import {
   VALID_WEBP_BUFFER,
 } from './support/valid-image-fixtures';
 import { AuthSessionModel } from '../../src/data/models/auth-session.model';
+import { loginAsAdmin as loginAsAdminWithCookies } from './support/security-test.helpers';
 
 interface AuthResponseBody {
   accessToken: string;
@@ -87,6 +88,45 @@ async function createWork(
 
   return work.id;
 }
+
+/**
+ * CARSHOP-156 — builds a still-valid JPEG of roughly `targetBytes` by
+ * inserting JPEG COM (0xFFFE) segments right after the SOI marker of
+ * `VALID_JPEG_BUFFER`. Each COM segment carries at most 65533 payload bytes
+ * (the 2-byte length field includes itself), so the content validator keeps
+ * detecting a real JPEG while the body reaches the ~115 KB size observed in
+ * the admin-panel reproduction.
+ */
+function buildInflatedJpeg(targetBytes: number): Buffer {
+  const MAX_COM_PAYLOAD = 65533;
+  const soi = VALID_JPEG_BUFFER.subarray(0, 2);
+  const rest = VALID_JPEG_BUFFER.subarray(2);
+  const segments: Buffer[] = [];
+  let remaining = Math.max(targetBytes - VALID_JPEG_BUFFER.length, 0);
+
+  while (remaining > 0) {
+    const payloadLength = Math.min(remaining, MAX_COM_PAYLOAD);
+    const header = Buffer.from([
+      0xff,
+      0xfe,
+      ((payloadLength + 2) >> 8) & 0xff,
+      (payloadLength + 2) & 0xff,
+    ]);
+    segments.push(header, Buffer.alloc(payloadLength, 0x41));
+    remaining -= payloadLength + header.length;
+  }
+
+  return Buffer.concat([soi, ...segments, rest]);
+}
+
+const CARSHOP_156_MESSAGES = {
+  unexpectedFileField:
+    'Campo de arquivo inesperado. Envie a imagem no campo "file".',
+  tooManyFiles: 'Envie apenas uma imagem por requisição.',
+  malformedMultipart:
+    'Corpo multipart malformado. Verifique o formato da requisição.',
+  legacyGeneric: 'Falha ao processar o upload da imagem.',
+} as const;
 
 // Structurally valid PNG signature but missing the IEND footer.
 const TRUNCATED_PNG_BUFFER = Buffer.from([
@@ -448,6 +488,196 @@ describe('Work image upload and delete (e2e)', () => {
 
     expect(workAfterDelete).toBeDefined();
     expect(workAfterDelete?.images.length).toBe(0);
+  });
+
+  // CARSHOP-156 — AC-001/AC-003 (and the canonical shape for AC-002): the
+  // request shape observed from the admin-panel proxy — Bearer token,
+  // refresh_token/csrf_token cookies, X-CSRF-Token header, a ~115 KB JPEG in
+  // the `file` field plus `alt` and `isCover=true` — is accepted and the
+  // image is associated with the work with the optional fields applied.
+  // This is the only extra login in this file for CARSHOP-156 (budget: 5).
+  it('accepts the canonical admin-panel proxy request shape (~115 KB JPEG in `file`, alt + isCover, cookies and X-CSRF-Token) and associates the image with the work (CARSHOP-156 AC-001/AC-003)', async () => {
+    const login = await loginAsAdminWithCookies(
+      app,
+      'admin@carshop.com',
+      '123456',
+    );
+    const workId = await createWork(
+      app,
+      login.accessToken,
+      `image-proxy-shape-${Date.now()}`,
+    );
+    const uploadSpy = jest.spyOn(imageStorage, 'upload');
+    const inflatedJpeg = buildInflatedJpeg(115 * 1024);
+
+    expect(inflatedJpeg.length).toBeGreaterThanOrEqual(115 * 1024);
+
+    const response = await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${login.accessToken}`)
+      .set('Cookie', [login.refreshCookie, login.csrfCookie])
+      .set('X-CSRF-Token', login.csrfToken)
+      .field('alt', 'Banco dianteiro restaurado')
+      .field('isCover', 'true')
+      .attach('file', inflatedJpeg, {
+        filename: 'banco-restaurado.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(201);
+
+    expect(response.body).toEqual({
+      message: 'Imagem adicionada com sucesso.',
+    });
+    expect(uploadSpy).toHaveBeenCalledTimes(1);
+    expect(uploadSpy.mock.calls[0][0].buffer.length).toBe(inflatedJpeg.length);
+
+    const listResponse = await request(app)
+      .get('/works')
+      .set('Authorization', `Bearer ${login.accessToken}`)
+      .expect(200);
+    const works = listResponse.body as Array<{
+      id: string;
+      images: Array<{ alt?: string; isCover?: boolean }>;
+    }>;
+    const work = works.find((candidate) => candidate.id === workId);
+
+    expect(work?.images).toHaveLength(1);
+    expect(work?.images[0]).toMatchObject({
+      alt: 'Banco dianteiro restaurado',
+      isCover: true,
+    });
+  });
+
+  it('accepts a ~115 KB JPEG in `file` without the optional alt/isCover fields and applies the defaults (CARSHOP-156 AC-001/AC-003)', async () => {
+    const accessToken = await getSharedAccessToken(app);
+    const workId = await createWork(
+      app,
+      accessToken,
+      `image-no-optional-fields-${Date.now()}`,
+    );
+
+    await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', buildInflatedJpeg(115 * 1024), {
+        filename: 'banco-restaurado.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(201);
+
+    const listResponse = await request(app)
+      .get('/works')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const works = listResponse.body as Array<{
+      id: string;
+      images: Array<{ alt?: string; isCover?: boolean }>;
+    }>;
+    const work = works.find((candidate) => candidate.id === workId);
+
+    expect(work?.images).toHaveLength(1);
+    expect(work?.images[0]).toMatchObject({ alt: '', isCover: false });
+  });
+
+  // CARSHOP-156 — AC-007/AC-008: hypothesis H1 from the plan (the image
+  // arrives in a file part not named `file`). Must return a specific 400,
+  // not the legacy generic message, and never reach the storage provider.
+  it('rejects an image sent under an unexpected file field (`image`) with a specific 400, without reaching the image-storage provider (CARSHOP-156 AC-007/AC-008)', async () => {
+    const accessToken = await getSharedAccessToken(app);
+    const workId = await createWork(
+      app,
+      accessToken,
+      `image-unexpected-field-${Date.now()}`,
+    );
+    const uploadSpy = jest.spyOn(imageStorage, 'upload');
+
+    const response = await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('image', VALID_JPEG_BUFFER, {
+        filename: 'work-photo.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      message: CARSHOP_156_MESSAGES.unexpectedFileField,
+    });
+    expect(response.body).not.toEqual({
+      message: CARSHOP_156_MESSAGES.legacyGeneric,
+    });
+    expect(uploadSpy).not.toHaveBeenCalled();
+  });
+
+  // CARSHOP-156 — AC-007/AC-008: hypothesis H2 from the plan (more than one
+  // file part in the multipart body).
+  it('rejects a multipart body with two file parts with a specific 400, without reaching the image-storage provider (CARSHOP-156 AC-007/AC-008)', async () => {
+    const accessToken = await getSharedAccessToken(app);
+    const workId = await createWork(
+      app,
+      accessToken,
+      `image-two-files-${Date.now()}`,
+    );
+    const uploadSpy = jest.spyOn(imageStorage, 'upload');
+
+    const response = await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', VALID_JPEG_BUFFER, {
+        filename: 'work-photo-1.jpg',
+        contentType: 'image/jpeg',
+      })
+      .attach('file', VALID_JPEG_BUFFER, {
+        filename: 'work-photo-2.jpg',
+        contentType: 'image/jpeg',
+      })
+      .expect(400);
+
+    expect(response.body).toEqual({
+      message: CARSHOP_156_MESSAGES.tooManyFiles,
+    });
+    expect(response.body).not.toEqual({
+      message: CARSHOP_156_MESSAGES.unexpectedFileField,
+    });
+    expect(uploadSpy).not.toHaveBeenCalled();
+  });
+
+  // CARSHOP-156 — AC-007/AC-008: a truncated multipart body (no closing
+  // boundary) used to surface as 415 "unsupported type"; it must now be a
+  // 400 that names the malformed-multipart category, without echoing the
+  // parser's internal error text.
+  it('rejects a truncated multipart body with a malformed-multipart 400, without reaching the image-storage provider (CARSHOP-156 AC-007/AC-008)', async () => {
+    const accessToken = await getSharedAccessToken(app);
+    const workId = await createWork(
+      app,
+      accessToken,
+      `image-truncated-multipart-${Date.now()}`,
+    );
+    const uploadSpy = jest.spyOn(imageStorage, 'upload');
+    const boundary = 'carshop156boundary';
+    const truncatedBody = Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\n` +
+          'Content-Disposition: form-data; name="file"; filename="work-photo.jpg"\r\n' +
+          'Content-Type: image/jpeg\r\n\r\n',
+      ),
+      VALID_JPEG_BUFFER.subarray(0, 64),
+    ]);
+
+    const response = await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Content-Type', `multipart/form-data; boundary=${boundary}`)
+      .send(truncatedBody)
+      .expect(400);
+
+    expect(response.body).toEqual({
+      message: CARSHOP_156_MESSAGES.malformedMultipart,
+    });
+    expect(JSON.stringify(response.body)).not.toMatch(
+      /Unexpected end of form|busboy|multer|tmp[\\/]uploads/i,
+    );
+    expect(uploadSpy).not.toHaveBeenCalled();
   });
 
   // CARSHOP-138 — FR-004/AC-002: a token bound to a session revoked in

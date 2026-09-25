@@ -10,7 +10,8 @@ const mockRouterInstance = {
 const mockRouterFactory = jest.fn(() => mockRouterInstance);
 
 const mockBuildAuthMiddleware = jest.fn(() => 'auth-middleware');
-const mockSingle = jest.fn(() => 'upload-middleware-handler');
+const mockMulterSingleHandler = jest.fn();
+const mockSingle = jest.fn(() => mockMulterSingleHandler);
 const mockController = {
   upload: 'upload-handler',
   delete: 'delete-handler',
@@ -35,6 +36,10 @@ jest.mock(
 );
 
 jest.mock('@/infra/middleware/upload.middleware', () => ({
+  UnsupportedImageTypeError: jest.requireActual<
+    typeof import('../../../../../src/infra/middleware/upload.middleware')
+  >('../../../../../src/infra/middleware/upload.middleware')
+    .UnsupportedImageTypeError,
   uploadMiddleware: {
     single: (...args: unknown[]) =>
       (mockSingle as unknown as (...a: unknown[]) => unknown)(...args),
@@ -62,31 +67,61 @@ jest.mock(
   }),
 );
 
-import { buildWorkImageRouter } from '../../../../../src/infra/http/routes/work-image.routes';
+import {
+  buildWorkImageRouter,
+  translateUploadError,
+  withUploadErrorTranslation,
+} from '../../../../../src/infra/http/routes/work-image.routes';
+import { UnsupportedImageTypeError } from '../../../../../src/infra/middleware/upload.middleware';
+
+const LEGACY_GENERIC_MESSAGE = 'Falha ao processar o upload da imagem.';
+const MALFORMED_MESSAGE =
+  'Corpo multipart malformado. Verifique o formato da requisição.';
+const FIELD_LIMITS_MESSAGE =
+  'Os campos do formulário excedem os limites permitidos.';
+
+/**
+ * `@types/multer` lags behind multer 2.x runtime codes (e.g.
+ * `LIMIT_FIELD_NESTING`, `STREAM_DESTROYED`, `INVALID_FIELD_NAME`), so a
+ * real `MulterError` is created and its `code` is overridden, matching what
+ * multer produces at runtime without an unsafe cast.
+ */
+function buildMulterError(code: string, field?: string): multer.MulterError {
+  const multerError = new multer.MulterError('LIMIT_PART_COUNT', field);
+  Object.defineProperty(multerError, 'code', { value: code });
+  return multerError;
+}
+
+function expectHttpError(
+  translated: unknown,
+  statusCode: number,
+  message: string,
+): void {
+  expect(translated).toBeInstanceOf(HttpError);
+  expect(translated).toMatchObject({ statusCode, message });
+}
 
 describe('buildWorkImageRouter', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  function buildRouterAndCaptureUploadMiddlewares() {
+  function buildRouter() {
     const workRepository = { name: 'work-repository' } as never;
     const imageStorage = { name: 'image-storage' } as never;
     const sessionStore = { name: 'session-store' } as never;
     const tokenService = { name: 'token-service' } as never;
 
-    const router = buildWorkImageRouter(
+    return buildWorkImageRouter(
       workRepository,
       imageStorage,
       sessionStore,
       tokenService,
     );
-
-    return { router };
   }
 
   it('registers the upload and delete routes behind authMiddleware (AC-009)', () => {
-    const { router } = buildRouterAndCaptureUploadMiddlewares();
+    const router = buildRouter();
 
     expect(router).toBe(mockRouterInstance);
     expect(mockBuildAuthMiddleware).toHaveBeenCalled();
@@ -95,9 +130,8 @@ describe('buildWorkImageRouter', () => {
     expect(mockPost).toHaveBeenCalledWith(
       '/:workId/images',
       'auth-middleware',
-      'upload-middleware-handler',
-      'image-content-validation-handler',
       expect.any(Function),
+      'image-content-validation-handler',
       'upload-handler',
     );
 
@@ -108,81 +142,198 @@ describe('buildWorkImageRouter', () => {
     );
   });
 
-  function getNormalizeUploadError(): (
-    error: unknown,
-    request: unknown,
-    response: unknown,
-    next: jest.Mock,
-  ) => void {
-    buildRouterAndCaptureUploadMiddlewares();
-    const uploadCallArgs = mockPost.mock.calls.find(
+  it('wraps the Multer handler so that its errors are translated before reaching next', () => {
+    buildRouter();
+    const uploadCall = mockPost.mock.calls.find(
       (call) => call[0] === '/:workId/images',
     );
-    if (!uploadCallArgs) {
+    if (!uploadCall) {
       throw new Error('upload route was not registered');
     }
-    return uploadCallArgs[4] as (
-      error: unknown,
+    const wrappedMulter = uploadCall[2] as (
       request: unknown,
       response: unknown,
       next: jest.Mock,
     ) => void;
-  }
-
-  it('maps Multer LIMIT_FILE_SIZE errors to HttpError 413 (AC-007, FR-009)', () => {
-    const normalizeUploadError = getNormalizeUploadError();
+    mockMulterSingleHandler.mockImplementation(
+      (
+        _request: unknown,
+        _response: unknown,
+        callback: (e?: unknown) => void,
+      ) => callback(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'image')),
+    );
     const next = jest.fn();
-    const multerError = new multer.MulterError('LIMIT_FILE_SIZE');
 
-    normalizeUploadError(multerError, {}, {}, next);
+    wrappedMulter({}, {}, next);
 
-    expect(next).toHaveBeenCalledWith(expect.any(HttpError));
-    const forwardedError = next.mock.calls[0][0] as HttpError;
-    expect(forwardedError.statusCode).toBe(413);
+    expect(mockMulterSingleHandler).toHaveBeenCalledTimes(1);
+    expectHttpError(
+      next.mock.calls[0][0],
+      400,
+      'Campo de arquivo inesperado. Envie a imagem no campo "file".',
+    );
   });
+});
 
-  it('maps other Multer errors to HttpError 400', () => {
-    const normalizeUploadError = getNormalizeUploadError();
-    const next = jest.fn();
-    const multerError = new multer.MulterError('LIMIT_UNEXPECTED_FILE');
-
-    normalizeUploadError(multerError, {}, {}, next);
-
-    expect(next).toHaveBeenCalledWith(expect.any(HttpError));
-    const forwardedError = next.mock.calls[0][0] as HttpError;
-    expect(forwardedError.statusCode).toBe(400);
-  });
-
-  it('maps custom fileFilter errors (invalid mime type) to HttpError 415 (AC-006, FR-008)', () => {
-    const normalizeUploadError = getNormalizeUploadError();
-    const next = jest.fn();
-    const fileFilterError = new Error('Tipo de arquivo não suportado.');
-
-    normalizeUploadError(fileFilterError, {}, {}, next);
-
-    expect(next).toHaveBeenCalledWith(expect.any(HttpError));
-    const forwardedError = next.mock.calls[0][0] as HttpError;
-    expect(forwardedError.statusCode).toBe(415);
-  });
-
-  it('passes through an existing HttpError (e.g. 401 from authMiddleware) without rewriting it to 415', () => {
-    const normalizeUploadError = getNormalizeUploadError();
-    const next = jest.fn();
-    const authError = new HttpError(401, 'Token inválido ou ausente.');
-
-    normalizeUploadError(authError, {}, {}, next);
-
-    expect(next).toHaveBeenCalledWith(authError);
-    const forwardedError = next.mock.calls[0][0] as HttpError;
-    expect(forwardedError.statusCode).toBe(401);
-  });
-
-  it('calls next() with no error when there is no upload error', () => {
-    const normalizeUploadError = getNormalizeUploadError();
+describe('withUploadErrorTranslation', () => {
+  it('calls next() with no arguments when the wrapped handler succeeds', () => {
+    const handler = jest.fn(
+      (_request: unknown, _response: unknown, callback: () => void) =>
+        callback(),
+    );
     const next = jest.fn();
 
-    normalizeUploadError(undefined, {}, {}, next);
+    withUploadErrorTranslation(handler as never)(
+      {} as never,
+      {} as never,
+      next,
+    );
 
+    expect(next).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledWith();
+  });
+
+  it('calls next(translated) when the wrapped handler fails', () => {
+    const handler = jest.fn(
+      (
+        _request: unknown,
+        _response: unknown,
+        callback: (error: unknown) => void,
+      ) => callback(new multer.MulterError('LIMIT_FILE_SIZE')),
+    );
+    const next = jest.fn();
+
+    withUploadErrorTranslation(handler as never)(
+      {} as never,
+      {} as never,
+      next,
+    );
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expectHttpError(
+      next.mock.calls[0][0],
+      413,
+      'A imagem ultrapassa o limite de 5 MB.',
+    );
+  });
+});
+
+describe('translateUploadError (CARSHOP-156 AC-007/AC-008)', () => {
+  it('passes an existing HttpError through unchanged', () => {
+    const httpError = new HttpError(401, 'Token inválido ou ausente.');
+
+    expect(translateUploadError(httpError)).toBe(httpError);
+  });
+
+  it('maps UnsupportedImageTypeError to 415 with the existing public message', () => {
+    expectHttpError(
+      translateUploadError(new UnsupportedImageTypeError()),
+      415,
+      'Tipo de arquivo não suportado. Envie JPEG, PNG ou WebP.',
+    );
+  });
+
+  it('maps LIMIT_FILE_SIZE to 413', () => {
+    expectHttpError(
+      translateUploadError(new multer.MulterError('LIMIT_FILE_SIZE', 'file')),
+      413,
+      'A imagem ultrapassa o limite de 5 MB.',
+    );
+  });
+
+  it('maps LIMIT_UNEXPECTED_FILE to a specific 400 without echoing the field name', () => {
+    const translated = translateUploadError(
+      new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'image'),
+    );
+
+    expectHttpError(
+      translated,
+      400,
+      'Campo de arquivo inesperado. Envie a imagem no campo "file".',
+    );
+    expect((translated as HttpError).message).not.toContain('image"');
+  });
+
+  it('maps LIMIT_FILE_COUNT to a specific 400', () => {
+    expectHttpError(
+      translateUploadError(new multer.MulterError('LIMIT_FILE_COUNT')),
+      400,
+      'Envie apenas uma imagem por requisição.',
+    );
+  });
+
+  it.each([
+    'LIMIT_FIELD_KEY',
+    'LIMIT_FIELD_VALUE',
+    'LIMIT_FIELD_COUNT',
+    'LIMIT_PART_COUNT',
+    'LIMIT_FIELD_NESTING',
+    'LIMIT_FIELD_ARRAY_INDEX',
+  ])('maps %s to the field-limits 400', (code) => {
+    expectHttpError(
+      translateUploadError(buildMulterError(code, 'some-field')),
+      400,
+      FIELD_LIMITS_MESSAGE,
+    );
+  });
+
+  it.each(['MISSING_FIELD_NAME', 'INVALID_FIELD_NAME', 'STREAM_DESTROYED'])(
+    'maps %s to the malformed-multipart 400',
+    (code) => {
+      expectHttpError(
+        translateUploadError(buildMulterError(code)),
+        400,
+        MALFORMED_MESSAGE,
+      );
+    },
+  );
+
+  it.each([
+    'Unexpected end of form',
+    'Malformed part header',
+    'Multipart: Boundary not found',
+    'Request aborted',
+  ])(
+    'maps busboy/parser error "%s" to the malformed-multipart 400 without echoing it',
+    (rawMessage) => {
+      const translated = translateUploadError(new Error(rawMessage));
+
+      expectHttpError(translated, 400, MALFORMED_MESSAGE);
+      expect((translated as HttpError).message).not.toContain(rawMessage);
+    },
+  );
+
+  it('passes system errors (errno/syscall) through unchanged so the central handler returns 500', () => {
+    const diskError = Object.assign(new Error('ENOSPC: no space left'), {
+      errno: -28,
+      code: 'ENOSPC',
+      syscall: 'write',
+    });
+    const syscallOnlyError = Object.assign(new Error('EACCES'), {
+      syscall: 'open',
+    });
+
+    expect(translateUploadError(diskError)).toBe(diskError);
+    expect(translateUploadError(syscallOnlyError)).toBe(syscallOnlyError);
+  });
+
+  it('passes non-Error values through unchanged', () => {
+    const rawValue = { reason: 'unknown' };
+
+    expect(translateUploadError(rawValue)).toBe(rawValue);
+    expect(translateUploadError('boom')).toBe('boom');
+  });
+
+  it('regression: unexpected field and file count produce distinct messages, none equal to the legacy generic message', () => {
+    const unexpectedField = translateUploadError(
+      new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'image'),
+    ) as HttpError;
+    const fileCount = translateUploadError(
+      new multer.MulterError('LIMIT_FILE_COUNT'),
+    ) as HttpError;
+
+    expect(unexpectedField.message).not.toBe(fileCount.message);
+    expect(unexpectedField.message).not.toBe(LEGACY_GENERIC_MESSAGE);
+    expect(fileCount.message).not.toBe(LEGACY_GENERIC_MESSAGE);
   });
 });

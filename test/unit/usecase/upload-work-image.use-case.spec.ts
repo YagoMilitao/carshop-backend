@@ -144,13 +144,36 @@ describe('UploadWorkImageUseCase', () => {
     const imageStorage = buildImageStorage({
       upload: jest.fn().mockRejectedValue(new Error('cloudinary offline')),
     });
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
 
-    const useCase = new UploadWorkImageUseCase(workRepository, imageStorage);
+    try {
+      const useCase = new UploadWorkImageUseCase(workRepository, imageStorage);
 
-    await expect(useCase.execute(input)).rejects.toThrow('cloudinary offline');
+      const executionError: unknown = await useCase
+        .execute(input)
+        .catch((error: unknown) => error);
 
-    expect(workRepository.addImage).not.toHaveBeenCalled();
-    expect(mockUnlink).toHaveBeenCalledWith(input.filePath);
+      expect(executionError).toBeInstanceOf(HttpError);
+      expect(executionError).toMatchObject({
+        statusCode: 502,
+        message:
+          'Falha ao enviar a imagem para o armazenamento externo. Tente novamente.',
+      });
+      expect((executionError as HttpError).message).not.toContain(
+        'cloudinary offline',
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Falha no upload da imagem para o storage externo.',
+        expect.any(Error),
+      );
+
+      expect(workRepository.addImage).not.toHaveBeenCalled();
+      expect(mockUnlink).toHaveBeenCalledWith(input.filePath);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it('compensa o upload remoto quando a persistência no Mongo falha após upload bem-sucedido (FR-004, NFR-002)', async () => {

@@ -141,7 +141,7 @@ export const adminWorksPaths = {
         'Envia uma imagem para o storage externo e salva no MongoDB apenas a URL e os metadados.',
         '',
         'Regras do upload:',
-        '- apenas uma imagem por requisição;',
+        '- apenas uma imagem por requisição (o corpo multipart deve conter uma única parte de arquivo);',
         '- formatos aceitos: JPEG, PNG e WebP;',
         '- tamanho máximo: 5 MB;',
         '- o campo do arquivo deve se chamar `file`;',
@@ -231,7 +231,7 @@ export const adminWorksPaths = {
         ),
 
         '400': errorResponse(
-          'Arquivo ausente, falha ao processar o multipart, payload de campos inválido ou alt com mais de 160 caracteres.',
+          'Requisição de upload inválida. Categorias: arquivo ausente; campo de arquivo inesperado (a imagem deve ser enviada no campo `file`); mais de uma imagem na requisição; campos do formulário acima dos limites permitidos; corpo multipart malformado; payload de campos inválido; alt com mais de 160 caracteres.',
         ),
 
         '401': errorResponse(
@@ -249,7 +249,11 @@ export const adminWorksPaths = {
         '429': globalRateLimitResponse,
 
         '500': errorResponse(
-          'Falha inesperada ao enviar ou persistir a imagem.',
+          'Falha inesperada do servidor, por exemplo ao gravar ou ler o arquivo temporário do upload ou ao persistir os metadados da imagem.',
+        ),
+
+        '502': errorResponse(
+          'Falha ao enviar a imagem para o armazenamento externo.',
         ),
       },
     },

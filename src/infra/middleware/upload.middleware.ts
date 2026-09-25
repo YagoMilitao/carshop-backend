@@ -33,6 +33,21 @@ export function isAllowedImageMimeType(mimeType: string): boolean {
 }
 
 /**
+ * Erro usado pelo `fileFilter` quando o tipo MIME declarado não é aceito.
+ *
+ * Motivo:
+ * permitir que a camada de rotas identifique a rejeição por tipo inválido
+ * de forma explícita, sem depender de um `Error` genérico, e traduzi-la
+ * para o contrato HTTP (415).
+ */
+export class UnsupportedImageTypeError extends Error {
+  constructor() {
+    super('Formato inválido. Envie uma imagem JPEG, PNG ou WebP.');
+    this.name = 'UnsupportedImageTypeError';
+  }
+}
+
+/**
  * Middleware responsável por receber temporariamente uma imagem.
  *
  * O arquivo é salvo em `tmp/uploads` antes de ser enviado
@@ -48,9 +63,7 @@ export const uploadMiddleware = multer({
 
   fileFilter: (_request, file, callback) => {
     if (!isAllowedImageMimeType(file.mimetype)) {
-      callback(
-        new Error('Formato inválido. Envie uma imagem JPEG, PNG ou WebP.'),
-      );
+      callback(new UnsupportedImageTypeError());
       return;
     }
     callback(null, true);

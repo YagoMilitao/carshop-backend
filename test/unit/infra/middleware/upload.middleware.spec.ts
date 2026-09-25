@@ -9,6 +9,7 @@ import {
   ALLOWED_IMAGE_MIME_TYPES,
   isAllowedImageMimeType,
   MAX_IMAGE_SIZE_BYTES,
+  UnsupportedImageTypeError,
   uploadMiddleware,
 } from '../../../../src/infra/middleware/upload.middleware';
 
@@ -55,6 +56,10 @@ function createTestApp() {
       });
 
       return;
+    }
+
+    if (error instanceof UnsupportedImageTypeError) {
+      response.setHeader('X-Test-Error-Type', 'UnsupportedImageTypeError');
     }
 
     if (error instanceof Error) {
@@ -220,5 +225,35 @@ describe('uploadMiddleware', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe('LIMIT_UNEXPECTED_FILE');
+  });
+
+  it('deve rejeitar tipo não suportado com UnsupportedImageTypeError (CARSHOP-156)', async () => {
+    const response = await request(app)
+      .post('/upload')
+      .attach('file', Buffer.from('conteudo-pdf-de-teste'), {
+        filename: 'documento.pdf',
+        contentType: 'application/pdf',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.headers['x-test-error-type']).toBe(
+      'UnsupportedImageTypeError',
+    );
+  });
+
+  it('deve rejeitar duas partes de arquivo no campo file com LIMIT_FILE_COUNT (CARSHOP-156)', async () => {
+    const response = await request(app)
+      .post('/upload')
+      .attach('file', Buffer.from('conteudo-1'), {
+        filename: 'imagem-1.jpg',
+        contentType: 'image/jpeg',
+      })
+      .attach('file', Buffer.from('conteudo-2'), {
+        filename: 'imagem-2.jpg',
+        contentType: 'image/jpeg',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('LIMIT_FILE_COUNT');
   });
 });
