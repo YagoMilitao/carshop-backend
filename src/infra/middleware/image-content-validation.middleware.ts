@@ -5,6 +5,10 @@ import type { ALLOWED_IMAGE_MIME_TYPES } from './upload.middleware';
 
 type AllowedImageMimeType = (typeof ALLOWED_IMAGE_MIME_TYPES)[number];
 
+function normalizeImageMimeType(mimeType: string): string {
+  return mimeType === 'image/jpg' ? 'image/jpeg' : mimeType;
+}
+
 const JPEG_SOI = [0xff, 0xd8];
 const JPEG_MARKER_PREFIX = 0xff;
 const JPEG_TEM_MARKER = 0x01;
@@ -724,7 +728,8 @@ async function bestEffortUnlink(filePath: string): Promise<void> {
  *
  * Regra de coerência adotada: qualquer divergência entre o tipo
  * declarado e o tipo detectado é rejeitada, mesmo quando ambos são
- * individualmente permitidos (ver `specs/CARSHOP-109/plan.md`).
+ * individualmente permitidos. A exceção é `image/jpg`, tratado como alias
+ * de `image/jpeg` e normalizado para o tipo MIME canônico antes do controller.
  */
 export const imageContentValidationMiddleware: RequestHandler = async (
   request,
@@ -742,17 +747,21 @@ export const imageContentValidationMiddleware: RequestHandler = async (
     const buffer = await fs.readFile(filePath);
     const detectedMimeType = detectImageMimeType(buffer);
 
-    if (!detectedMimeType || detectedMimeType !== mimetype) {
+    if (
+      !detectedMimeType ||
+      detectedMimeType !== normalizeImageMimeType(mimetype)
+    ) {
       await bestEffortUnlink(filePath);
       next(
         new HttpError(
           415,
-          'Tipo de arquivo não suportado. Envie JPEG, PNG ou WebP.',
+          'Tipo de arquivo não suportado. Envie JPEG/JPG, PNG ou WebP.',
         ),
       );
       return;
     }
 
+    request.file.mimetype = detectedMimeType;
     next();
   } catch (error: unknown) {
     await bestEffortUnlink(filePath);

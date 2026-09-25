@@ -441,7 +441,7 @@ mesmo prefixo `/admin/works`).
 - Autenticação: `Authorization: Bearer <ACCESS_TOKEN>` (obrigatório).
 - Path param: `workId` (string, formato `uuid` no exemplo do Swagger).
 - Body: `multipart/form-data`, obrigatório:
-  - `file` (binário, obrigatório): JPEG, PNG ou WebP, máximo 5 MB. O nome
+  - `file` (binário, obrigatório): JPEG/JPG, PNG ou WebP, máximo 5 MB. O nome
     do campo precisa ser exatamente `file`
     (`uploadMiddleware.single('file')`). O conteúdo binário real é
     inspecionado (não apenas o `Content-Type` declarado); divergência ou

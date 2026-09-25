@@ -81,7 +81,7 @@ function createTestApp() {
 }
 
 describe('isAllowedImageMimeType', () => {
-  it.each(['image/jpeg', 'image/png', 'image/webp'])(
+  it.each(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])(
     'deve aceitar o MIME type %s',
     (mimeType) => {
       expect(isAllowedImageMimeType(mimeType)).toBe(true);
@@ -101,6 +101,7 @@ describe('isAllowedImageMimeType', () => {
   it('deve possuir exatamente os formatos permitidos', () => {
     expect(ALLOWED_IMAGE_MIME_TYPES).toEqual([
       'image/jpeg',
+      'image/jpg',
       'image/png',
       'image/webp',
     ]);
@@ -127,6 +128,22 @@ describe('uploadMiddleware', () => {
       hasFile: true,
       mimeType: 'image/jpeg',
       originalName: 'imagem.jpg',
+    });
+  });
+
+  it('deve aceitar uma imagem JPG declarada como image/jpg', async () => {
+    const response = await request(app)
+      .post('/upload')
+      .attach('file', Buffer.from('conteudo-jpg-de-teste'), {
+        filename: 'imagem.JPG',
+        contentType: 'image/jpg',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      hasFile: true,
+      mimeType: 'image/jpg',
+      originalName: 'imagem.JPG',
     });
   });
 
@@ -164,7 +181,7 @@ describe('uploadMiddleware', () => {
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
-      message: 'Formato inválido. Envie uma imagem JPEG, PNG ou WebP.',
+      message: 'Formato inválido. Envie uma imagem JPEG/JPG, PNG ou WebP.',
     });
   });
 

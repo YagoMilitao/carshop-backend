@@ -114,7 +114,7 @@ declared/detected mismatch): delete the temp file via
 `fs.promises.unlink(request.file.path)` in a best-effort try/catch
 (mirrors existing pattern in `upload-work-image.use-case.ts`'s finally
 block), then call
-`next(new HttpError(415, 'Tipo de arquivo não suportado. Envie JPEG, PNG ou WebP.'))`.
+`next(new HttpError(415, 'Tipo de arquivo não suportado. Envie JPEG/JPG, PNG ou WebP.'))`.
 Reuses exact same status code/message already used by
 `normalizeUploadError` for declared-MIME-rejection, keeping the public
 contract identical (FR-009) — no new status code, no new response
@@ -137,7 +137,7 @@ generic 500 handler, consistent with other unexpected infra failures.
 ### Decision
 
 No new npm dependency; implement dependency-free pure function
-`detectImageMimeType(buffer: Buffer)` for JPEG/PNG/WebP magic-byte and
+`detectImageMimeType(buffer: Buffer)` for JPEG/JPG, PNG and WebP magic-byte and
 structural (trailer/RIFF-size) validation.
 
 ### Reason

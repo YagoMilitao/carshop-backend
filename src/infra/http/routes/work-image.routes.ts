@@ -30,7 +30,8 @@ import { imageContentValidationMiddleware } from '../../middleware/image-content
  * Multer/busboy, para não expor detalhes internos (NFR-002).
  */
 export const UPLOAD_ERROR_MESSAGES = {
-  unsupportedType: 'Tipo de arquivo não suportado. Envie JPEG, PNG ou WebP.',
+  unsupportedType:
+    'Tipo de arquivo não suportado. Envie JPEG/JPG, PNG ou WebP.',
   fileTooLarge: 'A imagem ultrapassa o limite de 5 MB.',
   unexpectedFileField:
     'Campo de arquivo inesperado. Envie a imagem no campo "file".',

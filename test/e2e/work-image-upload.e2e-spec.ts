@@ -238,6 +238,29 @@ describe('Work image upload and delete (e2e)', () => {
     expect(work?.images.length).toBe(1);
   });
 
+  it('accepts a valid JPG declared with the image/jpg MIME alias', async () => {
+    const accessToken = await getSharedAccessToken(app);
+    const workId = await createWork(
+      app,
+      accessToken,
+      `image-valid-jpg-${Date.now()}`,
+    );
+    const uploadSpy = jest.spyOn(imageStorage, 'upload');
+
+    await request(app)
+      .post(`/admin/works/${workId}/images`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', VALID_JPEG_BUFFER, {
+        filename: 'work-photo.JPG',
+        contentType: 'image/jpg',
+      })
+      .expect(201);
+
+    expect(uploadSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ mimeType: 'image/jpeg' }),
+    );
+  });
+
   // CARSHOP-109 — FR-001/FR-008, AC-003, AC-008: a genuinely valid PNG,
   // correctly declared, is accepted (real content matches declared MIME).
   it('accepts an authenticated upload with a valid PNG file (CARSHOP-109, AC-003, AC-008)', async () => {

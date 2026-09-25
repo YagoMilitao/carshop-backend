@@ -229,7 +229,7 @@ describe('translateUploadError (CARSHOP-156 AC-007/AC-008)', () => {
     expectHttpError(
       translateUploadError(new UnsupportedImageTypeError()),
       415,
-      'Tipo de arquivo não suportado. Envie JPEG, PNG ou WebP.',
+      'Tipo de arquivo não suportado. Envie JPEG/JPG, PNG ou WebP.',
     );
   });
 

@@ -31,7 +31,7 @@ external image storage provider (Cloudinary) unchecked.
 ## Objective
 
 Ensure that only files whose real, inspected content is a structurally
-valid JPEG, PNG, or WebP image are accepted by the upload flow, while
+valid JPEG/JPG, PNG, or WebP image are accepted by the upload flow, while
 preserving all existing upload safeguards: the 5 MB per-file size limit,
 the single-file-per-request limit, and safe cleanup of any temporary file
 on every error path (size-limit rejection, MIME/content rejection, or any
@@ -86,7 +86,7 @@ other upload failure).
   response is produced.
 - FR-008: A file whose declared MIME type is allowed and whose real,
   inspected content is a structurally valid image of an allowed type
-  (JPEG, PNG, or WebP) must be accepted and proceed through the existing
+  (JPEG/JPG, PNG or WebP) must be accepted and proceed through the existing
   upload flow unchanged.
 - FR-009: The end-to-end behavior of the upload endpoint for a caller
   (accepted vs. rejected, and the general shape of the error response)
@@ -110,7 +110,7 @@ other upload failure).
   during or after the content-inspection step, not only on the
   size-limit and declared-MIME rejection paths that already exist today.
 - NFR-004 (Compatibility): The change must not alter the accepted
-  image formats (JPEG, PNG, WebP), the 5 MB size limit, or the
+  image formats (JPEG/JPG, PNG, WebP), the 5 MB size limit, or the
   single-file limit already documented for the upload endpoint.
 - NFR-005 (Maintainability): The content-validation logic must follow the
   existing separation between the upload middleware and its testable
@@ -127,7 +127,8 @@ other upload failure).
   format) is rejected.
 - AC-003: A request sending a genuinely valid JPEG file with the correct
   declared MIME type is accepted, for each of the three supported
-  formats (JPEG, PNG, WebP) tested independently.
+  formats (JPEG/JPG, PNG, WebP) tested independently. Both JPEG MIME aliases
+  (`image/jpeg` and `image/jpg`) must be accepted.
 - AC-004: A request where the declared MIME type and the real detected
   content type are both individually allowed but disagree with each
   other (e.g. declared `image/png`, actual content is a valid JPEG) is
@@ -145,7 +146,7 @@ other upload failure).
   completes.
 - AC-008: E2E tests exist covering: MIME-type spoofing (declared-allowed,
   content-invalid), an over-the-limit file, and at least one genuinely
-  valid image for each of the three supported formats (JPEG, PNG, WebP).
+  valid image for each of the three supported formats (JPEG/JPG, PNG, WebP).
 - AC-009: No unit or E2E test added or modified for this task makes a
   real network call to the Cloudinary service; any interaction with
   image storage is stubbed/mocked.
@@ -157,7 +158,8 @@ other upload failure).
 - Must preserve safe temporary-file cleanup on every error path, per the
   project's security rules for uploads.
 - Must not weaken the existing allow-list of MIME types
-  (`ALLOWED_IMAGE_MIME_TYPES`: JPEG, PNG, WebP).
+  (`ALLOWED_IMAGE_MIME_TYPES`: `image/jpeg`, `image/jpg`, `image/png`,
+  `image/webp`).
 - Any new dependency required for magic-byte/structural validation must
   go through the project's dependency-audit process; this specification
   does not select or pre-approve a specific library.

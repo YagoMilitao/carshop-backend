@@ -142,13 +142,13 @@ export const adminWorksPaths = {
         '',
         'Regras do upload:',
         '- apenas uma imagem por requisição (o corpo multipart deve conter uma única parte de arquivo);',
-        '- formatos aceitos: JPEG, PNG e WebP;',
+        '- formatos aceitos: JPEG/JPG, PNG e WebP;',
         '- tamanho máximo: 5 MB;',
         '- o campo do arquivo deve se chamar `file`;',
         '- `alt` é usado para acessibilidade e SEO e é limitado a 160 caracteres pela validação HTTP;',
         '- valores de `alt` acima de 160 caracteres são rejeitados com 400 antes do upload, sem enviar o arquivo ao storage externo;',
         '- `isCover=true` define a imagem como capa e remove a marcação de capa das demais imagens;',
-        '- o conteúdo binário real do arquivo é inspecionado (não apenas o Content-Type declarado); um arquivo cujo conteúdo detectado não seja um JPEG, PNG ou WebP válido, ou que divirja do tipo declarado, é rejeitado com a mesma resposta 415 usada para tipo de arquivo não suportado.',
+        '- o conteúdo binário real do arquivo é inspecionado (não apenas o Content-Type declarado); um arquivo cujo conteúdo detectado não seja um JPEG/JPG, PNG ou WebP válido, ou que divirja do tipo declarado, é rejeitado com a mesma resposta 415 usada para tipo de arquivo não suportado.',
       ].join('\n'),
 
       /**
@@ -195,7 +195,7 @@ export const adminWorksPaths = {
                   type: 'string',
                   format: 'binary',
                   description:
-                    'Imagem JPEG, PNG ou WebP, com tamanho máximo de 5 MB.',
+                    'Imagem JPEG/JPG, PNG ou WebP, com tamanho máximo de 5 MB.',
                 },
 
                 alt: {
@@ -243,7 +243,7 @@ export const adminWorksPaths = {
         '413': errorResponse('A imagem ultrapassa o limite de 5 MB.'),
 
         '415': errorResponse(
-          'Tipo de arquivo não suportado. Envie JPEG, PNG ou WebP.',
+          'Tipo de arquivo não suportado. Envie JPEG/JPG, PNG ou WebP.',
         ),
 
         '429': globalRateLimitResponse,
