@@ -461,14 +461,25 @@ mesmo prefixo `/admin/works`).
   ```
 
 - Erros:
-  - `400`: arquivo ausente, falha ao processar o multipart, payload de
-    campos inválido ou `alt` com mais de 160 caracteres.
+  - `400`: requisição de upload inválida. Categorias:
+    - arquivo ausente;
+    - campo de arquivo inesperado (a imagem deve ser enviada no campo
+      `file`);
+    - mais de uma imagem na requisição;
+    - campos do formulário acima dos limites permitidos;
+    - corpo multipart malformado;
+    - payload de campos inválido;
+    - `alt` com mais de 160 caracteres.
   - `401`: access token ausente/inválido/sessão expirada.
   - `404`: trabalho não encontrado.
   - `413`: imagem acima de 5 MB.
   - `415`: tipo de arquivo não suportado.
   - `429`: rate limit global.
-  - `500`: falha inesperada ao enviar ou persistir a imagem.
+  - `500`: falha inesperada do servidor, por exemplo ao gravar ou ler o
+    arquivo temporário do upload ou ao persistir os metadados da imagem.
+  - `502`: falha ao enviar a imagem para o armazenamento externo. Nenhum
+    metadado é persistido no MongoDB e a mensagem retornada é genérica,
+    sem detalhes do provedor.
 
 ### `DELETE /admin/works/{workId}/images/{imageId}`
 

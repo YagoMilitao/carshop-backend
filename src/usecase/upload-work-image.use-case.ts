@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { HttpError } from '../core/domain/application/ApplicationError/http-error';
-import type { ImageStoragePort } from '../core/domain/application/Storage/image-storage.port';
+import type {
+  ImageStoragePort,
+  UploadImageResult,
+} from '../core/domain/application/Storage/image-storage.port';
 import type { WorkRepositoryPort } from '../core/domain/repositories/work.repository';
 
 interface UploadWorkImageInput {
@@ -40,12 +43,7 @@ export class UploadWorkImageUseCase {
 
       const buffer = await fs.readFile(input.filePath);
 
-      const uploadedImage = await this.imageStorage.upload({
-        buffer,
-        mimeType: input.mimeType,
-        originalName: input.originalName,
-        folder: `carshop/works/${input.workId}`,
-      });
+      const uploadedImage = await this.uploadToStorage(input, buffer);
 
       try {
         await this.workRepository.addImage(input.workId, {
@@ -91,6 +89,35 @@ export class UploadWorkImageUseCase {
       } catch {
         // Melhor esforço: o arquivo já pode não existir.
       }
+    }
+  }
+
+  /**
+   * Envia a imagem ao storage externo.
+   *
+   * Motivo:
+   * falhas do provedor externo são registradas apenas no log do servidor
+   * e traduzidas para um 502 com mensagem fixa, sem expor a resposta bruta
+   * do provedor (mesmo padrão de `hard-delete-work.use-case.ts`).
+   */
+  private async uploadToStorage(
+    input: UploadWorkImageInput,
+    buffer: Buffer,
+  ): Promise<UploadImageResult> {
+    try {
+      return await this.imageStorage.upload({
+        buffer,
+        mimeType: input.mimeType,
+        originalName: input.originalName,
+        folder: `carshop/works/${input.workId}`,
+      });
+    } catch (error: unknown) {
+      console.error('Falha no upload da imagem para o storage externo.', error);
+
+      throw new HttpError(
+        502,
+        'Falha ao enviar a imagem para o armazenamento externo. Tente novamente.',
+      );
     }
   }
 }
