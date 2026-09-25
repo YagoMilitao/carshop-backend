@@ -572,6 +572,21 @@ describe('imageContentValidationMiddleware', () => {
     expect(mockUnlink).not.toHaveBeenCalled();
   });
 
+  it('accepts image/jpg as a JPEG alias and normalizes it to image/jpeg', async () => {
+    mockReadFile.mockResolvedValue(VALID_JPEG);
+    const next = jest.fn();
+    const request = buildRequest({
+      path: '/tmp/uploads/valid.jpg',
+      mimetype: 'image/jpg',
+    });
+
+    await imageContentValidationMiddleware(request as never, {} as never, next);
+
+    expect(next).toHaveBeenCalledWith();
+    expect(request.file?.mimetype).toBe('image/jpeg');
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
   it('rejects with 415 and cleans up the temp file when the content is not a valid image (AC-001)', async () => {
     mockReadFile.mockResolvedValue(GARBAGE);
     const next = jest.fn();

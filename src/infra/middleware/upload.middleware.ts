@@ -15,6 +15,7 @@ export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
  */
 export const ALLOWED_IMAGE_MIME_TYPES = [
   'image/jpeg',
+  'image/jpg',
   'image/png',
   'image/webp',
 ] as const;
@@ -42,7 +43,7 @@ export function isAllowedImageMimeType(mimeType: string): boolean {
  */
 export class UnsupportedImageTypeError extends Error {
   constructor() {
-    super('Formato inválido. Envie uma imagem JPEG, PNG ou WebP.');
+    super('Formato inválido. Envie uma imagem JPEG/JPG, PNG ou WebP.');
     this.name = 'UnsupportedImageTypeError';
   }
 }
