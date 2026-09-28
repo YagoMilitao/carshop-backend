@@ -11,6 +11,7 @@ import { WorkImageModel } from '../data/models/work-image.model';
 import { AdminUserModel } from '../data/models/admin-user.model';
 import { AuthSessionModel } from '../data/models/auth-session.model';
 import { PortfolioWorkModel } from '../data/models/portfolio-work';
+import { HomeImageSettingModel } from '../data/models/home-image-setting.model';
 
 /**
  * Todos os modelos Mongoose atualmente definidos no repositório (FR-003:
@@ -31,6 +32,7 @@ const MODELS = [
   AdminUserModel,
   AuthSessionModel,
   PortfolioWorkModel,
+  HomeImageSettingModel,
 ] as const;
 
 interface IndexPresenceEntry {

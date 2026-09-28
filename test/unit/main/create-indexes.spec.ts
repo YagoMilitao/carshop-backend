@@ -36,6 +36,7 @@ describe('create-indexes script (FR-003, FR-004, FR-005, NFR-001, NFR-003)', () 
     'admin-user.model',
     'auth-session.model',
     'portfolio-work',
+    'home-image-setting.model',
   ] as const;
 
   const MODEL_EXPORT_NAMES: Record<(typeof MODEL_KEYS)[number], string> = {
@@ -47,6 +48,7 @@ describe('create-indexes script (FR-003, FR-004, FR-005, NFR-001, NFR-003)', () 
     'admin-user.model': 'AdminUserModel',
     'auth-session.model': 'AuthSessionModel',
     'portfolio-work': 'PortfolioWorkModel',
+    'home-image-setting.model': 'HomeImageSettingModel',
   };
 
   interface ModelMockHandles {
@@ -114,7 +116,7 @@ describe('create-indexes script (FR-003, FR-004, FR-005, NFR-001, NFR-003)', () 
     process.env = originalEnv;
   });
 
-  it('conecta, garante os índices de todos os 8 modelos via createIndexes (nunca syncIndexes/drop), reporta presença e sempre desconecta (happy path)', async () => {
+  it('conecta, garante os índices de todos os 9 modelos via createIndexes (nunca syncIndexes/drop), reporta presença e sempre desconecta (happy path)', async () => {
     const connectDatabaseMock = jest.fn<(uri: string) => Promise<void>>(() =>
       Promise.resolve(),
     );

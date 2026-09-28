@@ -392,6 +392,11 @@ mesmo prefixo `/admin/works`).
   - `404`: trabalho não encontrado (inclusive se removido logicamente).
   - `409`: já existe um trabalho com o `slug` informado.
   - `429`: rate limit global.
+- Efeito na imagem da Home: se o trabalho fornecer a imagem principal da
+  Home configurada e seu `status` mudar para `draft`,
+  `GET /home-image` passa a responder `{ "image": null }` enquanto o
+  trabalho não estiver publicado (ver [Home Image](#home-image)). O status
+  e o corpo desta resposta não mudam.
 
 ### `DELETE /admin/works/{workId}`
 
@@ -435,6 +440,12 @@ mesmo prefixo `/admin/works`).
       }
     }
     ```
+
+- Efeito na imagem da Home: se uma imagem deste trabalho for a imagem
+  principal da Home configurada, `GET /home-image` passa a responder
+  `{ "image": null }` após a remoção (o mesmo vale para a remoção feita
+  pela rotina de expurgo de trabalhos removidos logicamente). O status e o
+  corpo desta resposta não mudam.
 
 ### `POST /admin/works/{workId}/images`
 
@@ -499,6 +510,9 @@ mesmo prefixo `/admin/works`).
   - `404`: trabalho ou imagem não encontrado(a).
   - `429`: rate limit global.
   - `500`: falha inesperada ao remover a imagem.
+- Efeito na imagem da Home: se esta imagem for a imagem principal da Home
+  configurada, `GET /home-image` passa a responder `{ "image": null }`
+  após a remoção. O status e o corpo desta resposta não mudam.
 
 ---
 
@@ -607,6 +621,109 @@ router).
 
 ---
 
+## Home Image
+
+Configuração da imagem principal (hero) da Home pública. Existe no máximo
+uma configuração, persistida no MongoDB (coleção `home_image_settings`). A
+configuração guarda apenas a referência `workId` + `imageId` para uma
+imagem já enviada por `POST /admin/works/{workId}/images`; a URL e o texto
+alternativo são sempre derivados da imagem armazenada no sistema, nunca de
+um valor enviado pelo cliente.
+
+Rotas montadas em `/home-image`
+(`src/infra/http/routes/home-image.routes.ts`) e `/admin/home-image`
+(`src/infra/http/routes/admin-home-image.routes.ts`).
+
+**Regra de elegibilidade**: somente imagens de trabalhos com
+`status: "published"` e não removidos logicamente podem ser a imagem da
+Home. A regra é aplicada na seleção (`PATCH /admin/home-image`) e
+revalidada a cada leitura pública (`GET /home-image`), contra o estado
+atual do trabalho:
+
+- imagem removida (`DELETE /admin/works/{workId}/images/{imageId}`) →
+  `GET /home-image` responde `{ "image": null }`;
+- trabalho removido definitivamente (`DELETE /admin/works/{workId}`,
+  inclusive pela rotina de expurgo) ou removido logicamente →
+  `{ "image": null }`;
+- trabalho alterado para `draft` (`PATCH /admin/works/{workId}`) →
+  `{ "image": null }`; se o trabalho voltar a `published` com a mesma
+  imagem, ela volta a ser exibida.
+
+A leitura pública nunca altera a configuração salva; uma nova seleção via
+`PATCH /admin/home-image` a substitui.
+
+### `HomeImageResponse` (schema)
+
+```json
+{
+  "image": {
+    "workId": "cf357670-d168-48b4-a5de-c57dff7858fe",
+    "imageId": "0b7e4a1c-3f2d-4c5e-9a8b-1d2e3f4a5b6c",
+    "url": "https://images.example.com/carshop/works/banco-civic.jpg",
+    "alt": "Banco do Honda Civic reformado em couro preto."
+  }
+}
+```
+
+- `image`: objeto ou `null`.
+  - `workId`, `imageId`: identificadores da imagem selecionada.
+  - `url`: URL pública da imagem armazenada pelo sistema.
+  - `alt`: texto alternativo (pode ser string vazia).
+- Dimensões (largura/altura) não são armazenadas pelo sistema e, por isso,
+  não fazem parte da resposta.
+- Identificadores internos do storage (`publicId`) nunca são expostos.
+
+### `GET /home-image`
+
+- Autenticação: nenhuma (endpoint público).
+- Resposta `200`: `HomeImageResponse`, tanto com imagem configurada quanto
+  com `image: null`.
+  - Quando nenhuma imagem está configurada, ou a imagem configurada não
+    existe mais ou não é elegível, a resposta é:
+
+    ```json
+    { "image": null }
+    ```
+
+- Erros:
+  - `429`: rate limit global.
+
+### `PATCH /admin/home-image`
+
+- Autenticação: `Authorization: Bearer <ACCESS_TOKEN>` (obrigatório).
+- Seleciona ou altera a imagem principal da Home, substituindo a seleção
+  anterior.
+- Body (`application/json`, obrigatório):
+
+  ```json
+  {
+    "workId": "cf357670-d168-48b4-a5de-c57dff7858fe",
+    "imageId": "0b7e4a1c-3f2d-4c5e-9a8b-1d2e3f4a5b6c"
+  }
+  ```
+
+  - `workId`, `imageId`: string, obrigatórios, 1–64 caracteres, apenas
+    letras, dígitos e hífen (`^[A-Za-z0-9-]+$`). URLs são rejeitadas.
+  - Campos extras (inclusive `url`) são rejeitados.
+- Resposta `200`: `HomeImageResponse` com a imagem selecionada (`image`
+  nunca é `null` nesta resposta).
+- Quando a requisição é rejeitada, a configuração atual permanece
+  inalterada.
+- Erros:
+  - `400`: `{ "message": "JSON inválido no corpo da requisição." }` — JSON
+    malformado (rejeitado pelo parser do corpo antes da validação).
+  - `400`: `{ "message": "Payload inválido." }` — corpo ausente, campo
+    ausente, tipo incorreto, identificador em formato inválido (ex.: URL)
+    ou campos não permitidos.
+  - `401`: access token ausente/inválido/sessão expirada ou revogada.
+  - `404`: `{ "message": "Trabalho não encontrado." }` (inexistente ou
+    removido logicamente) ou `{ "message": "Imagem não encontrada." }`.
+  - `409`: `{ "message": "A imagem selecionada não é elegível: o trabalho não está publicado." }`.
+  - `429`: rate limit global.
+  - `500`: falha inesperada do servidor.
+
+---
+
 ## Referência cruzada
 
 | Rota | Router | Controller |
@@ -618,3 +735,5 @@ router).
 | `DELETE /admin/works/{workId}` | `src/infra/http/routes/admin-work.routes.ts` | `AdminWorkController` |
 | `/admin/works/{workId}/images*` | `src/infra/http/routes/work-image.routes.ts` | `WorkImageController` |
 | `/admin/comments/*` | `src/infra/http/routes/admin-comment.routes.ts` | `AdminCommentController` |
+| `GET /home-image` | `src/infra/http/routes/home-image.routes.ts` | `HomeImageController` |
+| `PATCH /admin/home-image` | `src/infra/http/routes/admin-home-image.routes.ts` | `HomeImageController` |

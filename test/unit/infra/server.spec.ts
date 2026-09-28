@@ -29,6 +29,9 @@ const mockApp = { name: 'express-app', set: jest.fn() };
 const mockSessionStore = { name: 'session-store' };
 const mockWorkRepository = { name: 'work-repository' };
 const mockCommentRepository = { name: 'comment-repository' };
+const mockHomeImageSettingsRepository = {
+  name: 'home-image-settings-repository',
+};
 const mockTokenService = { name: 'token-service' };
 const mockCredentialsProvider = { name: 'credentials-provider' };
 const mockImageStorage = { name: 'image-storage' };
@@ -41,6 +44,9 @@ const mockExpress = jest.fn(() => mockApp);
 const mockMongoSessionStoreRepository = jest.fn(() => mockSessionStore);
 const mockMongoWorkRepository = jest.fn(() => mockWorkRepository);
 const mockMongoCommentRepository = jest.fn(() => mockCommentRepository);
+const mockMongoHomeImageSettingsRepository = jest.fn(
+  () => mockHomeImageSettingsRepository,
+);
 const mockJsonWebTokenService = jest.fn(() => mockTokenService);
 const mockEnvAdminCredentialsProvider = jest.fn(() => mockCredentialsProvider);
 const mockCloudinaryStorageService = jest.fn(() => mockImageStorage);
@@ -102,6 +108,13 @@ jest.mock('../../../src/infra/repositories/mongo-comment.repository', () => ({
   MongoCommentRepository: mockMongoCommentRepository,
 }));
 
+jest.mock(
+  '../../../src/infra/repositories/mongo-home-image-settings.repository',
+  () => ({
+    MongoHomeImageSettingsRepository: mockMongoHomeImageSettingsRepository,
+  }),
+);
+
 jest.mock('../../../src/infra/services/jsonwebtoken-token.service', () => ({
   JsonWebTokenService: mockJsonWebTokenService,
 }));
@@ -161,6 +174,7 @@ describe('createApp', () => {
     expect(mockMongoSessionStoreRepository).toHaveBeenCalledTimes(1);
     expect(mockMongoWorkRepository).toHaveBeenCalledTimes(1);
     expect(mockMongoCommentRepository).toHaveBeenCalledTimes(1);
+    expect(mockMongoHomeImageSettingsRepository).toHaveBeenCalledTimes(1);
     expect(mockJsonWebTokenService).toHaveBeenCalledTimes(1);
     expect(mockEnvAdminCredentialsProvider).toHaveBeenCalledTimes(1);
     expect(mockCloudinaryStorageService).toHaveBeenCalledTimes(1);
@@ -185,6 +199,7 @@ describe('createApp', () => {
       tokenService: mockTokenService,
       workRepository: mockWorkRepository,
       commentRepository: mockCommentRepository,
+      homeImageSettingsRepository: mockHomeImageSettingsRepository,
       imageStorage: mockImageStorage,
       healthController: mockHealthController,
     });
@@ -248,6 +263,7 @@ describe('createApp', () => {
       tokenService: mockTokenService,
       workRepository: mockWorkRepository,
       commentRepository: mockCommentRepository,
+      homeImageSettingsRepository: mockHomeImageSettingsRepository,
       imageStorage: overrideImageStorage,
       healthController: mockHealthController,
     });

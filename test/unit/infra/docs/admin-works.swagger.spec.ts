@@ -42,3 +42,29 @@ describe('adminWorksPaths — POST /admin/works/{workId}/images (CARSHOP-156 AC-
     );
   });
 });
+
+// CARSHOP-159 — FR-008/FR-011, AC-015: removal/change endpoints document
+// their indirect effect on GET /home-image without changing their contract.
+describe('adminWorksPaths — Home image notes (CARSHOP-159 AC-015)', () => {
+  it.each([
+    [
+      'DELETE /admin/works/{workId}/images/{imageId}',
+      adminWorksPaths['/admin/works/{workId}/images/{imageId}'].delete
+        .description,
+    ],
+    [
+      'DELETE /admin/works/{workId}',
+      adminWorksPaths['/admin/works/{workId}'].delete.description,
+    ],
+    [
+      'PATCH /admin/works/{workId}',
+      adminWorksPaths['/admin/works/{workId}'].patch.description,
+    ],
+  ])(
+    '%s explains that GET /home-image then returns image null',
+    (_label, description) => {
+      expect(description).toContain('GET /home-image');
+      expect(description).toContain('{ "image": null }');
+    },
+  );
+});
