@@ -13,6 +13,7 @@ import { registerRoutes } from './config/routes';
 import { MongoSessionStoreRepository } from './repositories/mongo-session-store.repository';
 import { MongoWorkRepository } from './repositories/mongo-work.repository';
 import { MongoCommentRepository } from './repositories/mongo-comment.repository';
+import { MongoHomeImageSettingsRepository } from './repositories/mongo-home-image-settings.repository';
 import { JsonWebTokenService } from './services/jsonwebtoken-token.service';
 import { CloudinaryStorageService } from './gateway/cloudinary/cloudinary-storage.service';
 import { MongooseDatabaseHealthCheckService } from './services/mongoose-database-health-check.service';
@@ -70,6 +71,7 @@ export function createApp(overrides: CreateAppOverrides = {}): Express {
   const sessionStore = new MongoSessionStoreRepository();
   const workRepository = new MongoWorkRepository();
   const commentRepository = new MongoCommentRepository();
+  const homeImageSettingsRepository = new MongoHomeImageSettingsRepository();
 
   /**
    * Serviços concretos da infraestrutura.
@@ -114,6 +116,7 @@ export function createApp(overrides: CreateAppOverrides = {}): Express {
     tokenService,
     workRepository,
     commentRepository,
+    homeImageSettingsRepository,
     imageStorage,
     healthController,
   });

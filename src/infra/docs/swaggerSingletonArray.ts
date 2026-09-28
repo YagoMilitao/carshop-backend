@@ -15,6 +15,11 @@ import {
   commentsTags,
 } from './comments.swagger';
 import { healthPaths, healthTags } from './health.swagger';
+import {
+  homeImagePaths,
+  homeImageSchemas,
+  homeImageTags,
+} from './home-image.swagger';
 import { mergeOpenApiPaths } from './swagger.merge';
 import { worksPaths, worksSchemas, worksTags } from './works.swagger';
 
@@ -41,6 +46,7 @@ export const openApiDocument = {
     ...commentsTags,
     ...adminWorksTags,
     ...adminCommentsTags,
+    ...homeImageTags,
   ],
 
   components: {
@@ -86,6 +92,7 @@ export const openApiDocument = {
       ...commentsSchemas,
       ...adminWorksSchemas,
       ...adminCommentsSchemas,
+      ...homeImageSchemas,
     },
   },
 
@@ -100,5 +107,6 @@ export const openApiDocument = {
     commentsPaths,
     adminWorksPaths,
     adminCommentsPaths,
+    homeImagePaths,
   ),
 } as const;

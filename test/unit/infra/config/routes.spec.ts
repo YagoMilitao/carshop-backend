@@ -5,6 +5,7 @@ import type { ImageStoragePort } from '../../../../src/core/domain/application/S
 import type { SessionStorePort } from '../../../../src/core/domain/repositories/session-store.repository';
 import type { WorkRepositoryPort } from '../../../../src/core/domain/repositories/work.repository';
 import type { CommentRepositoryPort } from '../../../../src/core/domain/repositories/comment.repository';
+import type { HomeImageSettingsRepositoryPort } from '../../../../src/core/domain/repositories/home-image-settings.repository';
 import type { HealthController } from '../../../../src/presentation/controllers/health.controller';
 
 const mockAuthRouter = { name: 'auth-router' };
@@ -12,12 +13,16 @@ const mockWorkRouter = { name: 'work-router' };
 const mockAdminCommentRouter = { name: 'admin-comment-router' };
 const mockWorkImageRouter = { name: 'work-image-router' };
 const mockAdminWorkRouter = { name: 'admin-work-router' };
+const mockHomeImageRouter = { name: 'home-image-router' };
+const mockAdminHomeImageRouter = { name: 'admin-home-image-router' };
 
 const mockBuildAuthRouter = jest.fn(() => mockAuthRouter);
 const mockBuildWorkRouter = jest.fn(() => mockWorkRouter);
 const mockBuildAdminCommentRouter = jest.fn(() => mockAdminCommentRouter);
 const mockBuildWorkImageRouter = jest.fn(() => mockWorkImageRouter);
 const mockBuildAdminWorkRouter = jest.fn(() => mockAdminWorkRouter);
+const mockBuildHomeImageRouter = jest.fn(() => mockHomeImageRouter);
+const mockBuildAdminHomeImageRouter = jest.fn(() => mockAdminHomeImageRouter);
 
 jest.mock('../../../../src/infra/http/routes/auth.routes', () => ({
   buildAuthRouter: (...args: unknown[]) =>
@@ -45,6 +50,18 @@ jest.mock('../../../../src/infra/http/routes/admin-work.routes', () => ({
       ...args,
     ),
 }));
+jest.mock('../../../../src/infra/http/routes/home-image.routes', () => ({
+  buildHomeImageRouter: (...args: unknown[]) =>
+    (mockBuildHomeImageRouter as unknown as (...a: unknown[]) => unknown)(
+      ...args,
+    ),
+}));
+jest.mock('../../../../src/infra/http/routes/admin-home-image.routes', () => ({
+  buildAdminHomeImageRouter: (...args: unknown[]) =>
+    (mockBuildAdminHomeImageRouter as unknown as (...a: unknown[]) => unknown)(
+      ...args,
+    ),
+}));
 
 import { registerRoutes } from '../../../../src/infra/config/routes';
 
@@ -61,6 +78,9 @@ describe('registerRoutes', () => {
   const tokenService = { name: 'token-service' } as unknown as TokenServicePort;
   const workRepository = {} as WorkRepositoryPort;
   const commentRepository = {} as CommentRepositoryPort;
+  const homeImageSettingsRepository = {
+    name: 'home-image-settings-repository',
+  } as unknown as HomeImageSettingsRepositoryPort;
   const imageStorage = {} as ImageStoragePort;
   const healthController = {
     check: jest.fn(),
@@ -79,6 +99,7 @@ describe('registerRoutes', () => {
       tokenService,
       workRepository,
       commentRepository,
+      homeImageSettingsRepository,
       imageStorage,
       healthController,
     });
@@ -109,6 +130,7 @@ describe('registerRoutes', () => {
       tokenService,
       workRepository,
       commentRepository,
+      homeImageSettingsRepository,
       imageStorage,
       healthController,
     });
@@ -125,6 +147,7 @@ describe('registerRoutes', () => {
       tokenService,
       workRepository,
       commentRepository,
+      homeImageSettingsRepository,
       imageStorage,
       healthController,
     });
@@ -168,5 +191,22 @@ describe('registerRoutes', () => {
     );
     expect(app.use).toHaveBeenCalledWith('/admin/works', mockWorkImageRouter);
     expect(app.use).toHaveBeenCalledWith('/admin/works', mockAdminWorkRouter);
+
+    expect(mockBuildHomeImageRouter).toHaveBeenCalledWith(
+      workRepository,
+      homeImageSettingsRepository,
+    );
+    expect(app.use).toHaveBeenCalledWith('/home-image', mockHomeImageRouter);
+
+    expect(mockBuildAdminHomeImageRouter).toHaveBeenCalledWith(
+      workRepository,
+      homeImageSettingsRepository,
+      sessionStore,
+      tokenService,
+    );
+    expect(app.use).toHaveBeenCalledWith(
+      '/admin/home-image',
+      mockAdminHomeImageRouter,
+    );
   });
 });

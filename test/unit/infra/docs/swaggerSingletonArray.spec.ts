@@ -20,6 +20,21 @@ describe('openApiDocument', () => {
     expect(openApiDocument.paths['/works/{slug}']).toBeDefined();
   });
 
+  // CARSHOP-159 / FR-011, AC-015: both Home image endpoints are assembled
+  // into the central document together with their schemas.
+  it('documents GET /home-image and PATCH /admin/home-image (CARSHOP-159)', () => {
+    expect(openApiDocument.paths['/home-image'].get).toBeDefined();
+    expect(openApiDocument.paths['/admin/home-image'].patch).toBeDefined();
+    expect(openApiDocument.components.schemas.HomeImage).toBeDefined();
+    expect(openApiDocument.components.schemas.HomeImageResponse).toBeDefined();
+    expect(
+      openApiDocument.components.schemas.SetHomeImageRequest,
+    ).toBeDefined();
+    expect(openApiDocument.tags).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'Home Image' })]),
+    );
+  });
+
   // CARSHOP-37 / FR-005, NFR-003, AC-004: GET /health must be documented
   // with 200 (ok/connected) and 503 (degraded/disconnected) responses.
   it('documents GET /health with 200 and 503 responses (CARSHOP-37)', () => {

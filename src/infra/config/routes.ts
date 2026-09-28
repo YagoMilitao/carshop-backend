@@ -7,6 +7,7 @@ import type { ImageStoragePort } from '../../core/domain/application/Storage/ima
 import type { SessionStorePort } from '../../core/domain/repositories/session-store.repository';
 import type { WorkRepositoryPort } from '../../core/domain/repositories/work.repository';
 import type { CommentRepositoryPort } from '../../core/domain/repositories/comment.repository';
+import type { HomeImageSettingsRepositoryPort } from '../../core/domain/repositories/home-image-settings.repository';
 import type { HealthController } from '../../presentation/controllers/health.controller';
 
 import { buildAuthRouter } from '../http/routes/auth.routes';
@@ -14,6 +15,8 @@ import { buildWorkRouter } from '../http/routes/work.routes';
 import { buildAdminCommentRouter } from '../http/routes/admin-comment.routes';
 import { buildWorkImageRouter } from '../http/routes/work-image.routes';
 import { buildAdminWorkRouter } from '../http/routes/admin-work.routes';
+import { buildHomeImageRouter } from '../http/routes/home-image.routes';
+import { buildAdminHomeImageRouter } from '../http/routes/admin-home-image.routes';
 
 /**
  * Dependências necessárias para registrar todas as rotas.
@@ -28,6 +31,7 @@ interface RegisterRoutesDependencies {
   tokenService: TokenServicePort;
   workRepository: WorkRepositoryPort;
   commentRepository: CommentRepositoryPort;
+  homeImageSettingsRepository: HomeImageSettingsRepositoryPort;
   imageStorage: ImageStoragePort;
   healthController: HealthController;
 }
@@ -127,6 +131,7 @@ export function registerRoutes(
    * Rotas administrativas de works.
    *
    * Base:
+   * PATCH  /admin/works/:workId
    * DELETE /admin/works/:workId
    */
   app.use(
@@ -134,6 +139,37 @@ export function registerRoutes(
     buildAdminWorkRouter(
       dependencies.workRepository,
       dependencies.imageStorage,
+      dependencies.sessionStore,
+      dependencies.tokenService,
+    ),
+  );
+
+  /**
+   * Rota pública da imagem principal da Home (CARSHOP-159).
+   *
+   * Base:
+   * GET /home-image
+   */
+  app.use(
+    '/home-image',
+    buildHomeImageRouter(
+      dependencies.workRepository,
+      dependencies.homeImageSettingsRepository,
+    ),
+  );
+
+  /**
+   * Rota administrativa de seleção da imagem principal da Home
+   * (CARSHOP-159).
+   *
+   * Base:
+   * PATCH /admin/home-image
+   */
+  app.use(
+    '/admin/home-image',
+    buildAdminHomeImageRouter(
+      dependencies.workRepository,
+      dependencies.homeImageSettingsRepository,
       dependencies.sessionStore,
       dependencies.tokenService,
     ),

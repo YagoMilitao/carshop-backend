@@ -265,8 +265,11 @@ export const adminWorksPaths = {
 
       summary: 'Remove uma imagem de um trabalho',
 
-      description:
+      description: [
         'Remove o arquivo do storage externo (usando o publicId persistido) e o metadado correspondente no MongoDB.',
+        '',
+        'Se esta imagem for a imagem principal da Home configurada, `GET /home-image` passa a responder `{ "image": null }` após a remoção. O status e o corpo desta resposta não mudam.',
+      ].join('\n'),
 
       security: bearerSecurity,
 
@@ -323,6 +326,10 @@ export const adminWorksPaths = {
         'Atualiza somente os campos enviados no payload. Campos ausentes',
         'permanecem inalterados. `images`, `metadata` e `seo` não são',
         'editáveis por este endpoint.',
+        'Se o trabalho fornecer a imagem principal da Home e seu `status`',
+        'mudar para `draft`, `GET /home-image` passa a responder',
+        '`{ "image": null }` enquanto o trabalho não estiver publicado.',
+        'O status e o corpo desta resposta não mudam.',
       ].join(' '),
 
       security: bearerSecurity,
@@ -383,6 +390,8 @@ export const adminWorksPaths = {
         'Se a remoção de qualquer arquivo no storage externo falhar, a operação é abortada antes de alterar o MongoDB.',
         '',
         'Falha parcial: se a remoção de uma imagem falhar depois que outra(s) imagem(ns) já tiverem sido removidas com sucesso do storage externo, o trabalho permanece no MongoDB referenciando as imagens já removidas, sem compensação/restauração automática. É seguro repetir a mesma chamada DELETE para o mesmo workId, já que o storage externo trata "não encontrado" como sucesso. A operação só é concluída quando a remoção de todas as imagens restantes no storage externo tiver sucesso.',
+        '',
+        'Se uma imagem deste trabalho for a imagem principal da Home configurada, `GET /home-image` passa a responder `{ "image": null }` após a remoção. O status e o corpo desta resposta não mudam.',
       ].join('\n'),
 
       security: bearerSecurity,
