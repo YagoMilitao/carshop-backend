@@ -208,6 +208,33 @@ describe('Admin work hard-delete (e2e)', () => {
         .expect(201);
     }
 
+    const beforePartialFailureResponse = await request(app)
+      .get('/works')
+      .expect(200);
+    const workBeforePartialFailure = (
+      beforePartialFailureResponse.body as WorkResponseBody[]
+    ).find((work) => work.id === workId);
+    const configuredImage = workBeforePartialFailure?.images[0];
+
+    expect(configuredImage).toBeDefined();
+
+    await request(app)
+      .patch('/admin/home-image')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ workId, imageId: configuredImage?.id })
+      .expect(200);
+
+    const configuredHomeImageResponse = await request(app)
+      .get('/home-image')
+      .expect(200);
+
+    expect(configuredHomeImageResponse.body).toEqual({
+      image: expect.objectContaining({
+        workId,
+        imageId: configuredImage?.id,
+      }),
+    });
+
     const deleteImageSpy = jest
       .spyOn(imageStorage, 'delete')
       .mockResolvedValueOnce(undefined)
@@ -241,6 +268,10 @@ describe('Admin work hard-delete (e2e)', () => {
     expect(worksAfterPartialFailure.some((work) => work.id === workId)).toBe(
       true,
     );
+    expect(
+      worksAfterPartialFailure.find((work) => work.id === workId)?.images,
+    ).toHaveLength(1);
+    await request(app).get('/home-image').expect(200, { image: null });
 
     deleteImageSpy.mockReset();
     deleteImageSpy.mockResolvedValue(undefined);
@@ -249,6 +280,8 @@ describe('Admin work hard-delete (e2e)', () => {
       .delete(`/admin/works/${workId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200, { success: true });
+
+    expect(deleteImageSpy).toHaveBeenCalledTimes(1);
 
     const afterRetryResponse = await request(app).get('/works').expect(200);
     const worksAfterRetry = afterRetryResponse.body as WorkResponseBody[];

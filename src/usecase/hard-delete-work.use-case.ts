@@ -10,19 +10,15 @@ import type { WorkRepositoryPort } from '../core/domain/repositories/work.reposi
  * (Cloudinary) sequencialmente antes de o Work ser removido do
  * MongoDB. O adapter ativo de `ImageStoragePort` trata "not found"
  * como sucesso (exclusão idempotente); qualquer outra falha real
- * aborta a operação com `HttpError(502, ...)` antes de tocar no
- * Mongo.
+ * aborta a operação com `HttpError(502, ...)`.
  *
  * Comportamento em falha parcial: se a remoção de uma imagem N
  * falhar após as imagens `1..N-1` já terem sido removidas com
- * sucesso do storage externo, o Work permanece no MongoDB
- * referenciando imagens já removidas do storage externo até uma
- * nova tentativa bem-sucedida — não há compensação/rollback
- * automático das exclusões já realizadas. O cliente deve repetir a
- * mesma chamada DELETE; como o adapter trata "not found" como
- * sucesso, a nova tentativa reprocessa as imagens já removidas sem
- * erro. O retry é seguro e a operação é concluída quando todas as
- * remoções restantes tiverem sucesso.
+ * sucesso do storage externo, os metadados dessas imagens também são
+ * removidos imediatamente do Work. Assim, leituras públicas não
+ * continuam expondo URLs quebradas, e uma nova tentativa processa
+ * apenas as imagens restantes. Não há compensação/rollback automático
+ * das exclusões já realizadas.
  */
 export class HardDeleteWorkUseCase {
   constructor(
@@ -42,6 +38,7 @@ export class HardDeleteWorkUseCase {
     for (const image of work.images) {
       try {
         await this.imageStorage.delete(image.publicId);
+        await this.workRepository.removeImage(workId, image.id);
         removedImagesCount += 1;
       } catch (error: unknown) {
         console.error(

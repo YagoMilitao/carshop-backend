@@ -90,6 +90,16 @@ describe('HardDeleteWorkUseCase', () => {
       2,
       'carshop/works/work-1/image-2',
     );
+    expect(workRepository.removeImage).toHaveBeenNthCalledWith(
+      1,
+      'work-1',
+      'image-1',
+    );
+    expect(workRepository.removeImage).toHaveBeenNthCalledWith(
+      2,
+      'work-1',
+      'image-2',
+    );
     expect(workRepository.hardDelete).toHaveBeenCalledWith('work-1');
   });
 
@@ -106,6 +116,7 @@ describe('HardDeleteWorkUseCase', () => {
     });
 
     expect(imageStorage.delete).not.toHaveBeenCalled();
+    expect(workRepository.removeImage).not.toHaveBeenCalled();
     expect(workRepository.hardDelete).not.toHaveBeenCalled();
     expect(workRepository.hardDeleteData).not.toHaveBeenCalled();
   });
@@ -129,12 +140,24 @@ describe('HardDeleteWorkUseCase', () => {
     });
 
     expect(workRepository.hardDelete).not.toHaveBeenCalled();
+    expect(workRepository.removeImage).not.toHaveBeenCalled();
     expect(workRepository.hardDeleteData).not.toHaveBeenCalled();
   });
 
   it('após falha parcial, uma nova tentativa completa o hard delete quando o storage se recupera (AC-007)', async () => {
+    let persistedWork = structuredClone(workWithImages);
     const workRepository = buildWorkRepository({
-      findByIdIncludingDeleted: jest.fn().mockResolvedValue(workWithImages),
+      findByIdIncludingDeleted: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve(persistedWork)),
+      removeImage: jest.fn().mockImplementation((_workId, imageId) => {
+        persistedWork = {
+          ...persistedWork,
+          images: persistedWork.images.filter((image) => image.id !== imageId),
+        };
+
+        return Promise.resolve();
+      }),
     });
     const imageStorage = buildImageStorage({
       delete: jest
@@ -159,13 +182,28 @@ describe('HardDeleteWorkUseCase', () => {
     });
 
     expect(workRepository.hardDelete).not.toHaveBeenCalled();
+    expect(workRepository.removeImage).toHaveBeenCalledTimes(1);
+    expect(workRepository.removeImage).toHaveBeenCalledWith(
+      'work-1',
+      'image-1',
+    );
+    expect(persistedWork.images.map((image) => image.id)).toEqual(['image-2']);
 
     imageStorage.delete.mockReset();
     imageStorage.delete.mockResolvedValue(undefined);
+    workRepository.removeImage.mockClear();
 
     const retryResult = await useCase.execute('work-1');
 
     expect(retryResult).toEqual({ success: true });
+    expect(imageStorage.delete).toHaveBeenCalledTimes(1);
+    expect(imageStorage.delete).toHaveBeenCalledWith(
+      'carshop/works/work-1/image-2',
+    );
+    expect(workRepository.removeImage).toHaveBeenCalledWith(
+      'work-1',
+      'image-2',
+    );
     expect(workRepository.hardDelete).toHaveBeenCalledTimes(1);
     expect(workRepository.hardDelete).toHaveBeenCalledWith('work-1');
   });
