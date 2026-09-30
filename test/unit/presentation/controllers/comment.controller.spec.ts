@@ -104,6 +104,32 @@ describe('CommentController', () => {
       expect(createCommentUseCase.execute).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(expect.any(HttpError));
     });
+
+    it('encaminha 400 e não chama o caso de uso quando content contém <script> (FR-003)', async () => {
+      const { createCommentUseCase, listApprovedCommentsUseCase } =
+        createUseCaseMocks();
+      const controller = new CommentController(
+        createCommentUseCase,
+        listApprovedCommentsUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = {
+        params: { workId: 'work-1' },
+        body: {
+          authorName: 'Maria',
+          content: '<script>alert(1)</script>',
+        },
+      } as unknown as Request;
+
+      await controller.create(request, response, next);
+
+      expect(createCommentUseCase.execute).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ statusCode: 400 }),
+      );
+    });
   });
 
   describe('listApproved', () => {

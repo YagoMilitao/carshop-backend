@@ -16,12 +16,16 @@ export const commentsSchemas = {
         minLength: 2,
         maxLength: 80,
         example: 'Yago',
+        description:
+          'Não pode conter marcação HTML ou conteúdo de script (ex.: tags, atributos de evento ou URIs javascript:); submissões com esse conteúdo são rejeitadas.',
       },
       content: {
         type: 'string',
         minLength: 3,
         maxLength: 1000,
         example: 'Ficou muito bom esse trabalho.',
+        description:
+          'Não pode conter marcação HTML ou conteúdo de script (ex.: tags, atributos de evento ou URIs javascript:); submissões com esse conteúdo são rejeitadas.',
       },
     },
   },
