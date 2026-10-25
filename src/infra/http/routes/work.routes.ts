@@ -14,6 +14,7 @@ import type { TokenServicePort } from '../../../core/domain/application/Auth/tok
 import { buildAuthMiddleware } from '../../presentation/middleware/auth.middleware';
 import { buildRequireAuthForDraftsMiddleware } from '../../presentation/middleware/require-auth-for-drafts.middleware';
 import { commentRateLimitMiddleware } from '../../presentation/middleware/rate-limit.middleware';
+import { commentAntiBotMiddleware } from '../../presentation/middleware/anti-bot.middleware';
 
 export function buildWorkRouter(
   workRepository: WorkRepositoryPort,
@@ -70,10 +71,14 @@ export function buildWorkRouter(
    * rate limiter global já registrado no middleware da aplicação, para
    * mitigar spam sem afetar a listagem de comentários nem qualquer outra
    * rota de works.
+   *
+   * Em seguida aplica a proteção anti-automação (CARSHOP-140), após o
+   * limitador para que rejeições continuem contando na janela dele.
    */
   router.post(
     '/:workId/comments',
     commentRateLimitMiddleware,
+    commentAntiBotMiddleware,
     commentController.create,
   );
 

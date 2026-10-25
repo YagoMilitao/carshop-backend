@@ -327,13 +327,20 @@ Rotas montadas em `/works/:workId/comments`
 
   - `authorName`: string, 2–80 caracteres.
   - `content`: string, 3–1000 caracteres.
+  - `website` (opcional, CARSHOP-140): campo de controle anti-automação.
+    Deve ser omitido ou enviado como string vazia (`""`); qualquer outro
+    valor resulta em `400`. Não é persistido nem retornado. Ver
+    [`docs/anti-bot-policy.md`](anti-bot-policy.md).
 - Cria comentário com `status = PENDING` (exige aprovação administrativa
   antes de aparecer em `GET /works/{workId}/comments`).
 - Resposta `201`: `CommentResponse`.
 - Erros:
-  - `400`: payload inválido.
+  - `400`: payload inválido. Requisições rejeitadas pela proteção
+    anti-automação respondem `{ "message": "Payload inválido." }`, sem o
+    campo `details`.
   - `404`: trabalho não encontrado.
-  - `429`: rate limit global.
+  - `429`: rate limit global (100 requisições por IP em 15 minutos) ou
+    limite dedicado de comentários (10 requisições por IP em 10 minutos).
 
 ### `CommentResponse` (schema)
 

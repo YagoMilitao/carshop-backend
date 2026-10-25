@@ -19,6 +19,16 @@ export const createCommentSchema = z
       .trim()
       .min(3, 'Comentário precisa ter pelo menos 3 caracteres.')
       .max(1000, 'Comentário pode ter no máximo 1000 caracteres.'),
+
+    /**
+     * Campo de controle anti-automação (CARSHOP-140).
+     *
+     * Motivo:
+     * a decisão é do `commentAntiBotMiddleware`; aqui o schema apenas
+     * aceita o campo ausente ou vazio como defesa em profundidade. A chave
+     * deve permanecer igual a `COMMENT_HONEYPOT_FIELD`.
+     */
+    website: z.literal('').optional(),
   })
   .strict();
 

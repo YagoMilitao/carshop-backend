@@ -317,6 +317,11 @@ Resposta:
 - A origem, o mecanismo de comparação e a ausência de persistência da
   credencial administrativa estão auditados e documentados em
   [`docs/admin-credential-security.md`](docs/admin-credential-security.md).
+- `POST /works/{workId}/comments` possui uma proteção anti-automação
+  complementar aos rate limiters (que permanecem inalterados), sem depender
+  de `User-Agent` e sem variáveis de ambiente novas. Política, resposta de
+  rejeição e recomendações de frontend estão em
+  [`docs/anti-bot-policy.md`](docs/anti-bot-policy.md).
 
 ## Testes
 
