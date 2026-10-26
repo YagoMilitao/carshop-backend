@@ -23,6 +23,12 @@ export const commentsSchemas = {
         maxLength: 1000,
         example: 'Ficou muito bom esse trabalho.',
       },
+      website: {
+        type: 'string',
+        maxLength: 0,
+        description:
+          'Campo de controle anti-automação. Deve ser omitido ou enviado como string vazia; qualquer outro valor resulta em 400.',
+      },
     },
   },
 
@@ -106,7 +112,9 @@ export const commentsPaths = {
           'Comentário criado com status PENDING',
           '#/components/schemas/CommentResponse',
         ),
-        '400': errorResponse('Payload inválido'),
+        '400': errorResponse(
+          'Payload inválido. Requisições rejeitadas pela proteção anti-automação respondem { "message": "Payload inválido." }, sem campo details.',
+        ),
         '404': errorResponse('Trabalho não encontrado'),
         '429': errorResponse(
           'Limite global (100 requisições por IP em 15 minutos) ou limite dedicado de comentários (10 requisições por IP em 10 minutos) excedido.',

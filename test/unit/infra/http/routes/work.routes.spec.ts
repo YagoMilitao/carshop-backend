@@ -47,6 +47,13 @@ jest.mock(
   }),
 );
 
+jest.mock(
+  '../../../../../src/infra/presentation/middleware/anti-bot.middleware',
+  () => ({
+    commentAntiBotMiddleware: 'comment-anti-bot-middleware',
+  }),
+);
+
 import { buildWorkRouter } from '../../../../../src/infra/http/routes/work.routes';
 import type { WorkRepositoryPort } from '../../../../../src/core/domain/repositories/work.repository';
 import type { CommentRepositoryPort } from '../../../../../src/core/domain/repositories/comment.repository';
@@ -91,6 +98,7 @@ describe('buildWorkRouter', () => {
     expect(mockPost).toHaveBeenCalledWith(
       '/:workId/comments',
       'comment-rate-limit-middleware',
+      'comment-anti-bot-middleware',
       expect.any(Function),
     );
     expect(mockGet).toHaveBeenCalledWith(

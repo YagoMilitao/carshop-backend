@@ -63,6 +63,33 @@ describe('CommentController', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
+    it('aceita o campo de controle vazio e não o repassa ao caso de uso (CARSHOP-140)', async () => {
+      const { createCommentUseCase, listApprovedCommentsUseCase } =
+        createUseCaseMocks();
+      createCommentUseCase.execute.mockResolvedValue(comment);
+      const controller = new CommentController(
+        createCommentUseCase,
+        listApprovedCommentsUseCase,
+      );
+
+      const response = createResponseMock();
+      const next = jest.fn();
+      const request = {
+        params: { workId: 'work-1' },
+        body: { authorName: 'Maria', content: 'Ótimo trabalho!', website: '' },
+      } as unknown as Request;
+
+      await controller.create(request, response, next);
+
+      expect(createCommentUseCase.execute).toHaveBeenCalledWith({
+        workId: 'work-1',
+        authorName: 'Maria',
+        content: 'Ótimo trabalho!',
+      });
+      expect(response.status).toHaveBeenCalledWith(201);
+      expect(next).not.toHaveBeenCalled();
+    });
+
     it('encaminha 400 quando workId está ausente', async () => {
       const { createCommentUseCase, listApprovedCommentsUseCase } =
         createUseCaseMocks();
