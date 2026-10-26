@@ -32,8 +32,7 @@ export function isHoneypotTriggered(body: unknown, fieldName: string): boolean {
     return false;
   }
 
-  // `Object.hasOwn` é ES2022; o target do projeto é ES2020.
-  if (!Object.prototype.hasOwnProperty.call(body, fieldName)) {
+  if (!Object.hasOwn(body, fieldName)) {
     return false;
   }
 
