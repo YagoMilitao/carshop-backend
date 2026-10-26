@@ -659,6 +659,30 @@ atual do trabalho:
 A leitura pública nunca altera a configuração salva; uma nova seleção via
 `PATCH /admin/home-image` a substitui.
 
+**Listagem de imagens candidatas (decisão CARSHOP-172)**: não existe
+endpoint que liste as imagens elegíveis para a Home. O frontend
+administrativo obtém as candidatas a partir da listagem de trabalhos já
+existente, `GET /works`, que não tem paginação nem filtros adicionais e
+devolve todos os trabalhos com suas `images`, e filtra no cliente os
+trabalhos com `status: "published"` e `deletedAt` ausente ou nulo:
+
+- sem `includeDrafts`, `GET /works` já devolve apenas trabalhos publicados
+  e não removidos logicamente; a resposta pública omite o campo
+  `deletedAt`;
+- com `includeDrafts=true` (autenticado), a resposta inclui também
+  rascunhos (nunca removidos logicamente), que precisam ser descartados no
+  cliente;
+- não há `GET /admin/works`.
+
+O filtro no cliente serve apenas para a interface: o backend continua
+revalidando a elegibilidade em `PATCH /admin/home-image` (respostas `404`
+e `409`; ver `PATCH /admin/home-image` abaixo) e a cada `GET /home-image`. Este é um risco aceito
+conscientemente: o tamanho e o custo da resposta crescem com o número de
+trabalhos, o que foi considerado aceitável dado o volume atual baixo. Um
+endpoint administrativo paginado de imagens elegíveis fica registrado
+como melhoria futura e ainda não foi implementado. O contrato de
+`GET /home-image` e `PATCH /admin/home-image` não muda.
+
 ### `HomeImageResponse` (schema)
 
 ```json
